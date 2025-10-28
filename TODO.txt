@@ -1,0 +1,6 @@
+
+Add way to show more detail in list (specifially, type)
+
+for SAS, need way to select which modes are needed'
+
+maybe add biome selection for flags???

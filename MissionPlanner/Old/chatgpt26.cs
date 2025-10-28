@@ -1,0 +1,2036 @@
+﻿#if false
+// File: MissionPlanner.cs
+// Mod: MissionPlanner
+// KSP1 (Unity IMGUI)
+//
+// Features implemented:
+// - Recursive hierarchical step tree with expand/collapse and move/promote/demote/duplicate/delete/add
+// - Double-click title to open "Step Details" window
+// - Toolbar button to show/hide main window (F10 also toggles)
+// - Only titles shown in the main tree; detailed data edited in a separate window
+// - StepType includes: toggle, intNotGreaterThan, intNotLessThan, floatNotGreaterThan, floatNotLessThan, intRange, floatRange, crewCount, part
+// - Part picker dialog with search and "available only" filter; excludes Kerbals/Flags/PotatoRoid
+// - Crew-count validator button (in flight) compares range vs active vessel crew count
+// - Runtime tuning sliders for Title Width %, Controls Pad, Indent/Level, Fold Column Width (persisted)
+// - Skin toggle (use KSP skin) persisted
+// - Persist all window rects across sessions
+// - Save / Load missions as GameData/MissionPlanner/PluginData/<SaveName>__<MissionName>.cfg
+// - Load dialog shows current-save missions by default; toggle to show all saves; delete mission
+// - "Save" saves immediately (overwrites silently)
+// - "Save As..." prompts for new mission name; if exists, shows Overwrite / Auto-increment dialog
+// - "New" mission button asks to Save / Discard / Cancel, then name new mission (optionally add sample root step)
+// - "Clear All" button clears all entries (with confirmation + toggle to add a sample root step)
+// - Mission Summary: add/edit a mission summary text block (in New flow and via 'Summary…' window).
+// - Hide main window when game paused; restore after unpause
+// - DragWindow from anywhere (called at end of each window draw)
+// - SyncToolbarState uses KSP.UI.UIRadioButton.State checks as requested
+//
+// Note: Place icons (optional):
+//   GameData/MissionPlanner/Icons/tree_on.png
+//   GameData/MissionPlanner/Icons/tree_off.png
+//
+// Build: Target .NET 3.5 (Unity/KSP1), reference Assembly-CSharp, UnityEngine, KSP assemblies.
+
+using KSP;
+using KSP.UI.Screens;
+using System;
+using System.Collections.Generic;
+using System.IO; // for Path.Combine etc.
+using UnityEngine;
+
+namespace MissionPlanner
+{
+    public enum StepType
+    {
+        toggle,
+        intNotGreaterThan,
+        intNotLessThan,
+        floatNotGreaterThan,
+        floatNotLessThan,
+        intRange,
+        floatRange,
+        crewCount,
+        part
+    }
+
+    [Serializable]
+    public class Step
+    {
+        public string title = "New Step";
+        public string descr = "";
+
+        public StepType stepType = StepType.toggle;
+
+        public bool toggle = false;
+        public bool initialToggleValue = false;
+
+        public int minIntRange = 0;
+        public int maxIntRange = 10;
+
+        public float minFloatRange = 0f;
+        public float maxFloatRange = 1f;
+
+        public int intNotGreaterThan = 100;
+        public int intNotLessThan = 0;
+        public float floatNotGreaterThan = 100f;
+        public float floatNotLessThan = 0f;
+
+        // Part selection
+        public string partName = "";        // internal name (AvailablePart.name)
+        public string partTitle = "";       // display title (AvailablePart.title)
+        public bool partOnlyAvailable = true;
+
+        public ConfigNode ToConfigNode()
+        {
+            var n = new ConfigNode("STEP");
+            n.AddValue("title", title ?? "");
+            n.AddValue("descr", descr ?? "");
+            n.AddValue("stepType", stepType.ToString());
+
+            n.AddValue("toggle", toggle);
+            n.AddValue("initialToggleValue", initialToggleValue);
+
+            n.AddValue("minIntRange", minIntRange);
+            n.AddValue("maxIntRange", maxIntRange);
+
+            n.AddValue("minFloatRange", minFloatRange);
+            n.AddValue("maxFloatRange", maxFloatRange);
+
+            n.AddValue("intNotGreaterThan", intNotGreaterThan);
+            n.AddValue("intNotLessThan", intNotLessThan);
+            n.AddValue("floatNotGreaterThan", floatNotGreaterThan);
+            n.AddValue("floatNotLessThan", floatNotLessThan);
+
+            n.AddValue("partName", partName ?? "");
+            n.AddValue("partTitle", partTitle ?? "");
+            n.AddValue("partOnlyAvailable", partOnlyAvailable);
+
+            return n;
+        }
+
+        public static Step FromConfigNode(ConfigNode n)
+        {
+            var s = new Step();
+            s.title = n.GetValue("title") ?? s.title;
+            s.descr = n.GetValue("descr") ?? s.descr;
+
+            StepType t;
+            if (Enum.TryParse(n.GetValue("stepType"), out t)) s.stepType = t;
+
+            bool btmp;
+            if (bool.TryParse(n.GetValue("toggle"), out btmp)) s.toggle = btmp;
+            if (bool.TryParse(n.GetValue("initialToggleValue"), out btmp)) s.initialToggleValue = btmp;
+
+            int itmp;
+            if (int.TryParse(n.GetValue("minIntRange"), out itmp)) s.minIntRange = itmp;
+            if (int.TryParse(n.GetValue("maxIntRange"), out itmp)) s.maxIntRange = itmp;
+
+            float ftmp;
+            if (float.TryParse(n.GetValue("minFloatRange"), out ftmp)) s.minFloatRange = ftmp;
+            if (float.TryParse(n.GetValue("maxFloatRange"), out ftmp)) s.maxFloatRange = ftmp;
+
+            if (int.TryParse(n.GetValue("intNotGreaterThan"), out itmp)) s.intNotGreaterThan = itmp;
+            if (int.TryParse(n.GetValue("intNotLessThan"), out itmp)) s.intNotLessThan = itmp;
+            if (float.TryParse(n.GetValue("floatNotGreaterThan"), out ftmp)) s.floatNotGreaterThan = ftmp;
+            if (float.TryParse(n.GetValue("floatNotLessThan"), out ftmp)) s.floatNotLessThan = ftmp;
+
+            s.partName = n.GetValue("partName") ?? "";
+            s.partTitle = n.GetValue("partTitle") ?? "";
+            if (bool.TryParse(n.GetValue("partOnlyAvailable"), out btmp)) s.partOnlyAvailable = btmp;
+
+            return s;
+        }
+    }
+
+    [Serializable]
+    public class StepNode
+    {
+        private static int _nextId = 1;
+        public readonly int Id;
+        public Step data = new Step();
+        public bool Expanded = true;
+        public StepNode Parent = null;
+        public readonly System.Collections.Generic.List<StepNode> Children = new System.Collections.Generic.List<StepNode>();
+
+        public StepNode() { Id = _nextId++; }
+
+        public StepNode AddChild(Step childStep = null)
+        {
+            var n = new StepNode { data = childStep ?? new Step(), Parent = this };
+            Children.Add(n);
+            return n;
+        }
+
+        public ConfigNode ToConfigNodeRecursive()
+        {
+            var n = new ConfigNode("NODE");
+            n.AddValue("title", data.title ?? "");
+            n.AddValue("expanded", Expanded);
+            n.AddNode(data.ToConfigNode());
+            foreach (var c in Children) n.AddNode(c.ToConfigNodeRecursive());
+            return n;
+        }
+
+        public static StepNode FromConfigNodeRecursive(ConfigNode n)
+        {
+            var node = new StepNode();
+            node.data.title = n.GetValue("title") ?? node.data.title;
+            bool ex;
+            if (bool.TryParse(n.GetValue("expanded"), out ex)) node.Expanded = ex;
+
+            var stepNode = n.GetNode("STEP");
+            if (stepNode != null) node.data = Step.FromConfigNode(stepNode);
+
+            foreach (var cn in n.GetNodes("NODE"))
+            {
+                var child = FromConfigNodeRecursive(cn);
+                child.Parent = node;
+                node.Children.Add(child);
+            }
+            return node;
+        }
+    }
+
+    [KSPAddon(KSPAddon.Startup.FlightAndEditor, false)]
+    public class HierarchicalStepsWindow : MonoBehaviour
+    {
+        // ---- Windows ----
+        private Rect _treeRect = new Rect(220, 120, 840, 620);
+        private Rect _detailRect = new Rect(820, 160, 560, 560);
+        private Rect _moveRect = new Rect(760, 120, 460, 500);
+        private Rect _loadRect = new Rect(720, 100, 560, 540);
+        private Rect _overwriteRect = new Rect(760, 180, 520, 220);
+        private Rect _deleteRect = new Rect(760, 160, 520, 180);
+        private Rect _partRect = new Rect(680, 140, 540, 580);
+        private Rect _saveAsRect = new Rect(740, 200, 520, 310); // taller to include mission summary
+        private Rect _newConfirmRect = new Rect(760, 200, 520, 180);
+        private Rect _clearConfirmRect = new Rect(760, 220, 520, 170);
+        private Rect _summaryRect = new Rect(760, 220, 520, 320);
+
+        private int _treeWinId, _detailWinId, _moveWinId, _loadWinId, _overwriteWinId, _deleteWinId, _partWinId, _saveAsWinId, _newConfirmWinId, _clearConfirmWinId, _summaryWinId;
+        private bool _visible = true;
+        private bool _visibleBeforePause = true;
+
+        // Skin toggle (persisted)
+        private bool _useKspSkin = true;
+
+        // Column tuning (persisted)
+        private float _titleWidthPct = 0.75f;  // 40–95%
+        private float _controlsPad = 40f;    // 0–120 px
+        private float _indentPerLevel = 18f;    // 10–40 px
+        private float _foldColWidth = 24f;    // 16–48 px
+
+        // Toolbar
+        private ApplicationLauncherButton _appButton;
+        private Texture2D _iconOn, _iconOff;
+        private const string IconOnPath = "MissionPlanner/Icons/tree_on";
+        private const string IconOffPath = "MissionPlanner/Icons/tree_off";
+        private readonly ApplicationLauncher.AppScenes _scenes =
+            ApplicationLauncher.AppScenes.FLIGHT |
+            ApplicationLauncher.AppScenes.VAB |
+            ApplicationLauncher.AppScenes.SPH;
+
+        // Missions I/O
+        private const string SAVE_ROOT_NODE = "MISSION_PLANNER";
+        private const string SAVE_LIST_NODE = "ROOTS";
+        private const string SAVE_MOD_FOLDER = "MissionPlanner/PluginData";
+        private const string SAVE_FILE_EXT = ".cfg";
+
+        // UI persistence
+        private const string UI_FILE_NAME = "UI.cfg";
+        private const string UI_ROOT_NODE = "MISSION_PLANNER_UI";
+
+        // Mission meta
+        private string _missionName = "Untitled Mission";
+        private string _missionSummary = ""; // NEW: human-readable summary
+
+        // Data
+        private readonly System.Collections.Generic.List<StepNode> _roots = new System.Collections.Generic.List<StepNode>();
+
+        // Selection / dialogs
+        private StepNode _selectedNode = null;
+        private StepNode _detailNode = null;
+        private bool _showMoveDialog = false;
+        private StepNode _moveNode = null;
+        private StepNode _moveTargetParent = null;
+
+        // Load dialog
+        private bool _showLoadDialog = false;
+        private bool _loadShowAllSaves = false;
+        private Vector2 _loadScroll;
+        private System.Collections.Generic.List<MissionFileInfo> _loadList = new System.Collections.Generic.List<MissionFileInfo>();
+
+        // Overwrite confirm
+        private bool _showOverwriteDialog = false;
+        private string _pendingSavePath = null;
+        private string _pendingSaveMission = null;
+
+        // Delete confirm
+        private bool _showDeleteConfirm = false;
+        private MissionFileInfo _deleteTarget;
+
+        // Part picker dialog
+        private bool _showPartDialog = false;
+        private StepNode _partTargetNode = null;
+        private Vector2 _partScroll;
+        private string _partFilter = "";
+        private bool _partAvailableOnly = true;
+
+        // Save As / New
+        private bool _showSaveAs = false;
+        private string _saveAsName = "";
+        private bool _creatingNewMission = false;
+        private bool _newMissionAddSample = true; // toggle for New flow
+        private string _saveAsSummaryText = "";   // NEW: summary entered in New flow
+
+        // New confirm
+        private bool _showNewConfirm = false;
+
+        // Clear All
+        private bool _showClearConfirm = false;
+        private bool _clearAddSample = false; // toggle to add a sample root after clearing
+
+        // Summary window
+        private bool _showSummaryWindow = false;
+        private Vector2 _summaryScroll;
+
+        // Scroll
+        private Vector2 _scroll;
+        private Vector2 _moveScroll;
+
+        // Styles
+        private GUIStyle _titleLabel, _selectedTitle, _smallBtn, _hintLabel, _tinyLabel, _titleEdit, _badge, _badgeError;
+        bool lastUseKSPSkin = true;
+
+        private readonly KeyCode _toggleKey = KeyCode.F10;
+
+        // Double-click
+        private int _lastClickedId = -1;
+        private float _lastClickTime = 0f;
+        private const float DoubleClickSec = 0.30f;
+
+        // Save indicator (UI only)
+        private string _lastSaveInfo = "";
+        private float _lastSaveShownUntil = 0f;
+        private const float SaveIndicatorSeconds = 3f;
+        private bool _lastSaveWasSuccess = true;
+
+        // ---- Helpers for .NET 3.5 ----
+        private static bool IsNullOrWhiteSpace(string s) { return String.IsNullOrEmpty(s) || s.Trim().Length == 0; }
+
+        public void Awake()
+        {
+            _treeWinId = GetHashCode();
+            _detailWinId = _treeWinId ^ 0x5A17;
+            _moveWinId = _treeWinId ^ 0x4B33;
+            _loadWinId = _treeWinId ^ 0x23A1;
+            _overwriteWinId = _treeWinId ^ 0x7321;
+            _deleteWinId = _treeWinId ^ 0x19C7;
+            _partWinId = _treeWinId ^ 0x71AF;
+            _saveAsWinId = _treeWinId ^ 0x5EE5;
+            _newConfirmWinId = _treeWinId ^ 0x6A11;
+            _clearConfirmWinId = _treeWinId ^ 0x6A31;
+            _summaryWinId = _treeWinId ^ 0x7B21;
+
+            LoadIconsOrFallback();
+            LoadUISettings();
+
+            if (!TryAutoLoadMostRecentForCurrentSave())
+                SeedSample();
+            ReparentAll();
+
+            GameEvents.onGamePause.Add(OnGamePaused);
+            GameEvents.onGameUnpause.Add(OnGameUnpaused);
+        }
+
+        public void Start()
+        {
+            GameEvents.onGUIApplicationLauncherReady.Add(OnAppLauncherReady);
+            GameEvents.onGUIApplicationLauncherDestroyed.Add(OnAppLauncherDestroyed);
+            if (ApplicationLauncher.Instance != null) OnAppLauncherReady();
+        }
+
+        public void OnDestroy()
+        {
+            TrySaveToDisk_Internal(true);
+            SaveUISettings();
+
+            GameEvents.onGamePause.Remove(OnGamePaused);
+            GameEvents.onGameUnpause.Remove(OnGameUnpaused);
+            GameEvents.onGUIApplicationLauncherReady.Remove(OnAppLauncherReady);
+            GameEvents.onGUIApplicationLauncherDestroyed.Remove(OnAppLauncherDestroyed);
+            if (_appButton != null && ApplicationLauncher.Instance != null)
+            {
+                ApplicationLauncher.Instance.RemoveModApplication(_appButton);
+                _appButton = null;
+            }
+        }
+
+        public void Update()
+        {
+            if (Input.GetKeyDown(_toggleKey))
+            {
+                _visible = !_visible;
+                SyncToolbarState();
+            }
+        }
+
+        public void OnGUI()
+        {
+            if (PauseMenu.isOpen) return;
+            if (_useKspSkin) GUI.skin = HighLogic.Skin;
+            EnsureStyles();
+
+            if (_visible)
+            {
+                _treeRect = GUILayout.Window(
+                    _treeWinId, _treeRect, DrawTreeWindow,
+                    "MissionPlanner — Steps (F10 to toggle)",
+                    GUILayout.MinWidth(720), GUILayout.MinHeight(400)
+                );
+            }
+            if (_detailNode != null)
+            {
+                _detailRect = GUILayout.Window(
+                    _detailWinId, _detailRect, DrawDetailWindow,
+                    string.Format("Step Details — {0}", _detailNode.data.title),
+                    GUILayout.MinWidth(520), GUILayout.MinHeight(440)
+                );
+            }
+            if (_showMoveDialog && _moveNode != null)
+            {
+                _moveRect = GUILayout.Window(
+                    _moveWinId, _moveRect, DrawMoveDialogWindow,
+                    string.Format("Move “{0}” — choose new parent", _moveNode.data.title),
+                    GUILayout.MinWidth(420), GUILayout.MinHeight(320)
+                );
+            }
+            if (_showLoadDialog)
+            {
+                _loadRect = GUILayout.Window(
+                    _loadWinId, _loadRect, DrawLoadDialogWindow,
+                    "Load Mission",
+                    GUILayout.MinWidth(480), GUILayout.MinHeight(380)
+                );
+            }
+            if (_showOverwriteDialog)
+            {
+                _overwriteRect = GUILayout.Window(
+                    _overwriteWinId, _overwriteRect, DrawOverwriteDialogWindow,
+                    "Overwrite Confirmation",
+                    GUILayout.MinWidth(420), GUILayout.MinHeight(180)
+                );
+            }
+            if (_showDeleteConfirm)
+            {
+                _deleteRect = GUILayout.Window(
+                    _deleteWinId, _deleteRect, DrawDeleteDialogWindow,
+                    "Delete Mission?",
+                    GUILayout.MinWidth(420), GUILayout.MinHeight(160)
+                );
+            }
+            if (_showPartDialog && _partTargetNode != null)
+            {
+                _partRect = GUILayout.Window(
+                    _partWinId, _partRect, DrawPartPickerWindow,
+                    "Select Part",
+                    GUILayout.MinWidth(480), GUILayout.MinHeight(400)
+                );
+            }
+            if (_showSaveAs)
+            {
+                _saveAsRect = GUILayout.Window(
+                    _saveAsWinId, _saveAsRect, DrawSaveAsDialogWindow,
+                    _creatingNewMission ? "New Mission" : "Save As…",
+                    GUILayout.MinWidth(460), GUILayout.MinHeight((_creatingNewMission ? 270 : 170))
+                );
+            }
+            if (_showNewConfirm)
+            {
+                _newConfirmRect = GUILayout.Window(
+                    _newConfirmWinId, _newConfirmRect, DrawNewConfirmWindow,
+                    "Start New Mission?",
+                    GUILayout.MinWidth(420), GUILayout.MinHeight(160)
+                );
+            }
+            if (_showClearConfirm)
+            {
+                _clearConfirmRect = GUILayout.Window(
+                    _clearConfirmWinId, _clearConfirmRect, DrawClearConfirmWindow,
+                    "Clear All Steps?",
+                    GUILayout.MinWidth(420), GUILayout.MinHeight(160)
+                );
+            }
+            if (_showSummaryWindow)
+            {
+                _summaryRect = GUILayout.Window(
+                    _summaryWinId, _summaryRect, DrawSummaryWindow,
+                    "Mission Summary",
+                    GUILayout.MinWidth(460), GUILayout.MinHeight(260)
+                );
+            }
+        }
+
+        // ---- EnsureStyles ----
+        private void EnsureStyles()
+        {
+            bool force = (lastUseKSPSkin != _useKspSkin);
+            lastUseKSPSkin = _useKspSkin;
+            if (force)
+            {
+                _titleLabel = null;
+                _selectedTitle = null;
+                _smallBtn = null;
+                _hintLabel = null;
+                _tinyLabel = null;
+                _titleEdit = null;
+                _badge = null;
+                _badgeError = null;
+            }
+
+            if (_titleLabel == null)
+                _titleLabel = new GUIStyle(GUI.skin.button) { alignment = TextAnchor.MiddleLeft, padding = new RectOffset(6, 6, 3, 3) };
+            if (_selectedTitle == null)
+            {
+                _selectedTitle = new GUIStyle(_titleLabel);
+                _selectedTitle.normal = _titleLabel.onNormal;
+                _selectedTitle.hover = _titleLabel.onHover;
+                _selectedTitle.active = _titleLabel.onActive;
+            }
+            if (_smallBtn == null)
+                _smallBtn = new GUIStyle(GUI.skin.button) { fixedWidth = 28f, padding = new RectOffset(0, 0, 0, 0), margin = new RectOffset(2, 2, 2, 2) };
+            if (_hintLabel == null)
+                _hintLabel = new GUIStyle(GUI.skin.label) { wordWrap = true };
+            if (_tinyLabel == null)
+                _tinyLabel = new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(10, GUI.skin.label.fontSize - 2) };
+            if (_titleEdit == null)
+                _titleEdit = new GUIStyle(GUI.skin.textField) { fontStyle = FontStyle.Bold };
+            if (_badge == null)
+            {
+                _badge = new GUIStyle(GUI.skin.label)
+                {
+                    fontStyle = FontStyle.Bold,
+                    normal = { textColor = new Color(0.85f, 0.9f, 1f, 1f) }
+                };
+            }
+            if (_badgeError == null)
+            {
+                _badgeError = new GUIStyle(GUI.skin.label)
+                {
+                    fontStyle = FontStyle.Bold,
+                    normal = { textColor = new Color(1f, 0.35f, 0.35f, 1f) }
+                };
+            }
+        }
+
+        // ---- Pause handling ----
+        private void OnGamePaused() { _visibleBeforePause = _visible; _visible = false; SyncToolbarState(); }
+        private void OnGameUnpaused() { _visible = _visibleBeforePause; SyncToolbarState(); }
+
+        // ---------------- Tree Window ----------------
+        private void DrawTreeWindow(int id)
+        {
+            GUILayout.Space(4);
+
+            // Top row: Save name, Mission, controls, skin
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Save:", GUILayout.Width(40));
+            string saveName = GetCurrentSaveName();
+            GUI.enabled = false;
+            GUILayout.TextField(saveName, GUILayout.Width(180));
+            GUI.enabled = true;
+
+            GUILayout.Space(8);
+            GUILayout.Label("Mission:", GUILayout.Width(60));
+            _missionName = GUILayout.TextField(_missionName ?? "", _titleEdit, GUILayout.MinWidth(160), GUILayout.ExpandWidth(true));
+            if (GUILayout.Button("Summary…", GUILayout.Width(90)))
+            {
+                _showSummaryWindow = true;
+                var mp = Input.mousePosition;
+                _summaryRect.x = Mathf.Clamp(mp.x, 40, Screen.width - _summaryRect.width - 40);
+                _summaryRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - _summaryRect.height - 40);
+            }
+
+            GUILayout.Space(8);
+            if (GUILayout.Button("Add Root", GUILayout.Width(100)))
+            {
+                var newRoot = new StepNode();
+                _roots.Add(newRoot);
+                _selectedNode = newRoot;
+                OpenDetail(newRoot); // auto-open details
+            }
+            if (GUILayout.Button("Expand All", GUILayout.Width(110))) SetAllExpanded(true);
+            if (GUILayout.Button("Collapse All", GUILayout.Width(110))) SetAllExpanded(false);
+
+            GUILayout.Space(12);
+            _useKspSkin = GUILayout.Toggle(_useKspSkin, "Use KSP Skin", GUILayout.Width(120));
+            GUILayout.EndHorizontal();
+
+            // Column tuning
+            GUILayout.Space(6);
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(string.Format("Title Width %: {0}", (int)Mathf.Round(_titleWidthPct * 100f)), GUILayout.Width(140));
+            _titleWidthPct = GUILayout.HorizontalSlider(_titleWidthPct, 0.40f, 0.95f, GUILayout.Width(160));
+            GUILayout.Space(12);
+            GUILayout.Label(string.Format("Controls Pad: {0}px", (int)_controlsPad), GUILayout.Width(140));
+            _controlsPad = Mathf.Round(GUILayout.HorizontalSlider(_controlsPad, 0f, 120f, GUILayout.Width(160)));
+            GUILayout.Space(12);
+            GUILayout.Label(string.Format("Indent/Level: {0}px", (int)_indentPerLevel), GUILayout.Width(140));
+            _indentPerLevel = Mathf.Round(GUILayout.HorizontalSlider(_indentPerLevel, 10f, 40f, GUILayout.Width(160)));
+            GUILayout.Space(12);
+            GUILayout.Label(string.Format("Fold Col: {0}px", (int)_foldColWidth), GUILayout.Width(120));
+            _foldColWidth = Mathf.Round(GUILayout.HorizontalSlider(_foldColWidth, 16f, 48f, GUILayout.Width(160)));
+
+            GUILayout.Space(16);
+            if (GUILayout.Button("Reset", GUILayout.Width(80)))
+            {
+                _titleWidthPct = 0.75f;
+                _controlsPad = 40f;
+                _indentPerLevel = 18f;
+                _foldColWidth = 24f;
+                SaveUISettings();
+            }
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(6);
+            GUILayout.Label("Double-click a title to edit in a separate window. Use ▲ ▼ ⤴ ⤵ Move… ⊕ Dup ✖ to manage hierarchy.", _hintLabel);
+
+            GUILayout.Space(4);
+            _scroll = GUILayout.BeginScrollView(_scroll);
+            foreach (var r in _roots)
+            {
+                DrawNodeRow(r, 0);
+                GUILayout.Space(2);
+            }
+            GUILayout.EndScrollView();
+
+            // --- Bottom bar: New / Clear All / Save / Save As… / Load / Hide + Save indicator ---
+            GUILayout.Space(6);
+            GUILayout.BeginHorizontal();
+
+            if (GUILayout.Button("New", GUILayout.Width(90)))
+            {
+                // Ask whether to save or discard current mission first
+                _showNewConfirm = true;
+                var mp = Input.mousePosition;
+                _newConfirmRect.x = Mathf.Clamp(mp.x, 40, Screen.width - _newConfirmRect.width - 40);
+                _newConfirmRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - _newConfirmRect.height - 40);
+            }
+
+            if (GUILayout.Button("Clear All", GUILayout.Width(90)))
+            {
+                _clearAddSample = false; // reset toggle each time
+                _showClearConfirm = true;
+                var mp = Input.mousePosition;
+                _clearConfirmRect.x = Mathf.Clamp(mp.x, 40, Screen.width - _clearConfirmRect.width - 40);
+                _clearConfirmRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - _clearConfirmRect.height - 40);
+            }
+
+            if (GUILayout.Button("Save", GUILayout.Width(90))) { TrySaveToDisk_Internal(true); }
+
+            if (GUILayout.Button("Save As…", GUILayout.Width(100)))
+            {
+                _creatingNewMission = false; // explicit: normal Save As
+                OpenSaveAsDialog();
+            }
+
+            if (GUILayout.Button("Load…", GUILayout.Width(90))) { OpenLoadDialog(); }
+
+            GUILayout.FlexibleSpace();
+
+            if (Time.realtimeSinceStartup <= _lastSaveShownUntil && !String.IsNullOrEmpty(_lastSaveInfo))
+            {
+                var style = _lastSaveWasSuccess ? _badge : _badgeError;
+                GUILayout.Label(_lastSaveInfo, style);
+            }
+
+            GUILayout.Space(10);
+            GUILayout.Label(string.Format("Count: {0}", CountAll()), _badge);
+            if (GUILayout.Button(_visible ? "Hide" : "Show", GUILayout.Width(70))) { _visible = !_visible; SyncToolbarState(); }
+            GUILayout.EndHorizontal();
+
+            GUI.DragWindow(new Rect(0, 0, 10000, 10000));
+        }
+
+        private void DrawNewConfirmWindow(int id)
+        {
+            GUILayout.Space(6);
+            GUILayout.Label("Create a new mission. Save current mission first?", _hintLabel);
+
+            GUILayout.Space(10);
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Save", GUILayout.Width(100)))
+            {
+                TrySaveToDisk_Internal(true);
+                _showNewConfirm = false;
+
+                // proceed to New flow: ask for name, allow sample step toggle and summary
+                _creatingNewMission = true;
+                _newMissionAddSample = true;
+                _saveAsName = "New Mission";
+                _saveAsSummaryText = "";
+                OpenSaveAsDialog();
+            }
+            if (GUILayout.Button("Discard", GUILayout.Width(100)))
+            {
+                _showNewConfirm = false;
+                _creatingNewMission = true;
+                _newMissionAddSample = true;
+                _saveAsName = "New Mission";
+                _saveAsSummaryText = "";
+                OpenSaveAsDialog(); // Will clear when user confirms name
+            }
+            if (GUILayout.Button("Cancel", GUILayout.Width(100)))
+            {
+                _showNewConfirm = false;
+            }
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            GUI.DragWindow(new Rect(0, 0, 10000, 10000));
+        }
+
+        private void DrawClearConfirmWindow(int id)
+        {
+            GUILayout.Space(6);
+            GUILayout.Label("This will remove ALL steps from the current mission.\n(Your mission name is kept.)", _hintLabel);
+
+            GUILayout.Space(6);
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Add sample root step", GUILayout.Width(160));
+            _clearAddSample = GUILayout.Toggle(_clearAddSample, GUIContent.none, GUILayout.Width(22));
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(10);
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Clear", GUILayout.Width(100)))
+            {
+                _roots.Clear();
+                _selectedNode = null;
+                _detailNode = null;
+                if (_clearAddSample)
+                {
+                    var root = new StepNode { data = new Step { title = "New Step" }, Expanded = true };
+                    _roots.Add(root);
+                    _selectedNode = root;
+                    OpenDetail(root);
+                }
+                _showClearConfirm = false;
+            }
+            if (GUILayout.Button("Cancel", GUILayout.Width(100)))
+            {
+                _showClearConfirm = false;
+            }
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            GUI.DragWindow(new Rect(0, 0, 10000, 10000));
+        }
+
+        private void DrawSummaryWindow(int id)
+        {
+            GUILayout.Space(6);
+            GUILayout.Label("Summary for mission:", _tinyLabel);
+            GUILayout.Label(_missionName, _titleEdit);
+            GUILayout.Space(6);
+
+            _summaryScroll = GUILayout.BeginScrollView(_summaryScroll, HighLogic.Skin.textArea, GUILayout.MinHeight(180), GUILayout.ExpandHeight(true));
+            _missionSummary = GUILayout.TextArea(_missionSummary ?? "", GUILayout.ExpandHeight(true));
+            GUILayout.EndScrollView();
+
+            GUILayout.Space(6);
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Save", GUILayout.Width(100)))
+            {
+                TrySaveToDisk_Internal(true);
+            }
+            if (GUILayout.Button("Close", GUILayout.Width(100)))
+            {
+                _showSummaryWindow = false;
+            }
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            GUI.DragWindow(new Rect(0, 0, 10000, 10000));
+        }
+
+        private void DrawNodeRow(StepNode node, int depth)
+        {
+            GUILayout.BeginVertical(HighLogic.Skin.textArea);
+            GUILayout.BeginHorizontal();
+
+            float indent = 12f + _indentPerLevel * depth;
+            GUILayout.Space(indent);
+
+            if (node.Children.Count == 0)
+            {
+                GUILayout.Label("·", GUILayout.Width(_foldColWidth));
+            }
+            else
+            {
+                string sign = node.Expanded ? "−" : "+";
+                if (GUILayout.Button(sign, GUILayout.Width(_foldColWidth))) node.Expanded = !node.Expanded;
+            }
+
+            const float controlsBase = 314f; // width estimation for controls
+            float controlsWidth = controlsBase + _controlsPad;
+            float available = Mathf.Max(120f, _treeRect.width - indent - _foldColWidth - controlsWidth - 12f);
+            float titleWidth = Mathf.Clamp(available * _titleWidthPct, 120f, available);
+
+            var style = (_selectedNode == node) ? _selectedTitle : _titleLabel;
+            GUILayout.Label(node.data.title ?? "(untitled)", style, GUILayout.Width(titleWidth));
+            Rect titleRect = GUILayoutUtility.GetLastRect();
+
+            bool up = GUILayout.Button("▲", _smallBtn);
+            bool down = GUILayout.Button("▼", _smallBtn);
+            bool promote = GUILayout.Button("⤴", _smallBtn);
+            bool demote = GUILayout.Button("⤵", _smallBtn);
+            bool moveTo = GUILayout.Button("Move…", GUILayout.Width(54f));
+            bool dup = GUILayout.Button("Dup", GUILayout.Width(40f));
+            bool add = GUILayout.Button("⊕", GUILayout.Width(26f));
+            bool del = GUILayout.Button("✖", _smallBtn);
+
+            GUILayout.EndHorizontal();
+
+            HandleTitleClicks(node, titleRect);
+
+            if (up) MoveUp(node);
+            if (down) MoveDown(node);
+            if (promote) Promote(node);
+            if (demote) Demote(node);
+            if (moveTo) OpenMoveDialog(node);
+            if (dup) Duplicate(node);
+            if (add)
+            {
+                var child = node.AddChild();
+                node.Expanded = true;
+                _selectedNode = child;
+                OpenDetail(child);
+            }
+            if (del) Delete(node);
+
+            if (node.Expanded && node.Children.Count > 0)
+            {
+                GUILayout.Space(2);
+                foreach (var c in node.Children)
+                {
+                    DrawNodeRow(c, depth + 1);
+                    GUILayout.Space(1);
+                }
+            }
+
+            GUILayout.EndVertical();
+        }
+
+        private void HandleTitleClicks(StepNode node, Rect titleRect)
+        {
+            var e = Event.current;
+            if (e.type == EventType.MouseDown && e.button == 0 && titleRect.Contains(e.mousePosition)) e.Use();
+            if (e.type == EventType.MouseUp && e.button == 0 && titleRect.Contains(e.mousePosition))
+            {
+                if (_lastClickedId == node.Id && (Time.realtimeSinceStartup - _lastClickTime) <= DoubleClickSec)
+                {
+                    OpenDetail(node);
+                    _lastClickedId = -1;
+                }
+                else
+                {
+                    _selectedNode = node;
+                    _lastClickedId = node.Id;
+                    _lastClickTime = Time.realtimeSinceStartup;
+                }
+                e.Use();
+            }
+        }
+
+        // ---- Moves / hierarchy ops ----
+        private void MoveUp(StepNode n)
+        {
+            var list = (n.Parent == null) ? _roots : n.Parent.Children;
+            int idx = list.IndexOf(n);
+            if (idx > 0) { list.RemoveAt(idx); list.Insert(idx - 1, n); }
+        }
+
+        private void MoveDown(StepNode n)
+        {
+            var list = (n.Parent == null) ? _roots : n.Parent.Children;
+            int idx = list.IndexOf(n);
+            if (idx >= 0 && idx < list.Count - 1) { list.RemoveAt(idx); list.Insert(idx + 1, n); }
+        }
+
+        private void Promote(StepNode n)
+        {
+            if (n.Parent == null) return;
+            var parent = n.Parent;
+            var oldList = parent.Children;
+            int oldIdx = oldList.IndexOf(n);
+            if (oldIdx >= 0) oldList.RemoveAt(oldIdx);
+
+            var newList = (parent.Parent == null) ? _roots : parent.Parent.Children;
+            int parentIdx = newList.IndexOf(parent);
+            int insertAt = (parentIdx >= 0) ? parentIdx + 1 : newList.Count;
+            newList.Insert(insertAt, n);
+            n.Parent = parent.Parent;
+        }
+
+        private void Demote(StepNode n)
+        {
+            var list = (n.Parent == null) ? _roots : n.Parent.Children;
+            int idx = list.IndexOf(n);
+            if (idx <= 0) return;
+            StepNode prev = list[idx - 1];
+
+            list.RemoveAt(idx);
+            prev.Children.Add(n);
+            n.Parent = prev;
+            prev.Expanded = true;
+        }
+
+        private void Delete(StepNode n)
+        {
+            if (n.Parent == null) _roots.Remove(n);
+            else n.Parent.Children.Remove(n);
+            if (_selectedNode == n) _selectedNode = null;
+            if (_detailNode == n) _detailNode = null;
+        }
+
+        private void Duplicate(StepNode n)
+        {
+            var cloned = new StepNode
+            {
+                data = new Step
+                {
+                    title = (n.data.title ?? "New Step") + " (copy)",
+                    descr = n.data.descr,
+                    stepType = n.data.stepType,
+                    toggle = n.data.toggle,
+                    initialToggleValue = n.data.initialToggleValue,
+                    minIntRange = n.data.minIntRange,
+                    maxIntRange = n.data.maxIntRange,
+                    minFloatRange = n.data.minFloatRange,
+                    maxFloatRange = n.data.maxFloatRange,
+                    intNotGreaterThan = n.data.intNotGreaterThan,
+                    intNotLessThan = n.data.intNotLessThan,
+                    floatNotGreaterThan = n.data.floatNotGreaterThan,
+                    floatNotLessThan = n.data.floatNotLessThan,
+                    partName = n.data.partName,
+                    partTitle = n.data.partTitle,
+                    partOnlyAvailable = n.data.partOnlyAvailable
+                },
+                Expanded = n.Expanded
+            };
+
+            var list = (n.Parent == null) ? _roots : n.Parent.Children;
+            int idx = list.IndexOf(n);
+            list.Insert(Mathf.Clamp(idx + 1, 0, list.Count), cloned);
+            cloned.Parent = n.Parent;
+        }
+
+        // ---- Move dialog ----
+        private void OpenMoveDialog(StepNode node)
+        {
+            if (_detailNode != null && _detailNode != node) TrySaveToDisk_Internal(true);
+
+            _moveNode = node;
+            _moveTargetParent = null;
+            _showMoveDialog = true;
+
+            var mp = Input.mousePosition;
+            _moveRect.x = Mathf.Clamp(mp.x, 40, Screen.width - _moveRect.width - 40);
+            _moveRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - _moveRect.height - 40);
+        }
+
+        private void DrawMoveDialogWindow(int id)
+        {
+            GUILayout.Space(6);
+            GUILayout.Label("Choose a new parent (or Root). You cannot move an item under itself or its descendants.", _hintLabel);
+
+            GUILayout.Space(6);
+            GUILayout.BeginHorizontal();
+            bool rootChosen = (_moveTargetParent == null);
+            if (GUILayout.Toggle(rootChosen, "⟂ Root", HighLogic.Skin.toggle, GUILayout.Width(120)))
+                _moveTargetParent = null;
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(6);
+            GUILayout.Label("Or select an existing parent:", _tinyLabel);
+
+            _moveScroll = GUILayout.BeginScrollView(_moveScroll, HighLogic.Skin.textArea, GUILayout.ExpandHeight(true));
+            foreach (var r in _roots) DrawMoveTargetRecursive(r, 0, _moveNode);
+            GUILayout.EndScrollView();
+
+            GUILayout.Space(8);
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("OK", GUILayout.Width(100)))
+            {
+                MoveToParent(_moveNode, _moveTargetParent);
+                CloseMoveDialog();
+            }
+            if (GUILayout.Button("Cancel", GUILayout.Width(100))) CloseMoveDialog();
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            GUI.DragWindow(new Rect(0, 0, 10000, 10000));
+        }
+
+        private void DrawMoveTargetRecursive(StepNode node, int depth, StepNode moving)
+        {
+            if (node == moving || IsDescendant(moving, node)) return;
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Space(12 + _indentPerLevel * depth);
+            bool chosen = (_moveTargetParent == node);
+            string label = string.Format("📁 {0}", node.data.title);
+            if (GUILayout.Toggle(chosen, label, HighLogic.Skin.toggle))
+                _moveTargetParent = node;
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            foreach (var c in node.Children) DrawMoveTargetRecursive(c, depth + 1, moving);
+        }
+
+        private void CloseMoveDialog()
+        {
+            _showMoveDialog = false;
+            _moveNode = null;
+            _moveTargetParent = null;
+        }
+
+        private void MoveToParent(StepNode n, StepNode newParent)
+        {
+            if (n == null) return;
+            if (newParent == n || IsDescendant(n, newParent)) return;
+
+            var oldList = (n.Parent == null) ? _roots : n.Parent.Children;
+            oldList.Remove(n);
+
+            if (newParent == null)
+            {
+                _roots.Add(n);
+                n.Parent = null;
+            }
+            else
+            {
+                newParent.Children.Add(n);
+                n.Parent = newParent;
+                newParent.Expanded = true;
+            }
+        }
+
+        // ---- Details Window ----
+        private void OpenDetail(StepNode node)
+        {
+            if (_detailNode != null && _detailNode != node) TrySaveToDisk_Internal(true);
+
+            _detailNode = node;
+            var mp = Input.mousePosition;
+            _detailRect.x = Mathf.Clamp(mp.x, 40, Screen.width - _detailRect.width - 40);
+            _detailRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - _detailRect.height - 40);
+        }
+
+        private void DrawDetailWindow(int id)
+        {
+            GUILayout.Space(6);
+            if (_detailNode == null) { GUI.DragWindow(new Rect(0, 0, 10000, 10000)); return; }
+            var s = _detailNode.data;
+
+            // Title row — fixed width for text field
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Title", GUILayout.Width(60));
+            s.title = GUILayout.TextField(s.title ?? "", _titleEdit, GUILayout.Width(320));
+            GUILayout.FlexibleSpace();
+            if (GUILayout.Button("Close", GUILayout.Width(80)))
+            {
+                TrySaveToDisk_Internal(true);
+                _detailNode = null;
+                GUI.DragWindow(new Rect(0, 0, 10000, 10000));
+                return;
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(6);
+            GUILayout.Label("Description:");
+            s.descr = GUILayout.TextArea(s.descr ?? "", HighLogic.Skin.textArea, GUILayout.MinHeight(60));
+
+            GUILayout.Space(6);
+
+            // Type selector — packed arrows/label
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Type", GUILayout.Width(60));
+            var vals = (StepType[])Enum.GetValues(typeof(StepType));
+            int curIdx = Array.IndexOf(vals, s.stepType);
+            if (GUILayout.Button("◀", GUILayout.Width(26))) { curIdx = (curIdx - 1 + vals.Length) % vals.Length; s.stepType = vals[curIdx]; }
+            GUILayout.Label(s.stepType.ToString(), GUILayout.Width(180));
+            if (GUILayout.Button("▶", GUILayout.Width(26))) { curIdx = (curIdx + 1) % vals.Length; s.stepType = vals[curIdx]; }
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(4);
+            switch (s.stepType)
+            {
+                case StepType.toggle:
+                    GUILayout.BeginHorizontal();
+                    s.initialToggleValue = GUILayout.Toggle(s.initialToggleValue, "Initial Value", GUILayout.Width(140));
+                    s.toggle = GUILayout.Toggle(s.toggle, "Current Value", GUILayout.Width(140));
+                    GUILayout.FlexibleSpace();
+                    GUILayout.EndHorizontal();
+                    break;
+
+                case StepType.intNotGreaterThan:
+                    IntField("≤ (int)", ref s.intNotGreaterThan);
+                    break;
+
+                case StepType.intNotLessThan:
+                    IntField("≥ (int)", ref s.intNotLessThan);
+                    break;
+
+                case StepType.floatNotGreaterThan:
+                    FloatField("≤ (float)", ref s.floatNotGreaterThan);
+                    break;
+
+                case StepType.floatNotLessThan:
+                    FloatField("≥ (float)", ref s.floatNotLessThan);
+                    break;
+
+                case StepType.intRange:
+                    IntRangeFields(ref s.minIntRange, ref s.maxIntRange);
+                    if (s.minIntRange > s.maxIntRange)
+                        GUILayout.Label("Warning: minIntRange > maxIntRange.", _tinyLabel);
+                    break;
+
+                case StepType.floatRange:
+                    FloatRangeFields(ref s.minFloatRange, ref s.maxFloatRange);
+                    if (s.minFloatRange > s.maxFloatRange)
+                        GUILayout.Label("Warning: minFloatRange > maxFloatRange.", _tinyLabel);
+                    break;
+
+                case StepType.crewCount:
+                    GUILayout.Label("Crew Count Range:");
+                    IntRangeFields(ref s.minIntRange, ref s.maxIntRange);
+                    if (s.minIntRange < 0) s.minIntRange = 0;
+                    if (s.maxIntRange < 0) s.maxIntRange = 0;
+                    if (s.minIntRange > s.maxIntRange)
+                        GUILayout.Label("Warning: min > max.", _tinyLabel);
+
+                    if (HighLogic.LoadedSceneIsFlight && FlightGlobals.ActiveVessel != null)
+                    {
+                        GUILayout.Space(4);
+                        GUILayout.BeginHorizontal();
+                        if (GUILayout.Button("Validate vs Vessel", GUILayout.Width(160)))
+                        {
+                            try
+                            {
+                                int crew = FlightGlobals.ActiveVessel.GetCrewCount();
+                                bool ok = crew >= s.minIntRange && s.maxIntRange >= crew;
+                                string msg = ok
+                                    ? string.Format("Crew OK ✓ : {0} in range [{1}..{2}]", crew, s.minIntRange, s.maxIntRange)
+                                    : string.Format("Crew ✗ : {0} not in range [{1}..{2}]", crew, s.minIntRange, s.maxIntRange);
+                                ScreenMessages.PostScreenMessage(msg, 3f, ok ? ScreenMessageStyle.UPPER_LEFT : ScreenMessageStyle.UPPER_RIGHT);
+                            }
+                            catch (Exception ex)
+                            {
+                                Debug.LogError("[MissionPlanner] Crew validate failed: " + ex);
+                                ScreenMessages.PostScreenMessage("Crew validation failed (see log).", 3f, ScreenMessageStyle.UPPER_RIGHT);
+                            }
+                        }
+                        GUILayout.FlexibleSpace();
+                        GUILayout.EndHorizontal();
+                    }
+                    break;
+
+                case StepType.part:
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label("Only available parts", GUILayout.Width(160));
+                    s.partOnlyAvailable = GUILayout.Toggle(s.partOnlyAvailable, GUIContent.none, GUILayout.Width(22));
+                    GUILayout.FlexibleSpace();
+                    GUILayout.EndHorizontal();
+
+                    GUILayout.Space(2);
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label("Selected:", GUILayout.Width(60));
+                    GUILayout.Label(String.IsNullOrEmpty(s.partTitle) ? "(none)" : s.partTitle, HighLogic.Skin.label, GUILayout.Width(320));
+                    if (GUILayout.Button("Select…", GUILayout.Width(90)))
+                        OpenPartPicker(_detailNode, s.partOnlyAvailable);
+                    if (!String.IsNullOrEmpty(s.partTitle))
+                    {
+                        if (GUILayout.Button("Clear", GUILayout.Width(70)))
+                        {
+                            s.partName = "";
+                            s.partTitle = "";
+                        }
+                    }
+                    GUILayout.FlexibleSpace();
+                    GUILayout.EndHorizontal();
+                    break;
+            }
+
+            GUILayout.Space(6);
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Save", GUILayout.Width(100)))
+            {
+                if (TrySaveToDisk_Internal(true))
+                    ScreenMessages.PostScreenMessage(string.Format("Saved step “{0}”.", s.title), 2f, ScreenMessageStyle.UPPER_LEFT);
+            }
+            if (GUILayout.Button("Close", GUILayout.Width(100)))
+            {
+                TrySaveToDisk_Internal(true);
+                _detailNode = null;
+            }
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            GUI.DragWindow(new Rect(0, 0, 10000, 10000));
+        }
+
+        // ---- Part picker ----
+        private void OpenPartPicker(StepNode target, bool availableOnly)
+        {
+            _partTargetNode = target;
+            _partAvailableOnly = availableOnly;
+            _partFilter = "";
+            _showPartDialog = true;
+
+            var mp = Input.mousePosition;
+            _partRect.x = Mathf.Clamp(mp.x, 40, Screen.width - _partRect.width - 40);
+            _partRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - _partRect.height - 40);
+        }
+
+        private void DrawPartPickerWindow(int id)
+        {
+            if (_partTargetNode == null) { _showPartDialog = false; GUI.DragWindow(new Rect(0, 0, 10000, 10000)); return; }
+            GUILayout.Space(6);
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Available only", GUILayout.Width(110));
+            _partAvailableOnly = GUILayout.Toggle(_partAvailableOnly, GUIContent.none, GUILayout.Width(22));
+            GUILayout.Space(12);
+            GUILayout.Label("Search", GUILayout.Width(60));
+            _partFilter = GUILayout.TextField(_partFilter ?? "", GUILayout.MinWidth(160), GUILayout.ExpandWidth(true));
+            GUILayout.FlexibleSpace();
+            if (GUILayout.Button("Close", GUILayout.Width(80)))
+            {
+                _showPartDialog = false;
+                _partTargetNode = null;
+                GUI.DragWindow(new Rect(0, 0, 10000, 10000));
+                return;
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(6);
+            _partScroll = GUILayout.BeginScrollView(_partScroll, HighLogic.Skin.textArea, GUILayout.ExpandHeight(true));
+
+            var list = PartLoader.LoadedPartsList;
+            if (list != null)
+            {
+                foreach (var ap in list)
+                {
+                    if (ap == null) continue;
+                    if (IsBannedPart(ap)) continue; // Exclude Kerbals/Flags/PotatoRoid
+
+                    if (_partAvailableOnly && !IsPartAvailable(ap)) continue;
+
+                    if (!String.IsNullOrEmpty(_partFilter))
+                    {
+                        var f = _partFilter.Trim();
+                        if (!(ap.title.IndexOf(f, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                              ap.name.IndexOf(f, StringComparison.OrdinalIgnoreCase) >= 0))
+                            continue;
+                    }
+
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label(ap.title, GUILayout.Width(320));
+                    GUILayout.Label("[" + ap.name + "]", _tinyLabel, GUILayout.Width(160));
+                    GUILayout.FlexibleSpace();
+                    if (GUILayout.Button("Choose", GUILayout.Width(80)))
+                    {
+                        var s = _partTargetNode.data;
+                        s.partName = ap.name;
+                        s.partTitle = ap.title;
+                        s.partOnlyAvailable = _partAvailableOnly;
+                        _showPartDialog = false;
+                        _partTargetNode = null;
+                        TrySaveToDisk_Internal(true);
+                    }
+                    GUILayout.EndHorizontal();
+                }
+            }
+            else
+            {
+                GUILayout.Label("No parts loaded.", _tinyLabel);
+            }
+
+            GUILayout.EndScrollView();
+
+            GUILayout.Space(6);
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Close", GUILayout.Width(100)))
+            {
+                _showPartDialog = false;
+                _partTargetNode = null;
+            }
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            GUI.DragWindow(new Rect(0, 0, 10000, 10000));
+        }
+
+        private bool IsBannedPart(AvailablePart ap)
+        {
+            if (ap == null) return true;
+            string n = (ap.name ?? "").ToLowerInvariant();
+            // Kerbals: kerbalEVA, kerbalEVAfemale, etc.
+            if (n.Contains("kerbaleva")) return true;
+            // Flag placeholder
+            if (n == "flag" || n.Contains("_flag")) return true;
+            // PotatoRoid / asteroid
+            if (n.Contains("potato")) return true;
+            if (n.Contains("asteroid")) return true;
+            return false;
+        }
+
+        private bool IsPartAvailable(AvailablePart ap)
+        {
+            try
+            {
+                if (ResearchAndDevelopment.Instance != null)
+                {
+                    if (!ResearchAndDevelopment.PartTechAvailable(ap)) return false;
+                    return ResearchAndDevelopment.PartModelPurchased(ap);
+                }
+                return true; // sandbox
+            }
+            catch { return true; }
+        }
+
+        // ---- Save As / New dialog ----
+        private void OpenSaveAsDialog()
+        {
+            if (_creatingNewMission)
+            {
+                // default name for new mission
+                _saveAsName = IsNullOrWhiteSpace(_saveAsName) ? "New Mission" : _saveAsName.Trim();
+            }
+            else
+            {
+                // default to current name for Save As…
+                _saveAsName = IsNullOrWhiteSpace(_missionName) ? "Untitled Mission" : _missionName.Trim();
+            }
+
+            var mp = Input.mousePosition;
+            _saveAsRect.x = Mathf.Clamp(mp.x, 40, Screen.width - _saveAsRect.width - 40);
+            _saveAsRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - _saveAsRect.height - 40);
+
+            _showSaveAs = true;
+        }
+
+        private void DrawSaveAsDialogWindow(int id)
+        {
+            GUILayout.Space(6);
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(_creatingNewMission ? "New mission name:" : "Save as name:", GUILayout.Width(140));
+            GUI.SetNextControlName("SaveAsNameField");
+            _saveAsName = GUILayout.TextField(_saveAsName ?? "", GUILayout.MinWidth(180), GUILayout.ExpandWidth(true));
+            GUILayout.EndHorizontal();
+
+            if (_creatingNewMission)
+            {
+                GUILayout.Space(6);
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("Add sample root step", GUILayout.Width(160));
+                _newMissionAddSample = GUILayout.Toggle(_newMissionAddSample, GUIContent.none, GUILayout.Width(22));
+                GUILayout.FlexibleSpace();
+                GUILayout.EndHorizontal();
+
+                GUILayout.Space(6);
+                GUILayout.Label("Mission summary (optional):");
+                _saveAsSummaryText = GUILayout.TextArea(_saveAsSummaryText ?? "", HighLogic.Skin.textArea, GUILayout.MinHeight(80));
+            }
+
+            if (Event.current.type == EventType.Repaint && GUI.GetNameOfFocusedControl() != "SaveAsNameField")
+                GUI.FocusControl("SaveAsNameField");
+
+            GUILayout.Space(10);
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("OK", GUILayout.Width(100)))
+            {
+                string proposed = IsNullOrWhiteSpace(_saveAsName) ? "Unnamed" : _saveAsName.Trim();
+
+                if (_creatingNewMission)
+                {
+                    // Create a new blank mission in memory (do not save yet)
+                    _roots.Clear();
+                    _selectedNode = null;
+                    _detailNode = null;
+                    _missionName = proposed;
+                    _missionSummary = _saveAsSummaryText ?? "";
+
+                    if (_newMissionAddSample)
+                    {
+                        var root = new StepNode { data = new Step { title = "New Step" }, Expanded = true };
+                        _roots.Add(root);
+                        _selectedNode = root;
+                        OpenDetail(root);
+                    }
+
+                    _creatingNewMission = false;
+                    _showSaveAs = false;
+                    // user can press Save to write it
+                }
+                else
+                {
+                    // Normal Save As: apply name and save (with overwrite flow if needed)
+                    string save = GetCurrentSaveName();
+                    string path = GetSaveFileAbsolute(save, proposed);
+
+                    _pendingSaveMission = proposed;
+                    _pendingSavePath = path;
+
+                    if (File.Exists(path))
+                    {
+                        _showSaveAs = false;
+                        _showOverwriteDialog = true;
+
+                        var mp = Input.mousePosition;
+                        _overwriteRect.x = Mathf.Clamp(mp.x, 40, Screen.width - _overwriteRect.width - 40);
+                        _overwriteRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - _overwriteRect.height - 40);
+                    }
+                    else
+                    {
+                        _missionName = proposed;
+                        _showSaveAs = false;
+                        TrySaveToDisk_Internal(true);
+                    }
+                }
+            }
+            if (GUILayout.Button("Cancel", GUILayout.Width(100)))
+            {
+                _creatingNewMission = false;
+                _showSaveAs = false;
+            }
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            GUI.DragWindow(new Rect(0, 0, 10000, 10000));
+        }
+
+        // ---- Field helpers ----
+        private void IntField(string label, ref int value)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(label, GUILayout.Width(90));
+            string buf = GUILayout.TextField(value.ToString(), GUILayout.Width(120));
+            int parsed;
+            if (int.TryParse(buf, out parsed)) value = parsed;
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+        }
+
+        private void FloatField(string label, ref float value)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(label, GUILayout.Width(90));
+            string buf = GUILayout.TextField(value.ToString("G"), GUILayout.Width(120));
+            float parsed;
+            if (float.TryParse(buf, out parsed)) value = parsed;
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+        }
+
+        private void IntRangeFields(ref int min, ref int max)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Min (int)", GUILayout.Width(90));
+            string minBuf = GUILayout.TextField(min.ToString(), GUILayout.Width(120));
+            GUILayout.Space(12);
+            GUILayout.Label("Max (int)", GUILayout.Width(90));
+            string maxBuf = GUILayout.TextField(max.ToString(), GUILayout.Width(120));
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            int pmin, pmax;
+            if (int.TryParse(minBuf, out pmin)) min = pmin;
+            if (int.TryParse(maxBuf, out pmax)) max = pmax;
+        }
+
+        private void FloatRangeFields(ref float min, ref float max)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Min (float)", GUILayout.Width(90));
+            string minBuf = GUILayout.TextField(min.ToString("G"), GUILayout.Width(120));
+            GUILayout.Space(12);
+            GUILayout.Label("Max (float)", GUILayout.Width(90));
+            string maxBuf = GUILayout.TextField(max.ToString("G"), GUILayout.Width(120));
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            float pmin, pmax;
+            if (float.TryParse(minBuf, out pmin)) min = pmin;
+            if (float.TryParse(maxBuf, out pmax)) max = pmax;
+        }
+
+        // ---- Tree helpers ----
+        private void SetAllExpanded(bool ex) { foreach (var r in _roots) SetExpandedRecursive(r, ex); }
+        private void SetExpandedRecursive(StepNode n, bool ex) { n.Expanded = ex; foreach (var c in n.Children) SetExpandedRecursive(c, ex); }
+
+        private bool IsDescendant(StepNode ancestor, StepNode maybeDescendant)
+        {
+            if (ancestor == null || maybeDescendant == null) return false;
+            var p = maybeDescendant.Parent;
+            while (p != null) { if (p == ancestor) return true; p = p.Parent; }
+            return false;
+        }
+
+        private int CountAll() { int count = 0; foreach (var r in _roots) count += CountRecursive(r); return count; }
+        private int CountRecursive(StepNode n) { int c = 1; foreach (var ch in n.Children) c += CountRecursive(ch); return c; }
+
+        private void ReparentAll() { foreach (var r in _roots) { r.Parent = null; ReparentRecursive(r); } }
+        private void ReparentRecursive(StepNode n) { foreach (var c in n.Children) { c.Parent = n; ReparentRecursive(c); } }
+
+        private void SeedSample()
+        {
+            _missionName = "Sample Mission";
+            _missionSummary = "Example mission demonstrating preflight and ascent steps.";
+            _roots.Clear();
+
+            var preflight = new StepNode { data = new Step { title = "Preflight Checks", descr = "Before launch." }, Expanded = true };
+            preflight.AddChild(new Step { title = "Batteries", stepType = StepType.toggle, initialToggleValue = true });
+            preflight.AddChild(new Step { title = "Crew on board", stepType = StepType.toggle });
+            var limits = preflight.AddChild(new Step { title = "Set Limits", stepType = StepType.floatRange, minFloatRange = 0f, maxFloatRange = 5f });
+            limits.AddChild(new Step { title = "Max G ≤ 5.5", stepType = StepType.floatNotGreaterThan, floatNotGreaterThan = 5.5f });
+
+            var ascent = new StepNode { data = new Step { title = "Ascent", descr = "Liftoff to orbit." }, Expanded = true };
+            ascent.AddChild(new Step { title = "SAS On", stepType = StepType.toggle, initialToggleValue = true, toggle = true });
+            ascent.AddChild(new Step { title = "Throttle ≥ 50%", stepType = StepType.intNotLessThan, intNotLessThan = 50 });
+
+            preflight.AddChild(new Step { title = "Crew count 1–3", stepType = StepType.crewCount, minIntRange = 1, maxIntRange = 3 });
+            preflight.AddChild(new Step { title = "Has Parachute part", stepType = StepType.part, partName = "", partTitle = "", partOnlyAvailable = true });
+
+            _roots.Add(preflight);
+            _roots.Add(ascent);
+        }
+
+        // ---- Missions I/O ----
+        private string GetCurrentSaveName() { return HighLogic.SaveFolder ?? "UnknownSave"; }
+
+        private static string SanitizeForFile(string s)
+        {
+            if (String.IsNullOrEmpty(s)) return "Unnamed";
+            foreach (char c in System.IO.Path.GetInvalidFileNameChars())
+                s = s.Replace(c.ToString(), "_");
+            return s.Trim();
+        }
+
+        private string GetSaveDirectoryAbsolute() { return System.IO.Path.Combine(KSPUtil.ApplicationRootPath, "GameData", SAVE_MOD_FOLDER); }
+        private string GetCombinedFileName(string save, string mission) { return SanitizeForFile(save) + "__" + SanitizeForFile(mission) + SAVE_FILE_EXT; }
+        private string GetSaveFileAbsolute(string save, string mission) { return System.IO.Path.Combine(GetSaveDirectoryAbsolute(), GetCombinedFileName(save, mission)); }
+
+        // Save immediately to current name (no confirmation)
+        private bool TrySaveToDisk()
+        {
+            return TrySaveToDisk_Internal(true);
+        }
+
+        private bool TrySaveToDisk_Internal(bool overwriteOk)
+        {
+            try
+            {
+                string save = GetCurrentSaveName();
+                string mission = IsNullOrWhiteSpace(_missionName) ? "Unnamed" : _missionName.Trim();
+                string full = GetSaveFileAbsolute(save, mission);
+
+                if (File.Exists(full) && !overwriteOk) return false;
+
+                var root = new ConfigNode(SAVE_ROOT_NODE);
+                root.AddValue("SaveName", save);
+                root.AddValue("MissionName", mission);
+                root.AddValue("MissionSummary", _missionSummary ?? "");
+                root.AddValue("SavedUtc", DateTime.UtcNow.ToString("o"));
+
+                var list = new ConfigNode(SAVE_LIST_NODE);
+                root.AddNode(list);
+
+                foreach (var r in _roots)
+                    list.AddNode(r.ToConfigNodeRecursive());
+
+                Directory.CreateDirectory(GetSaveDirectoryAbsolute());
+                root.Save(full);
+
+                ShowSaveIndicator(string.Format("Saved ✓ {0} @ {1:t}", mission, DateTime.Now), true);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError("[MissionPlanner] Save failed: " + ex);
+                ScreenMessages.PostScreenMessage("Save failed (see log).", 3f, ScreenMessageStyle.UPPER_LEFT);
+                ShowSaveIndicator("Save ✗ (see log)", false);
+                return false;
+            }
+        }
+
+        private void ShowSaveIndicator(string text, bool success)
+        {
+            _lastSaveInfo = String.IsNullOrEmpty(text) ? (success ? "Saved ✓" : "Error ✗") : text;
+            _lastSaveWasSuccess = success;
+            _lastSaveShownUntil = Time.realtimeSinceStartup + SaveIndicatorSeconds;
+        }
+
+        private bool TryLoadFromDisk(string fullPath)
+        {
+            try
+            {
+                if (!File.Exists(fullPath)) return false;
+
+                var root = ConfigNode.Load(fullPath);
+                if (root == null || !root.HasNode(SAVE_LIST_NODE)) return false;
+
+                _missionName = root.GetValue("MissionName") ?? _missionName;
+                _missionSummary = root.GetValue("MissionSummary") ?? "";
+
+                var list = root.GetNode(SAVE_LIST_NODE);
+                var newRoots = new System.Collections.Generic.List<StepNode>();
+                foreach (var n in list.GetNodes("NODE"))
+                {
+                    var node = StepNode.FromConfigNodeRecursive(n);
+                    node.Parent = null;
+                    newRoots.Add(node);
+                }
+
+                _roots.Clear();
+                _roots.AddRange(newRoots);
+                ReparentAll();
+
+                ShowSaveIndicator("Loaded ✓ " + _missionName, true);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError("[MissionPlanner] Load failed: " + ex);
+                ScreenMessages.PostScreenMessage("Load failed (see log).", 3f, ScreenMessageStyle.UPPER_LEFT);
+                ShowSaveIndicator("Load ✗ (see log)", false);
+                return false;
+            }
+        }
+
+        private bool TryAutoLoadMostRecentForCurrentSave()
+        {
+            string save = GetCurrentSaveName();
+            var list = GetAllMissionFiles();
+            MissionFileInfo best = default(MissionFileInfo);
+            bool found = false;
+
+            foreach (var mf in list)
+            {
+                if (mf.SaveName.Equals(save, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!found || mf.LastWriteUtc > best.LastWriteUtc)
+                    {
+                        best = mf;
+                        found = true;
+                    }
+                }
+            }
+            if (found)
+            {
+                _missionName = best.MissionName;
+                return TryLoadFromDisk(best.FullPath);
+            }
+            return false;
+        }
+
+        // ---- Save As flow uses overwrite dialog ----
+        private void TrySaveAs()
+        {
+            _creatingNewMission = false;
+            OpenSaveAsDialog();
+        }
+
+        private void DrawOverwriteDialogWindow(int id)
+        {
+            GUILayout.Space(6);
+            GUILayout.Label("A mission with this name already exists.", _tinyLabel);
+
+            GUILayout.Space(4);
+            GUILayout.Label("Save: " + GetCurrentSaveName(), _hintLabel);
+            GUILayout.Label("Mission: " + _pendingSaveMission, _hintLabel);
+            GUILayout.Label("File: " + System.IO.Path.GetFileName(_pendingSavePath), _hintLabel);
+
+            GUILayout.Space(12);
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Overwrite", GUILayout.Width(120)))
+            {
+                if (!String.IsNullOrEmpty(_pendingSaveMission))
+                    _missionName = _pendingSaveMission;
+                _showOverwriteDialog = false;
+                TrySaveToDisk_Internal(true);
+            }
+            if (GUILayout.Button("Auto-Increment & Save", GUILayout.Width(180)))
+            {
+                string baseName = String.IsNullOrEmpty(_pendingSaveMission) ? _missionName : _pendingSaveMission;
+                string next = GetAutoIncrementName(baseName);
+                _missionName = next;
+                _pendingSaveMission = null;
+                _pendingSavePath = null;
+                _showOverwriteDialog = false;
+                TrySaveToDisk_Internal(true);
+            }
+            if (GUILayout.Button("Cancel", GUILayout.Width(100)))
+            {
+                _showOverwriteDialog = false;
+                _pendingSaveMission = null;
+                _pendingSavePath = null;
+            }
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            GUI.DragWindow(new Rect(0, 0, 10000, 10000));
+        }
+
+        private string GetAutoIncrementName(string baseName)
+        {
+            if (IsNullOrWhiteSpace(baseName)) baseName = "Unnamed";
+            string save = GetCurrentSaveName();
+            string name = baseName;
+            int n = 2;
+
+            while (File.Exists(GetSaveFileAbsolute(save, name)))
+            {
+                string stripped = baseName;
+                int p = stripped.LastIndexOf('(');
+                int q = stripped.LastIndexOf(')');
+                if (p >= 0 && q == stripped.Length - 1)
+                {
+                    string inside = stripped.Substring(p + 1, q - p - 1);
+                    int parsed;
+                    if (int.TryParse(inside, out parsed))
+                    {
+                        stripped = stripped.Substring(0, p).TrimEnd();
+                        n = parsed + 1;
+                    }
+                }
+                name = string.Format("{0} ({1})", stripped, n);
+                n++;
+            }
+            return name;
+        }
+
+        // ---- Load dialog data + UI ----
+        private struct MissionFileInfo
+        {
+            public string FullPath;
+            public string SaveName;
+            public string MissionName;
+            public DateTime LastWriteUtc;
+        }
+
+        private System.Collections.Generic.List<MissionFileInfo> GetAllMissionFiles()
+        {
+            var results = new System.Collections.Generic.List<MissionFileInfo>();
+            try
+            {
+                string dir = GetSaveDirectoryAbsolute();
+                if (!Directory.Exists(dir)) return results;
+                foreach (var file in Directory.GetFiles(dir, "*" + SAVE_FILE_EXT, SearchOption.TopDirectoryOnly))
+                {
+                    var name = System.IO.Path.GetFileNameWithoutExtension(file);
+                    string save = "", mission = "";
+                    int idx = name.IndexOf("__", StringComparison.Ordinal);
+                    if (idx > 0 && idx < name.Length - 2)
+                    {
+                        save = name.Substring(0, idx);
+                        mission = name.Substring(idx + 2);
+                    }
+                    else
+                    {
+                        var cn = ConfigNode.Load(file);
+                        save = cn?.GetValue("SaveName") ?? "UnknownSave";
+                        mission = cn?.GetValue("MissionName") ?? name;
+                    }
+
+                    results.Add(new MissionFileInfo
+                    {
+                        FullPath = file,
+                        SaveName = save,
+                        MissionName = mission,
+                        LastWriteUtc = File.GetLastWriteTimeUtc(file)
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError("[MissionPlanner] Listing missions failed: " + ex);
+            }
+            return results;
+        }
+
+        private void OpenLoadDialog()
+        {
+            _showLoadDialog = true;
+            _loadShowAllSaves = false;
+            _loadList = GetAllMissionFiles();
+
+            var mp = Input.mousePosition;
+            _loadRect.x = Mathf.Clamp(mp.x, 40, Screen.width - _loadRect.width - 40);
+            _loadRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - _loadRect.height - 40);
+        }
+
+        private void DrawLoadDialogWindow(int id)
+        {
+            GUILayout.Space(6);
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Show all saves", GUILayout.Width(120));
+            _loadShowAllSaves = GUILayout.Toggle(_loadShowAllSaves, GUIContent.none, GUILayout.Width(22));
+            GUILayout.FlexibleSpace();
+            if (GUILayout.Button("Refresh", GUILayout.Width(90))) _loadList = GetAllMissionFiles();
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(4);
+            string curSave = GetCurrentSaveName();
+            GUILayout.Label(_loadShowAllSaves ? "All Missions" : ("Missions for save: " + curSave), _tinyLabel);
+
+            GUILayout.Space(4);
+            _loadScroll = GUILayout.BeginScrollView(_loadScroll, HighLogic.Skin.textArea, GUILayout.ExpandHeight(true));
+            foreach (var mf in _loadList)
+            {
+                if (!_loadShowAllSaves && !mf.SaveName.Equals(curSave, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("Save: " + mf.SaveName, GUILayout.Width(180));
+                GUILayout.Label("Mission: " + mf.MissionName, GUILayout.ExpandWidth(true));
+                GUILayout.Label(mf.LastWriteUtc.ToLocalTime().ToString("g"), GUILayout.Width(140));
+
+                if (GUILayout.Button("Open", GUILayout.Width(70)))
+                {
+                    if (TryLoadFromDisk(mf.FullPath))
+                    {
+                        _missionName = mf.MissionName;
+                        ScreenMessages.PostScreenMessage("Loaded mission “" + _missionName + "”.", 2f, ScreenMessageStyle.UPPER_LEFT);
+                        _showLoadDialog = false;
+                    }
+                    else
+                    {
+                        ScreenMessages.PostScreenMessage("Failed to load mission (see log).", 2f, ScreenMessageStyle.UPPER_LEFT);
+                    }
+                }
+                if (GUILayout.Button("Delete", GUILayout.Width(70)))
+                {
+                    _deleteTarget = mf;
+                    _showDeleteConfirm = true;
+
+                    var mp = Input.mousePosition;
+                    _deleteRect.x = Mathf.Clamp(mp.x, 40, Screen.width - _deleteRect.width - 40);
+                    _deleteRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - _deleteRect.height - 40);
+                }
+                GUILayout.EndHorizontal();
+            }
+            GUILayout.EndScrollView();
+
+            GUILayout.Space(8);
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Close", GUILayout.Width(100))) _showLoadDialog = false;
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            GUI.DragWindow(new Rect(0, 0, 10000, 10000));
+        }
+
+        private void DrawDeleteDialogWindow(int id)
+        {
+            GUILayout.Space(6);
+            GUILayout.Label("Delete mission:\nSave: " + _deleteTarget.SaveName + "\nMission: " + _deleteTarget.MissionName, _hintLabel);
+
+            GUILayout.Space(10);
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Delete", GUILayout.Width(100)))
+            {
+                try
+                {
+                    if (File.Exists(_deleteTarget.FullPath))
+                        File.Delete(_deleteTarget.FullPath);
+                    ScreenMessages.PostScreenMessage("Mission deleted.", 2f, ScreenMessageStyle.UPPER_LEFT);
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogError("[MissionPlanner] Delete failed: " + ex);
+                    ScreenMessages.PostScreenMessage("Delete failed (see log).", 2f, ScreenMessageStyle.UPPER_LEFT);
+                }
+                finally
+                {
+                    _showDeleteConfirm = false;
+                    _loadList = GetAllMissionFiles();
+                }
+            }
+            if (GUILayout.Button("Cancel", GUILayout.Width(100)))
+            {
+                _showDeleteConfirm = false;
+            }
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            GUI.DragWindow(new Rect(0, 0, 10000, 10000));
+        }
+
+        // ---- Toolbar / AppLauncher ----
+        private void OnAppLauncherReady()
+        {
+            if (ApplicationLauncher.Instance == null || _appButton != null) return;
+
+            _appButton = ApplicationLauncher.Instance.AddModApplication(
+                onTrue: () => { _visible = true; SetButtonIcon(_iconOn); },
+                onFalse: () => { _visible = false; SetButtonIcon(_iconOff); },
+                onHover: null, onHoverOut: null, onEnable: null, onDisable: null,
+                visibleInScenes: _scenes,
+                texture: _visible ? _iconOn : _iconOff
+            );
+            SyncToolbarState();
+        }
+
+        private void OnAppLauncherDestroyed()
+        {
+            if (_appButton != null && ApplicationLauncher.Instance != null)
+                ApplicationLauncher.Instance.RemoveModApplication(_appButton);
+            _appButton = null;
+        }
+
+        private void SyncToolbarState()
+        {
+            if (_appButton == null) return;
+
+            if (_visible)
+            {
+                if (_appButton.toggleButton.CurrentState == KSP.UI.UIRadioButton.State.False)
+                    _appButton.SetTrue();
+                SetButtonIcon(_iconOn);
+            }
+            else
+            {
+                if (_appButton.toggleButton.CurrentState == KSP.UI.UIRadioButton.State.True)
+                    _appButton.SetFalse();
+                SetButtonIcon(_iconOff);
+            }
+        }
+
+        private void LoadIconsOrFallback()
+        {
+            _iconOn = GameDatabase.Instance?.GetTexture(IconOnPath, false);
+            _iconOff = GameDatabase.Instance?.GetTexture(IconOffPath, false);
+            if (_iconOn == null) _iconOn = MakeSolidTexture(38, 38, new Color(0.25f, 0.8f, 0.25f, 1f));
+            if (_iconOff == null) _iconOff = MakeSolidTexture(38, 38, new Color(0.7f, 0.7f, 0.7f, 1f));
+        }
+
+        private void SetButtonIcon(Texture2D tex)
+        {
+            if (_appButton != null && tex != null)
+                _appButton.SetTexture(tex);
+        }
+
+        private Texture2D MakeSolidTexture(int w, int h, Color c)
+        {
+            var t = new Texture2D(w, h, TextureFormat.ARGB32, false);
+            var px = new Color[w * h];
+            for (int i = 0; i < px.Length; i++) px[i] = c;
+            t.SetPixels(px); t.Apply();
+            return t;
+        }
+
+        // ---- UI settings persistence ----
+        private string GetUIFileAbsolute() { return System.IO.Path.Combine(KSPUtil.ApplicationRootPath, "GameData", SAVE_MOD_FOLDER, UI_FILE_NAME); }
+
+        private static ConfigNode RectToNode(string name, Rect r)
+        {
+            var n = new ConfigNode(name);
+            n.AddValue("x", r.x);
+            n.AddValue("y", r.y);
+            n.AddValue("w", r.width);
+            n.AddValue("h", r.height);
+            return n;
+        }
+
+        private static Rect NodeToRect(ConfigNode n, Rect fallback)
+        {
+            if (n == null) return fallback;
+            float x = fallback.x, y = fallback.y, w = fallback.width, h = fallback.height;
+            float.TryParse(n.GetValue("x"), out x);
+            float.TryParse(n.GetValue("y"), out y);
+            float.TryParse(n.GetValue("w"), out w);
+            float.TryParse(n.GetValue("h"), out h);
+            return new Rect(x, y, w, h);
+        }
+
+        private void SaveUISettings()
+        {
+            try
+            {
+                Directory.CreateDirectory(System.IO.Path.Combine(KSPUtil.ApplicationRootPath, "GameData", SAVE_MOD_FOLDER));
+                var root = new ConfigNode(UI_ROOT_NODE);
+                root.AddValue("UseKspSkin", _useKspSkin);
+                root.AddValue("TitleWidthPct", _titleWidthPct);
+                root.AddValue("ControlsPad", _controlsPad);
+                root.AddValue("IndentPerLevel", _indentPerLevel);
+                root.AddValue("FoldColWidth", _foldColWidth);
+
+                root.AddNode(RectToNode("TreeRect", _treeRect));
+                root.AddNode(RectToNode("DetailRect", _detailRect));
+                root.AddNode(RectToNode("MoveRect", _moveRect));
+                root.AddNode(RectToNode("LoadRect", _loadRect));
+                root.AddNode(RectToNode("OverwriteRect", _overwriteRect));
+                root.AddNode(RectToNode("DeleteRect", _deleteRect));
+                root.AddNode(RectToNode("PartRect", _partRect));
+                root.AddNode(RectToNode("SaveAsRect", _saveAsRect));
+                root.AddNode(RectToNode("NewConfirmRect", _newConfirmRect));
+                root.AddNode(RectToNode("ClearConfirmRect", _clearConfirmRect));
+                root.AddNode(RectToNode("SummaryRect", _summaryRect));
+
+                root.Save(GetUIFileAbsolute());
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError("[MissionPlanner] SaveUISettings failed: " + ex);
+            }
+        }
+
+        private void LoadUISettings()
+        {
+            try
+            {
+                string path = GetUIFileAbsolute();
+                if (!File.Exists(path)) return;
+
+                var root = ConfigNode.Load(path);
+                if (root == null || root.name != UI_ROOT_NODE) return;
+
+                bool.TryParse(root.GetValue("UseKspSkin"), out _useKspSkin);
+                float.TryParse(root.GetValue("TitleWidthPct"), out _titleWidthPct);
+                float.TryParse(root.GetValue("ControlsPad"), out _controlsPad);
+                float.TryParse(root.GetValue("IndentPerLevel"), out _indentPerLevel);
+                float.TryParse(root.GetValue("FoldColWidth"), out _foldColWidth);
+
+                if (_titleWidthPct <= 0f) _titleWidthPct = 0.75f;
+                _controlsPad = Mathf.Clamp(_controlsPad, 0f, 120f);
+                _indentPerLevel = Mathf.Clamp(_indentPerLevel, 10f, 40f);
+                _foldColWidth = Mathf.Clamp(_foldColWidth, 16f, 48f);
+
+                _treeRect = NodeToRect(root.GetNode("TreeRect"), _treeRect);
+                _detailRect = NodeToRect(root.GetNode("DetailRect"), _detailRect);
+                _moveRect = NodeToRect(root.GetNode("MoveRect"), _moveRect);
+                _loadRect = NodeToRect(root.GetNode("LoadRect"), _loadRect);
+                _overwriteRect = NodeToRect(root.GetNode("OverwriteRect"), _overwriteRect);
+                _deleteRect = NodeToRect(root.GetNode("DeleteRect"), _deleteRect);
+                _partRect = NodeToRect(root.GetNode("PartRect"), _partRect);
+                _saveAsRect = NodeToRect(root.GetNode("SaveAsRect"), _saveAsRect);
+                _newConfirmRect = NodeToRect(root.GetNode("NewConfirmRect"), _newConfirmRect);
+                _clearConfirmRect = NodeToRect(root.GetNode("ClearConfirmRect"), _clearConfirmRect);
+                _summaryRect = NodeToRect(root.GetNode("SummaryRect"), _summaryRect);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError("[MissionPlanner] LoadUISettings failed: " + ex);
+            }
+        }
+    }
+}
+#endif
