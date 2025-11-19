@@ -49,7 +49,7 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="ToolbarControl">
-      <HintPath>R:\KSP\KSP_1.12.5-dev\GameData\001_ToolbarControl\Plugins\ToolbarControl.dll</HintPath>
+      <HintPath>$(KSPDIR)\GameData\001_ToolbarControl\Plugins\ToolbarControl.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
@@ -84,7 +84,7 @@
     <Compile Include="Utils\FlightChecks.cs" />
     <Compile Include="Utils\FuelCellUtils.cs" />
     <Compile Include="Utils\LightUtils.cs" />
-    <Compile Include="Scenarios\MissionVisitTracker .cs" />
+    <Compile Include="Scenarios\MissionVisitTracker.cs" />
     <Compile Include="Utils\ParachuteUtils.cs" />
     <Compile Include="Utils\BiomeUtils.cs" />
     <Compile Include="Utils\RadiatorUtils.cs" />
