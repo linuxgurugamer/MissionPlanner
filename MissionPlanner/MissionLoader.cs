@@ -1,9 +1,7 @@
-﻿using System;
+﻿using SpaceTuxUtility;
+using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using UnityEngine;
 
 namespace MissionPlanner
@@ -30,8 +28,10 @@ namespace MissionPlanner
                     else
                     {
                         var cn = ConfigNode.Load(file);
-                        save = cn?.GetValue("SaveName") ?? "UnknownSave";
-                        mission = cn?.GetValue("MissionName") ?? name;
+                        save = cn.SafeLoad("SaveName", "UnknownSave");
+                        mission = cn.SafeLoad("MissionName", name);
+                        //save = cn?.GetValue("SaveName") ?? "UnknownSave";
+                        //mission = cn?.GetValue("MissionName") ?? name;
                     }
 
                     results.Add(new MissionFileInfo
@@ -64,60 +64,91 @@ namespace MissionPlanner
         private void DrawLoadDialogWindow(int id)
         {
             GUILayout.Space(6);
-            GUILayout.BeginHorizontal();
-            GUILayout.Label("Show all saves", GUILayout.Width(120));
-            _loadShowAllSaves = GUILayout.Toggle(_loadShowAllSaves, GUIContent.none, GUILayout.Width(22));
-            GUILayout.FlexibleSpace();
-            if (GUILayout.Button("Refresh", GUILayout.Width(90))) _loadList = GetAllMissionFiles();
-            GUILayout.EndHorizontal();
+            using (new GUILayout.HorizontalScope())
+            {
+                GUILayout.Label("Show all saves", ScaledGUILayoutWidth(120));
+                _loadShowAllSaves = GUILayout.Toggle(_loadShowAllSaves, GUIContent.none, ScaledGUILayoutWidth(22));
+                GUILayout.FlexibleSpace();
+                if (GUILayout.Button("Refresh", ScaledGUILayoutWidth(90)))
+                    _loadList = GetAllMissionFiles();
+            }
 
             GUILayout.Space(4);
             string curSave = GetCurrentSaveName();
-            GUILayout.Label(_loadShowAllSaves ? "All Missions" : ("Missions for save: " + curSave), _tinyLabel);
+            GUILayout.Label(_loadShowAllSaves ? "All Missions" : ("Missions for save: " + curSave));
 
             GUILayout.Space(4);
+            if (_loadShowAllSaves)
+            {
+                using (new GUILayout.HorizontalScope())
+                {
+                    GUILayout.Label("Save", ScaledGUILayoutWidth(180));
+                    GUILayout.Label("Mission");
+                }
+            }
             _loadScroll = GUILayout.BeginScrollView(_loadScroll, HighLogic.Skin.textArea, GUILayout.ExpandHeight(true));
             foreach (var mf in _loadList)
             {
                 if (!_loadShowAllSaves && !mf.SaveName.Equals(curSave, StringComparison.OrdinalIgnoreCase))
                     continue;
 
-                GUILayout.BeginHorizontal();
-                GUILayout.Label("Save: " + mf.SaveName, GUILayout.Width(180));
-                GUILayout.Label("Mission: " + mf.MissionName, GUILayout.ExpandWidth(true));
-                GUILayout.Label(mf.LastWriteUtc.ToLocalTime().ToString("g"), GUILayout.Width(140));
 
-                if (GUILayout.Button("Open", GUILayout.Width(70)))
+                using (new GUILayout.HorizontalScope())
                 {
-                    if (TryLoadFromDisk(mf.FullPath))
+                    if (_loadShowAllSaves)
+                        GUILayout.Label(mf.SaveName, ScaledGUILayoutWidth(180));
+                    GUILayout.Label(mf.MissionName, GUILayout.ExpandWidth(true));
+                    //GUILayout.Label(mf.LastWriteUtc.ToLocalTime().ToString("g"), ScaledGUILayoutWidth(140));
+
+                    if (GUILayout.Button("Open", ScaledGUILayoutWidth(70)))
                     {
-                        _missionName = mf.MissionName;
-                        ScreenMessages.PostScreenMessage("Loaded mission “" + _missionName + "”.", 2f, ScreenMessageStyle.UPPER_LEFT);
-                        _showLoadDialog = false;
+                        if (TryLoadFromDisk(mf.FullPath))
+                        {
+                            _missionName = mf.MissionName;
+                            ScreenMessages.PostScreenMessage("Loaded mission “" + _missionName + "”.", 2f, ScreenMessageStyle.UPPER_LEFT);
+                            _showLoadDialog = false;
+                        }
+                        else
+                        {
+                            ScreenMessages.PostScreenMessage("Failed to load mission (see log).", 2f, ScreenMessageStyle.UPPER_LEFT);
+                        }
                     }
-                    else
+
+                    if (GUILayout.Button("Import", ScaledGUILayoutWidth(70)))
                     {
-                        ScreenMessages.PostScreenMessage("Failed to load mission (see log).", 2f, ScreenMessageStyle.UPPER_LEFT);
+                        if (TryLoadFromDisk(mf.FullPath, true))
+                        {
+                            _missionName = mf.MissionName;
+                            ScreenMessages.PostScreenMessage("Imported mission “" + _missionName + "”.", 2f, ScreenMessageStyle.UPPER_LEFT);
+                            _showLoadDialog = false;
+                        }
+                        else
+                        {
+                            ScreenMessages.PostScreenMessage("Failed to load mission (see log).", 2f, ScreenMessageStyle.UPPER_LEFT);
+                        }
+                    }
+
+
+
+                    if (GUILayout.Button("Delete", ScaledGUILayoutWidth(70)))
+                    {
+                        _deleteTarget = mf;
+                        _showDeleteConfirm = true;
+
+                        var mp = Input.mousePosition;
+                        _deleteRect.x = Mathf.Clamp(mp.x, 40, Screen.width - _deleteRect.width - 40);
+                        _deleteRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - _deleteRect.height - 40);
                     }
                 }
-                if (GUILayout.Button("Delete", GUILayout.Width(70)))
-                {
-                    _deleteTarget = mf;
-                    _showDeleteConfirm = true;
-
-                    var mp = Input.mousePosition;
-                    _deleteRect.x = Mathf.Clamp(mp.x, 40, Screen.width - _deleteRect.width - 40);
-                    _deleteRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - _deleteRect.height - 40);
-                }
-                GUILayout.EndHorizontal();
             }
             GUILayout.EndScrollView();
 
-            GUILayout.Space(8);
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Close", GUILayout.Width(100))) _showLoadDialog = false;
             GUILayout.FlexibleSpace();
-            GUILayout.EndHorizontal();
+            using (new GUILayout.HorizontalScope())
+            {
+                if (GUILayout.Button("Close", ScaledGUILayoutWidth(100))) _showLoadDialog = false;
+                GUILayout.FlexibleSpace();
+            }
 
             GUI.DragWindow(new Rect(0, 0, 10000, 10000));
         }
@@ -128,32 +159,35 @@ namespace MissionPlanner
             GUILayout.Label("Delete mission:\nSave: " + _deleteTarget.SaveName + "\nMission: " + _deleteTarget.MissionName, _hintLabel);
 
             GUILayout.Space(10);
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Delete", GUILayout.Width(100)))
+            using (new GUILayout.HorizontalScope())
             {
-                try
+                GUILayout.FlexibleSpace();
+                if (GUILayout.Button("Delete", ScaledGUILayoutWidth(100)))
                 {
-                    if (File.Exists(_deleteTarget.FullPath))
-                        File.Delete(_deleteTarget.FullPath);
-                    ScreenMessages.PostScreenMessage("Mission deleted.", 2f, ScreenMessageStyle.UPPER_LEFT);
+                    try
+                    {
+                        if (File.Exists(_deleteTarget.FullPath))
+                            File.Delete(_deleteTarget.FullPath);
+                        ScreenMessages.PostScreenMessage("Mission deleted.", 2f, ScreenMessageStyle.UPPER_LEFT);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogError("[MissionPlanner] Delete failed: " + ex);
+                        ScreenMessages.PostScreenMessage("Delete failed (see log).", 2f, ScreenMessageStyle.UPPER_LEFT);
+                    }
+                    finally
+                    {
+                        _showDeleteConfirm = false;
+                        _loadList = GetAllMissionFiles();
+                    }
                 }
-                catch (Exception ex)
-                {
-                    Debug.LogError("[MissionPlanner] Delete failed: " + ex);
-                    ScreenMessages.PostScreenMessage("Delete failed (see log).", 2f, ScreenMessageStyle.UPPER_LEFT);
-                }
-                finally
+                GUILayout.FlexibleSpace();
+                if (GUILayout.Button("Cancel", ScaledGUILayoutWidth(100)))
                 {
                     _showDeleteConfirm = false;
-                    _loadList = GetAllMissionFiles();
                 }
+                GUILayout.FlexibleSpace();
             }
-            if (GUILayout.Button("Cancel", GUILayout.Width(100)))
-            {
-                _showDeleteConfirm = false;
-            }
-            GUILayout.FlexibleSpace();
-            GUILayout.EndHorizontal();
 
             GUI.DragWindow(new Rect(0, 0, 10000, 10000));
         }

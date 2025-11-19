@@ -67,7 +67,7 @@ public static class VesselResourceQuery
         {
             if (p == null || p.Resources == null) continue;
 
-            var pr = p.Resources[resourceName];
+            PartResource pr = p.Resources[resourceName];
             if (pr == null) continue;
             if (!includeLocked && pr.flowState == false) continue;
 

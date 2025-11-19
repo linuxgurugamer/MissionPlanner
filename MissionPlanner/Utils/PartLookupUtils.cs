@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using KSP;
 
-public static class PartLookup
+public static class PartLookupUtils
 {
     /// <summary>
     /// Returns the current set of Parts from either:

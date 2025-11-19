@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using UnityEngine;
 
 public static class SolarUtils
 {
@@ -14,7 +13,8 @@ public static class SolarUtils
         => !IsStockSolarModule(m)
            && m != null
            && !string.IsNullOrEmpty(m.moduleName)
-           && m.moduleName.IndexOf("SolarPanel", StringComparison.OrdinalIgnoreCase) >= 0;
+           && (m.moduleName.IndexOf("SolarPanel", StringComparison.OrdinalIgnoreCase) >= 0 || m.moduleName == "ModuleROSolar");
+
 
     private static IEnumerable<PartModule> SolarModules(Part p)
         => p == null ? Enumerable.Empty<PartModule>()
@@ -36,11 +36,14 @@ public static class SolarUtils
         public int ModContributors;
         public int ModUnknown;
 
-        public int TotalSolarParts {  get { return StockContributors + ModContributors + ModUnknown; } }
+        public int TotalSolarParts { get { return StockContributors + ModContributors + ModUnknown; } }
     }
 
+    public enum Tracking { both, nontracking, tracking };
+    public static string[] trackingStr = new string[] { "Both", "NonTracking", "Tracking" };
+
     // ---------- flight estimate ----------
-    public static SolarGenerationSummary GetEstimatedECGenerationFlight(Vessel v)
+    public static SolarGenerationSummary GetEstimatedECGenerationFlight(Vessel v, Tracking tracking)
     {
         var summary = new SolarGenerationSummary();
         if (v == null) return summary;
@@ -48,18 +51,31 @@ public static class SolarUtils
         foreach (var pm in SolarModules(v))
         {
             // Stock
-            if (pm is ModuleDeployableSolarPanel sp)
+            if (pm is ModuleDeployableSolarPanel || pm.moduleName == "ModuleROSolar")
             {
+                ModuleDeployableSolarPanel sp = pm as ModuleDeployableSolarPanel;
                 if (sp.deployState.ToString().Equals("BROKEN", StringComparison.OrdinalIgnoreCase))
                     continue;
-
-                summary.TotalECps += Math.Max(0, sp.flowRate);
-                summary.StockContributors++;
+                if ((tracking == Tracking.nontracking && !sp.isTracking) ||
+                    (tracking == Tracking.tracking && !sp.isTracking) ||
+                    tracking == Tracking.both)
+                {
+                    summary.TotalECps += Math.Max(0, sp.flowRate);
+                    summary.StockContributors++;
+                }
                 continue;
             }
+            // Need to add check for tracking/nontracking here for nonstock solar panels
+            // WeatherDrivenSolarPanel https://github.com/Aebestach/WeatherDrivenSolarPanel/tree/master
+            // ModuleCurvedSolarPanel   NearFutureSolar
+            // SSTUSolarPanelStatic     doesn't work past 1.8
+            // SSTUSolarPanelDeployable doesn't work past 1.8
 
+
+            // For now, assume that all of unrecognized modded panels are not tracked
             // Mod
-            if (IsModSolarModule(pm))
+
+            if (tracking != Tracking.tracking && IsModSolarModule(pm))
             {
                 if (TryGetDoubleByName(pm, out var value,
                     "flowRate", "currentOutput", "outputRate", "ecRate", "ecOutput", "chargeRate", "power", "currentEc"))

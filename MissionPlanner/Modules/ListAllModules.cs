@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using MissionPlanner;
+using System.Collections.Generic;
 using UnityEngine;
 
 [KSPAddon(KSPAddon.Startup.MainMenu, false)]
@@ -10,7 +11,7 @@ public class ListAllModules : MonoBehaviour
 
         foreach (AvailablePart ap in PartLoader.LoadedPartsList)
         {
-            if (ap == null || ap.partPrefab == null)
+            if (HierarchicalStepsWindow.IsBannedPart(ap))
                 continue;
 
             foreach (PartModule pm in ap.partPrefab.Modules)

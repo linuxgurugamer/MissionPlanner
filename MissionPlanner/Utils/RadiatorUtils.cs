@@ -116,7 +116,7 @@ public static class RadiatorUtils
     // Cooling summaries (kW): Flight (current) & Editor (nominal)
     // ─────────────────────────────────────────────────────────────────────────────
 
-    public struct RadiatorCoolingSummary
+    public class RadiatorCoolingSummary
     {
         public double TotalKW;        // kW-ish now (flight) or nominal (editor)
         public int StockContributors;

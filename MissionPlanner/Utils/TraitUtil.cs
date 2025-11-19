@@ -1,10 +1,13 @@
-﻿using System.Collections.Generic;
+﻿using KSP.Localization;   // for Localizer.Format
+using SpaceTuxUtility;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using KSP.Localization;   // for Localizer.Format
+using static SpaceTuxUtility.ConfigNodeUtils;
+
 
 [KSPAddon(KSPAddon.Startup.MainMenu, false)]
-public  class TraitUtil:MonoBehaviour
+public class TraitUtil : MonoBehaviour
 {
     public class DetailedTraits
     {
@@ -38,14 +41,19 @@ public  class TraitUtil:MonoBehaviour
     //public static IEnumerable<(string name, string title, string desc, List<string> effects)> GetAllTraitsDetailed()
     public List<DetailedTraits> GetAllTraitsDetailed()
     {
-        List < DetailedTraits > traits = new List<DetailedTraits>();
+        List<DetailedTraits> traits = new List<DetailedTraits>();
         foreach (var cfg in GameDatabase.Instance.GetConfigs("EXPERIENCE_TRAIT"))
         {
             DetailedTraits detailedTraits = new DetailedTraits();
             var node = cfg.config;
-            detailedTraits.name = node.GetValue("name") ?? "(unnamed)";
-            detailedTraits.title = node.GetValue("title") ?? name;
-            detailedTraits.desc = node.GetValue("desc") ?? "";
+
+            detailedTraits.name = node.SafeLoad("name", "(unnamed)");
+            detailedTraits.title = node.SafeLoad("title", name);
+            detailedTraits.desc = node.SafeLoad("desc", "");
+
+            //detailedTraits.name = node.GetValue("name") ?? "(unnamed)";
+            //detailedTraits.title = node.GetValue("title") ?? name;
+            //detailedTraits.desc = node.GetValue("desc") ?? "";
 
             // Resolve #autoLOC tokens if present
             if (detailedTraits.title.StartsWith("#")) detailedTraits.title = Localizer.Format(detailedTraits.title);
@@ -59,6 +67,6 @@ public  class TraitUtil:MonoBehaviour
             traits.Add(detailedTraits);
         }
         return traits;
-        
+
     }
 }

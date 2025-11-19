@@ -35,13 +35,12 @@ namespace MissionPlanner
             if (_moduleTargetNode == null) { _showModuleDialog = false; GUI.DragWindow(new Rect(0, 0, 10000, 10000)); return; }
             GUILayout.Space(6);
 
-            GUILayout.BeginHorizontal();
-            GUILayout.Label("Available only", GUILayout.Width(110));
-            GUILayout.Space(12);
-            GUILayout.Label("Search", GUILayout.Width(60));
-            _moduleFilter = GUILayout.TextField(_moduleFilter ?? "", GUILayout.MinWidth(160), GUILayout.ExpandWidth(true));
-            GUILayout.FlexibleSpace();
-            GUILayout.EndHorizontal();
+            using (new GUILayout.HorizontalScope())
+            {
+                GUILayout.Label("Search:", ScaledGUILayoutWidth(60));
+                _moduleFilter = GUILayout.TextField(_moduleFilter ?? "", GUILayout.MinWidth(160), GUILayout.ExpandWidth(true));
+                GUILayout.FlexibleSpace();
+            }
 
             GUILayout.Space(6);
             _moduleScroll = GUILayout.BeginScrollView(_moduleScroll, HighLogic.Skin.textArea, GUILayout.ExpandHeight(true));
@@ -60,18 +59,19 @@ namespace MissionPlanner
                             continue;
                     }
 
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label(pm, GUILayout.Width(320));
-                    GUILayout.FlexibleSpace();
-                    if (GUILayout.Button("Choose", GUILayout.Width(80)))
+                    using (new GUILayout.HorizontalScope())
                     {
-                        var s = _moduleTargetNode.data;
-                        s.moduleName = pm;
-                        _showModuleDialog = false;
-                        _moduleTargetNode = null;
-                        TrySaveToDisk_Internal(true);
+                        GUILayout.FlexibleSpace();
+                        if (GUILayout.Button(pm, ScaledGUILayoutWidth(320)))
+                        {
+                            var s = _moduleTargetNode.data;
+                            s.moduleName = pm;
+                            _showModuleDialog = false;
+                            _moduleTargetNode = null;
+                            TrySaveToDisk_Internal(true);
+                        }
+                        GUILayout.FlexibleSpace();
                     }
-                    GUILayout.EndHorizontal();
                 }
             }
             else
@@ -81,15 +81,16 @@ namespace MissionPlanner
 
             GUILayout.EndScrollView();
 
-            GUILayout.Space(6);
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Close", GUILayout.Width(100)))
-            {
-                _showModuleDialog = false;
-                _moduleTargetNode = null;
-            }
             GUILayout.FlexibleSpace();
-            GUILayout.EndHorizontal();
+            using (new GUILayout.HorizontalScope())
+            {
+                if (GUILayout.Button("Close", ScaledGUILayoutWidth(100)))
+                {
+                    _showModuleDialog = false;
+                    _moduleTargetNode = null;
+                }
+                GUILayout.FlexibleSpace();
+            }
 
             GUI.DragWindow(new Rect(0, 0, 10000, 10000));
         }

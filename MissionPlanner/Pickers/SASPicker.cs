@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿#if false
+using UnityEngine;
 
 
 namespace MissionPlanner
@@ -24,13 +25,18 @@ namespace MissionPlanner
 
         private void DrawSASPickerWindow(int id)
         {
-            if (_SASTargetNode == null) { _showSASDialog = false; GUI.DragWindow(new Rect(0, 0, 10000, 10000)); return; }
+            if (_SASTargetNode == null) 
+            { 
+                _showSASDialog = false; 
+                GUI.DragWindow(new Rect(0, 0, 10000, 10000)); 
+                return; 
+            }
             GUILayout.Space(6);
 
             GUILayout.BeginHorizontal();
-            GUILayout.Label("Available only", GUILayout.Width(110));
+            GUILayout.Label("Available only", ScaledGUILayoutWidth(110));
             GUILayout.Space(12);
-            GUILayout.Label("Search", GUILayout.Width(60));
+            GUILayout.Label("Search:", ScaledGUILayoutWidth(60));
             _SASFilter = GUILayout.TextField(_SASFilter ?? "", GUILayout.MinWidth(160), GUILayout.ExpandWidth(true));
             GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
@@ -40,9 +46,9 @@ namespace MissionPlanner
             for (int i = 0; i < SASUtils.SasLevelDescriptions.Length; i++)
             {
                 GUILayout.BeginHorizontal();
-                GUILayout.Label(SASUtils.SasLevelDescriptions[i], GUILayout.Width(320));
+                GUILayout.Label(SASUtils.SasLevelDescriptions[i], ScaledGUILayoutWidth(320));
                 GUILayout.FlexibleSpace();
-                if (GUILayout.Button("Choose", GUILayout.Width(80)))
+                if (GUILayout.Button("Choose", ScaledGUILayoutWidth(80)))
                 {
                     var s = _SASTargetNode.data;
                     s.minSASLevel = i;
@@ -54,9 +60,9 @@ namespace MissionPlanner
             }
             GUILayout.EndScrollView();
 
-            GUILayout.Space(6);
+            GUILayout.FlexibleSpace();
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Close", GUILayout.Width(100)))
+            if (GUILayout.Button("Close", ScaledGUILayoutWidth(100)))
             {
                 _showSASDialog = false;
                 _SASTargetNode = null;
@@ -68,3 +74,4 @@ namespace MissionPlanner
         }
     }
 }
+#endif

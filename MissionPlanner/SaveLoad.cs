@@ -1,16 +1,20 @@
-﻿using System;
+﻿using SpaceTuxUtility;
+using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using UnityEngine;
+
+using static MissionPlanner.RegisterToolbar;
+using static SpaceTuxUtility.ConfigNodeUtils;
 
 namespace MissionPlanner
 {
     public partial class HierarchicalStepsWindow : MonoBehaviour
     {
-        private string GetCurrentSaveName() { return HighLogic.SaveFolder ?? "UnknownSave"; }
+        private string GetCurrentSaveName()
+        {
+            return HighLogic.SaveFolder ?? "UnknownSave";
+        }
 
         private static string SanitizeForFile(string s)
         {
@@ -24,7 +28,10 @@ namespace MissionPlanner
         private string GetCombinedFileName(string save, string mission) { return SanitizeForFile(save) + "__" + SanitizeForFile(mission) + SAVE_FILE_EXT; }
         private string GetSaveFileAbsolute(string save, string mission) { return Path.Combine(GetSaveDirectoryAbsolute(), GetCombinedFileName(save, mission)); }
 
-        private bool TrySaveToDisk() { return TrySaveToDisk_Internal(true); }
+        private bool TrySaveToDisk()
+        {
+            return TrySaveToDisk_Internal(true);
+        }
 
         private bool TrySaveToDisk_Internal(bool overwriteOk)
         {
@@ -34,13 +41,17 @@ namespace MissionPlanner
                 string mission = IsNullOrWhiteSpace(_missionName) ? "Unnamed" : _missionName.Trim();
                 string full = GetSaveFileAbsolute(save, mission);
 
+
                 if (File.Exists(full) && !overwriteOk) return false;
 
                 var root = new ConfigNode(SAVE_ROOT_NODE);
                 root.AddValue("SaveName", save);
                 root.AddValue("MissionName", mission);
                 root.AddValue("MissionSummary", _missionSummary ?? "");
-                root.AddValue("SavedUtc", DateTime.UtcNow.ToString("o"));
+                root.AddValue("SimpleChecklist", _simpleChecklist);
+
+
+                root.AddValue("currentView", (int)currentView);
 
                 var list = new ConfigNode(SAVE_LIST_NODE);
                 root.AddNode(list);
@@ -65,22 +76,49 @@ namespace MissionPlanner
 
         private void ShowSaveIndicator(string text, bool success)
         {
-            _lastSaveInfo = String.IsNullOrEmpty(text) ? (success ? "Saved ✓" : "Error ✗") : text;
-            _lastSaveWasSuccess = success;
-            _lastSaveShownUntil = Time.realtimeSinceStartup + SaveIndicatorSeconds;
+            if (HighLogic.CurrentGame == null)
+                return;
+            if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().showSaveIndicator
+                && currentView == View.Full)
+            {
+                _lastSaveInfo = String.IsNullOrEmpty(text) ? (success ? "Saved ✓" : "Error ✗") : text;
+                _lastSaveWasSuccess = success;
+                _lastSaveShownUntil = Time.realtimeSinceStartup + SaveIndicatorSeconds;
+            }
         }
 
-        private bool TryLoadFromDisk(string fullPath)
+        private bool TryLoadFromDisk(string fullPath, bool import = false)
         {
             try
             {
-                if (!File.Exists(fullPath)) return false;
+                if (!File.Exists(fullPath))
+                {
+                    Log.Error("tryLoadFromDisk, File: " + fullPath + " does not exist");
+                    return false;
+                }
 
                 var root = ConfigNode.Load(fullPath);
-                if (root == null || !root.HasNode(SAVE_LIST_NODE)) return false;
+                if (root == null || !root.HasNode(SAVE_LIST_NODE))
+                {
+                    if (root == null)
+                        Log.Error("tryLoadFromDisk, root is null");
+                    else
+                        Log.Error("tryLoadFromDisk, root.HasNode(SAVE_LIST_NODE) not found");
 
-                _missionName = root.GetValue("MissionName") ?? _missionName;
-                _missionSummary = root.GetValue("MissionSummary") ?? "";
+                    return false;
+                }
+
+                _missionName = root.SafeLoad("MissionName", _missionName);
+                _missionSummary = root.SafeLoad("MissionSummary", "");
+                _simpleChecklist = root.SafeLoad("SimpleChecklist", false);
+                int i = root.SafeLoad("currentView", 0);
+
+                //_missionName = root.GetValue("MissionName") ?? _missionName;
+                //_missionSummary = root.GetValue("MissionSummary") ?? "";
+                //_simpleChecklist = bool.Parse(root.GetValue("SimpleChecklist") ?? "false");
+                //int.TryParse(root.GetValue("currentView"), out int i);
+
+                currentView = (View)i;
 
                 var list = root.GetNode(SAVE_LIST_NODE);
                 var newRoots = new List<StepNode>();
@@ -91,7 +129,8 @@ namespace MissionPlanner
                     newRoots.Add(node);
                 }
 
-                _roots.Clear();
+                if (!import)
+                    _roots.Clear();
                 _roots.AddRange(newRoots);
                 ReparentAll();
 
@@ -109,6 +148,7 @@ namespace MissionPlanner
 
         private bool TryAutoLoadMostRecentForCurrentSave()
         {
+            //return false;
             string save = GetCurrentSaveName();
             var list = GetAllMissionFiles();
             MissionFileInfo best = default(MissionFileInfo);
@@ -150,32 +190,33 @@ namespace MissionPlanner
             GUILayout.Label("File: " + Path.GetFileName(_pendingSavePath), _hintLabel);
 
             GUILayout.Space(12);
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Overwrite", GUILayout.Width(120)))
+            using (new GUILayout.HorizontalScope())
             {
-                if (!String.IsNullOrEmpty(_pendingSaveMission))
-                    _missionName = _pendingSaveMission;
-                _showOverwriteDialog = false;
-                TrySaveToDisk_Internal(true);
+                if (GUILayout.Button("Overwrite", ScaledGUILayoutWidth(120)))
+                {
+                    if (!String.IsNullOrEmpty(_pendingSaveMission))
+                        _missionName = _pendingSaveMission;
+                    _showOverwriteDialog = false;
+                    TrySaveToDisk_Internal(true);
+                }
+                if (GUILayout.Button("Auto-Increment & Save", ScaledGUILayoutWidth(180)))
+                {
+                    string baseName = String.IsNullOrEmpty(_pendingSaveMission) ? _missionName : _pendingSaveMission;
+                    string next = GetAutoIncrementName(baseName);
+                    _missionName = next;
+                    _pendingSaveMission = null;
+                    _pendingSavePath = null;
+                    _showOverwriteDialog = false;
+                    TrySaveToDisk_Internal(true);
+                }
+                if (GUILayout.Button("Cancel", ScaledGUILayoutWidth(100)))
+                {
+                    _showOverwriteDialog = false;
+                    _pendingSaveMission = null;
+                    _pendingSavePath = null;
+                }
+                GUILayout.FlexibleSpace();
             }
-            if (GUILayout.Button("Auto-Increment & Save", GUILayout.Width(180)))
-            {
-                string baseName = String.IsNullOrEmpty(_pendingSaveMission) ? _missionName : _pendingSaveMission;
-                string next = GetAutoIncrementName(baseName);
-                _missionName = next;
-                _pendingSaveMission = null;
-                _pendingSavePath = null;
-                _showOverwriteDialog = false;
-                TrySaveToDisk_Internal(true);
-            }
-            if (GUILayout.Button("Cancel", GUILayout.Width(100)))
-            {
-                _showOverwriteDialog = false;
-                _pendingSaveMission = null;
-                _pendingSavePath = null;
-            }
-            GUILayout.FlexibleSpace();
-            GUILayout.EndHorizontal();
 
             GUI.DragWindow(new Rect(0, 0, 10000, 10000));
         }
@@ -208,6 +249,35 @@ namespace MissionPlanner
             return name;
         }
 
+
+        public void LoadTrackedVesselMission(Guid guid)
+        {
+            string missionName = MissionVisitTracker.GetTrackedMissionName(guid);
+
+            string save = HighLogic.SaveFolder; // GetCurrentSaveName();
+            {
+                var list = GetAllMissionFiles();
+                MissionFileInfo best = default(MissionFileInfo);
+                bool found = false;
+
+                foreach (var mf in list)
+                {
+                    if (mf.SaveName.Equals(save, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (missionName == mf.MissionName)
+                        {
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+                if (found)
+                {
+                    _missionName = missionName;
+                    TryLoadFromDisk(best.FullPath);
+                }
+            }
+        }
 
     }
 }

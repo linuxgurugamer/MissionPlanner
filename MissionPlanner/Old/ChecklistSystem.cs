@@ -1,4 +1,5 @@
-﻿using System;
+﻿#if false
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -38,7 +39,7 @@ namespace MissionPlanner
         public static GUIStyle orangeLabel = new GUIStyle(HighLogic.Skin.label) { normal = { textColor = new Color(1f, 0.5f, 0.2f) } };
         public static GUIStyle centredLabel = new GUIStyle(HighLogic.Skin.label) { alignment = TextAnchor.MiddleCenter };
 
-
+#if false
         public bool LoadChecklists()
         {
             Log.Info("LoadChecklists");
@@ -67,7 +68,8 @@ namespace MissionPlanner
                         //if (!bool.TryParse(itemNode.GetValue("allRequired"), out parsedItem.allRequired))
                         //    parsedItem.allRequired = true; ;
 
-                        //Begining criterion cycle
+                        //Beginning criterion cycle
+                        Log.Info("Beginning criterion cycle");
                         foreach (ConfigNode criterionNode in itemNode.GetNodes("CRITERION"))
                         {
                             Criterion parsedCriterion = new Criterion(criterionNode);
@@ -398,7 +400,7 @@ namespace MissionPlanner
         public void DrawParamsWindow(int WindowID)
         {
             ChecklistItem item = activeChecklist.items.Find(p => p.paramsDisplayed);
-            GUILayout.BeginVertical(GUILayout.Width(200));
+            GUILayout.BeginVertical(ScaledGUILayoutWidth(200));
             GUILayout.BeginHorizontal(GUILayout.ExpandHeight(false));
             GUILayout.Label("Item: " + item.name + "\n<color=#ffd333ff>" + (item.allRequired ? "All criteria met required" : "One criterion met suffices") + "</color>");
             GUILayout.FlexibleSpace();
@@ -434,7 +436,7 @@ namespace MissionPlanner
             GUILayout.BeginHorizontal();
             GUILayout.Label(new GUIContent(crton.valuesShortened + " " + crton.measure, crton.tooltip), crton.paramValid ? normalLabel : orangeLabel);
             GUILayout.FlexibleSpace();
-            crton.tempParam = GUILayout.TextField(crton.tempParam.ToString(), 11, HighLogic.Skin.textField, GUILayout.Width(68f));
+            crton.tempParam = GUILayout.TextField(crton.tempParam.ToString(), 11, HighLogic.Skin.textField, ScaledGUILayoutWidth(68f));
             GUILayout.EndHorizontal();
 
             return crton.tempParam;
@@ -455,5 +457,7 @@ namespace MissionPlanner
             }
             return crton.tempParam;
         }*/
+#endif
     }
 }
+#endif

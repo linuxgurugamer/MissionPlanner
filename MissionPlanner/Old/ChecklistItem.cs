@@ -1,4 +1,6 @@
-﻿using MissionPlanner;
+﻿#if false
+
+using MissionPlanner;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -48,7 +50,7 @@ namespace MissionPlanner
         public bool isManual = false;
         public bool allRequired = true;
         public bool paramsDisplayed;
-        public List<Criterion> criteria;
+       // public List<Criterion> criteria;
 
 #if false
         public void DrawItem()
@@ -87,7 +89,6 @@ namespace MissionPlanner
                 state = GUILayout.Toggle(state, "", manualCheckboxStyle);
             GUILayout.EndHorizontal();
         }
-#endif
 
         public ChecklistItem ShallowClone()
         {
@@ -97,7 +98,9 @@ namespace MissionPlanner
                 a.criteria.Add(c);
             return a;
         }
+#endif
 
 
     }
 }
+#endif

@@ -22,10 +22,5 @@ using System.Runtime.InteropServices;
 // The following GUID is for the ID of the typelib if this project is exposed to COM
 [assembly: Guid("ab58a544-1c90-4198-9527-6c877f40b357")]
 
-// Version information for an assembly consists of the following four values:
-//
-//      Major Version
-//      Minor Version
-//      Build Number
-//      Revision
-//
+[assembly: KSPAssemblyDependency("ClickThroughBlocker", 1, 0)]
+[assembly: KSPAssemblyDependency("ToolbarController", 1, 0)]

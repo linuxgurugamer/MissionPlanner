@@ -1,4 +1,7 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Linq;
+
+using static MissionPlanner.RegisterToolbar;
 
 public static class SASUtils
 {
@@ -18,13 +21,50 @@ public static class SASUtils
 
     internal static readonly string[] SasLevelDescriptions =
     {
-        "No SAS",                              // 0
-        "Stability Assist only",               // 1
-        "Prograde and Retrograde",             // 2
+        "No SAS",                                    // 0
+        "Stability Assist only",                     // 1
+        "Prograde and Retrograde",                   // 2
         "Normal, Antinormal, Radial In, Radial Out", // 3
-        "Target and Anti-Target",              // 4
-        "Maneuver Hold (Full SAS)"             // 5
+        "Target and Anti-Target",                    // 4
+        "Maneuver Hold (Full SAS)"                   // 5
     };
+
+    internal static List<VesselAutopilot.AutopilotMode>[] sasModes = new List<VesselAutopilot.AutopilotMode>[]
+    {
+
+        new List<VesselAutopilot.AutopilotMode> { } ,   // No SAS
+        new List<VesselAutopilot.AutopilotMode> { VesselAutopilot.AutopilotMode.StabilityAssist } ,   // Stability Assist Only
+        new List<VesselAutopilot.AutopilotMode> { VesselAutopilot.AutopilotMode.StabilityAssist,
+                                                                VesselAutopilot.AutopilotMode.Prograde,
+                                                                VesselAutopilot.AutopilotMode.Retrograde} , // Prograde and Retrograde
+        new List<VesselAutopilot.AutopilotMode> { VesselAutopilot.AutopilotMode.StabilityAssist,
+                                                                VesselAutopilot.AutopilotMode.Prograde,
+                                                                VesselAutopilot.AutopilotMode.Retrograde,
+                                                                VesselAutopilot.AutopilotMode.Normal,
+                                                                VesselAutopilot.AutopilotMode.Antinormal,
+                                                                VesselAutopilot.AutopilotMode.RadialIn,
+                                                                VesselAutopilot.AutopilotMode.RadialOut, } , // Normal, Antinormal, Radial In, Radial Out
+        new List<VesselAutopilot.AutopilotMode> { VesselAutopilot.AutopilotMode.StabilityAssist,
+                                                                VesselAutopilot.AutopilotMode.Prograde,
+                                                                VesselAutopilot.AutopilotMode.Retrograde,
+                                                                VesselAutopilot.AutopilotMode.Normal,
+                                                                VesselAutopilot.AutopilotMode.Antinormal,
+                                                                VesselAutopilot.AutopilotMode.RadialIn,
+                                                                VesselAutopilot.AutopilotMode.RadialOut,
+                                                                VesselAutopilot.AutopilotMode.Target,
+                                                                VesselAutopilot.AutopilotMode.AntiTarget,} , // Target and Anti-Target
+        new List<VesselAutopilot.AutopilotMode> { VesselAutopilot.AutopilotMode.StabilityAssist,
+                                                                VesselAutopilot.AutopilotMode.Prograde,
+                                                                VesselAutopilot.AutopilotMode.Retrograde,
+                                                                VesselAutopilot.AutopilotMode.Normal,
+                                                                VesselAutopilot.AutopilotMode.Antinormal,
+                                                                VesselAutopilot.AutopilotMode.RadialIn,
+                                                                VesselAutopilot.AutopilotMode.RadialOut,
+                                                                VesselAutopilot.AutopilotMode.Target,
+                                                                VesselAutopilot.AutopilotMode.AntiTarget,
+                                                                VesselAutopilot.AutopilotMode.Maneuver } , // Maneuver Hold (Full SAS)
+    };
+
 
     /// <summary>
     /// Returns true if SAS is available in flight.
@@ -61,6 +101,33 @@ public static class SASUtils
         }
 
         return info;
+    }
+
+    public static bool IsRequiredSASAvailable(int SASServiceLevel)
+    {
+        var sasInfo = SASUtils.GetAvailableSASModes(FlightGlobals.ActiveVessel);
+        return IsRequiredSASAvailable(SASServiceLevel, sasInfo);
+    }
+
+    public static bool IsRequiredSASAvailable(int SASServiceLevel, VesselAutopilot.AutopilotMode[] sasInfo)
+    {
+        foreach (var sas in sasModes[SASServiceLevel])
+        {
+            bool found = false;
+            foreach (var p in sasInfo)
+            {
+                if (p.Equals(sas))
+                {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found)         
+            {
+                return false;
+            }
+        }
+        return true;
     }
 
     /// <summary>

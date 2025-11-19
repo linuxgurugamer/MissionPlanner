@@ -1,9 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using UnityEngine;
 
 namespace MissionPlanner
@@ -27,23 +22,15 @@ namespace MissionPlanner
             if (_partTargetNode == null) { _showPartDialog = false; GUI.DragWindow(new Rect(0, 0, 10000, 10000)); return; }
             GUILayout.Space(6);
 
-            GUILayout.BeginHorizontal();
-            GUILayout.Label("Available only", GUILayout.Width(110));
-            _partAvailableOnly = GUILayout.Toggle(_partAvailableOnly, GUIContent.none, GUILayout.Width(22));
-            GUILayout.Space(12);
-            GUILayout.Label("Search", GUILayout.Width(60));
-            _partFilter = GUILayout.TextField(_partFilter ?? "", GUILayout.MinWidth(160), GUILayout.ExpandWidth(true));
-            GUILayout.FlexibleSpace();
-#if false
-            if (GUILayout.Button("Close", GUILayout.Width(80)))
+            using (new GUILayout.HorizontalScope())
             {
-                _showPartDialog = false;
-                _partTargetNode = null;
-                GUI.DragWindow(new Rect(0, 0, 10000, 10000));
-                return;
+                _partAvailableOnly = GUILayout.Toggle(_partAvailableOnly, GUIContent.none, ScaledGUILayoutWidth(22));
+                GUILayout.Label("Available only", ScaledGUILayoutWidth(110));
+                GUILayout.Space(12);
+                GUILayout.Label("Search:", ScaledGUILayoutWidth(60));
+                _partFilter = GUILayout.TextField(_partFilter ?? "", GUILayout.MinWidth(160), GUILayout.ExpandWidth(true));
+                GUILayout.FlexibleSpace();
             }
-#endif
-            GUILayout.EndHorizontal();
 
             GUILayout.Space(6);
             _partScroll = GUILayout.BeginScrollView(_partScroll, HighLogic.Skin.textArea, GUILayout.ExpandHeight(true));
@@ -65,21 +52,21 @@ namespace MissionPlanner
                             continue;
                     }
 
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label(ap.title, GUILayout.Width(320));
-                    GUILayout.Label("[" + ap.name + "]", _tinyLabel, GUILayout.Width(160));
-                    GUILayout.FlexibleSpace();
-                    if (GUILayout.Button("Choose", GUILayout.Width(80)))
+                    using (new GUILayout.HorizontalScope())
                     {
-                        var s = _partTargetNode.data;
-                        s.partName = ap.name;
-                        s.partTitle = ap.title;
-                        s.partOnlyAvailable = _partAvailableOnly;
-                        _showPartDialog = false;
-                        _partTargetNode = null;
-                        TrySaveToDisk_Internal(true);
+                        GUILayout.FlexibleSpace();
+                        if (GUILayout.Button(ap.title, ScaledGUILayoutWidth(320)))
+                        {
+                            var s = _partTargetNode.data;
+                            s.partName = ap.name;
+                            s.partTitle = ap.title;
+                            s.partOnlyAvailable = _partAvailableOnly;
+                            _showPartDialog = false;
+                            _partTargetNode = null;
+                            TrySaveToDisk_Internal(true);
+                        }
+                        GUILayout.FlexibleSpace();
                     }
-                    GUILayout.EndHorizontal();
                 }
             }
             else
@@ -89,20 +76,21 @@ namespace MissionPlanner
 
             GUILayout.EndScrollView();
 
-            GUILayout.Space(6);
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Close", GUILayout.Width(100)))
-            {
-                _showPartDialog = false;
-                _partTargetNode = null;
-            }
             GUILayout.FlexibleSpace();
-            GUILayout.EndHorizontal();
+            using (new GUILayout.HorizontalScope())
+            {
+                if (GUILayout.Button("Close", ScaledGUILayoutWidth(100)))
+                {
+                    _showPartDialog = false;
+                    _partTargetNode = null;
+                }
+                GUILayout.FlexibleSpace();
+            }
 
             GUI.DragWindow(new Rect(0, 0, 10000, 10000));
         }
 
-        private bool IsBannedPart(AvailablePart ap)
+        public static bool IsBannedPart(AvailablePart ap)
         {
             if (ap == null) return true;
             string n = (ap.name ?? "").ToLowerInvariant();
@@ -110,6 +98,10 @@ namespace MissionPlanner
             if (n == "flag" || n.Contains("_flag")) return true;
             if (n.Contains("potato")) return true;
             if (n.Contains("asteroid")) return true;
+            if (n.Contains("mumech.mj2.pod")) return true;
+            if (n.Contains("mumech_mj2_pod")) return true;
+
+
             return false;
         }
 

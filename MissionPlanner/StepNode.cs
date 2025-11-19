@@ -1,48 +1,22 @@
-﻿using LibNoise.Modifiers;
+﻿using SpaceTuxUtility;
+using Steamworks;
 using System;
 using System.Collections.Generic;
 using static MissionPlanner.RegisterToolbar;
 
 namespace MissionPlanner
 {
-#if false
-    public enum StepTypezz
+
+    public class ResInfo
     {
-#if false
-        toggle,
-        intLessThanOrEqual,
-        intGreaterThanOrEqual,
-        floatLessThanOrEqual,
-        floatGreaterThanOrEqual,
-        intRange,
-        floatRange,
-        crewCount,
-        part,
-        resource,
-#endif
-        toggle,
-        number,
-        range,
-        crewCount,
-        partID,
-        resource,
+        public string resourceName = "";
+        public float resourceAmount = 0f;
+        public float resourceCapacity = 0f;
 
-        SAS,
-        RCS,
-        Batteries,
-        Communication,
-        SolarPanels,
-        FuelCells,
-        Radiators,
-        Lights,
-        Parachutes,
-        ControlSource,
-        ReactionWheels,
-        Engines,
-        Flags, // bool or cnt only
+        public ResInfo() { }
+        public ResInfo(string resourceName)
+        {  this.resourceName = resourceName; }
     }
-#endif
-
 
     [Serializable]
     public class Step
@@ -53,8 +27,8 @@ namespace MissionPlanner
         public bool completed = false;
         public bool locked = false;
 
-        public CriterionType stepType = CriterionType.none;
-        public ChecklistItem checklistItem = null;
+        public CriterionType stepType = CriterionType.ChecklistItem;
+        //public ChecklistItem checklistItem = null;
 
         public bool toggle = false;
         public bool initialToggleValue = false;
@@ -66,24 +40,52 @@ namespace MissionPlanner
 
         public string traitName = "";
 
-        public string resourceName = "";
-        public float resourceAmount = 0f;
-        public float resourceCapacity = 0f;
+        public List<ResInfo> resourceList = new List<ResInfo>();
+        public List<ResInfo> engineResourceList = new List<ResInfo>();
+        public List<ResInfo> rcsResourceList = new List<ResInfo>();
 
         public float batteryCapacity = 0f;
+        public double chargeRateTotal = 0f;
         public double antennaPower = 0f;
         public float solarChargeRate = 0f;
+        public SolarUtils.Tracking solarPaneltracking = SolarUtils.Tracking.both; 
         public float fuelCellChargeRate = 0f;
+        public float generatorChargeRate = 0f;
         public float radiatorCoolingRate = 0f;
         public int spotlights = 0;
         public int parachutes = 0;
         public int reactionWheels = 0;
+        public bool torquePitchRollYawEqual = true;
+        public double torquePitch = 0;
+        public double torqueYaw = 0;
+        public double torqueRoll = 0;
 
         public string moduleName = "";
         public int minSASLevel = 0;
 
-        public string bodyAsteroidVessel = "";
+        //public string bodyAsteroidVessel = "";
+        public string flagBody = "";
+        public string destBody = "";
+        public string destBiome = "";
+        public string biome = "";
+        public string destAsteroid = "";
+        public string destVessel = "";
+        public string trackedVessel = "";
+        public Guid vesselGuid = Guid.Empty;
+
+        public string vabCategory = "";
+
+        public bool requiresLanding = false;
+        public bool requiresDocking = false;
+        public bool hasDocked = false;
+
+        public int flagCnt = 0;
         public int crewCount = 0;
+
+        public int engineQty = 0;
+        public string engineType = "";
+        public bool engineGimbaled = false;
+        public string rcsType = ""; 
 
         // Part selection
         public string partName = "";        // internal name (AvailablePart.name)
@@ -103,28 +105,20 @@ namespace MissionPlanner
 
         public bool CheckPart()
         {
-            return PartLookup.ShipHasPartByInternalName(partName);
+            return PartLookupUtils.ShipHasPartByInternalName(partName);
         }
 
-        public double CheckResource()
+        public void CheckResource(string resourceName, out double amt, out double capacity)
         {
-            double amt = 0;
-            double capacity = 0;
 
             if (HighLogic.LoadedSceneIsEditor)
             {
-                if (VesselResourceQuery.TryGet(EditorLogic.fetch.ship, resourceName, out amt, out capacity))
-                    Log.Info($"Editor {resourceName}: {amt}/{capacity}");
+                VesselResourceQuery.TryGet(EditorLogic.fetch.ship, resourceName, out amt, out capacity);
             }
             else
             {
-                if (VesselResourceQuery.TryGet(FlightGlobals.ActiveVessel, resourceName, out amt, out capacity))
-                    Log.Info($"{resourceName}: {amt:0.##}/{capacity:0.##}");
-                else
-                    Log.Info("No {resourceName} on this vessel.");
-
+                VesselResourceQuery.TryGet(FlightGlobals.ActiveVessel, resourceName, out amt, out capacity);
             }
-            return amt;
         }
 
 
@@ -140,13 +134,89 @@ namespace MissionPlanner
 
             n.AddValue("toggle", toggle);
             n.AddValue("initialToggleValue", initialToggleValue);
-
-            n.AddValue("crewCount", crewCount);
-
             n.AddValue("minFloatRange", minFloatRange);
             n.AddValue("maxFloatRange", maxFloatRange);
-
             n.AddValue("number", number);
+            n.AddValue("traitName", traitName);
+
+            if (resourceList.Count > 0)
+            {
+                foreach (var r in resourceList)
+                {
+                    ConfigNode node = new ConfigNode("RESOURCE_LIST");
+                    node.AddValue("resourceName", r.resourceName);
+                    node.AddValue("resourceAmount", r.resourceAmount);
+                    node.AddValue("resourceCapacity", r.resourceCapacity);
+                    n.AddNode(node);
+                }
+            }
+            if (engineResourceList.Count > 0)
+            {
+                foreach (var r in engineResourceList)
+                {
+                    ConfigNode node = new ConfigNode("ENGINE_RESOURCE_LIST");
+                    node.AddValue("resourceName", r.resourceName);
+                    node.AddValue("resourceAmount", r.resourceAmount);
+                    node.AddValue("resourceCapacity", r.resourceCapacity);
+                    n.AddNode(node);
+                }
+            }
+            if (rcsResourceList.Count > 0)
+            {
+                foreach (var r in rcsResourceList)
+                {
+                    ConfigNode node = new ConfigNode("RCS_RESOURCE_LIST");
+                    node.AddValue("resourceName", r.resourceName);
+                    node.AddValue("resourceAmount", r.resourceAmount);
+                    node.AddValue("resourceCapacity", r.resourceCapacity);
+                    n.AddNode(node);
+                }
+            }
+            n.AddValue("batteryCapacity", batteryCapacity);
+            n.AddValue("chargeRateTotal", chargeRateTotal);
+
+            n.AddValue("antennaPower", antennaPower);
+            n.AddValue("solarChargeRate", solarChargeRate);
+            n.AddValue("solarPaneltracking", solarPaneltracking);
+            n.AddValue("fuelCellChargeRate", fuelCellChargeRate);
+            n.AddValue("generatorChargeRate", generatorChargeRate);
+            n.AddValue("radiatorCoolingRate", radiatorCoolingRate);
+
+            n.AddValue("spotlights", spotlights);
+            n.AddValue("parachutes", parachutes);
+            n.AddValue("reactionWheels", reactionWheels);
+            n.AddValue("torquePitchRollYawEqual", torquePitchRollYawEqual);
+
+            
+            n.AddValue("torquePitch", torquePitch);
+            n.AddValue("torqueYaw", torqueYaw);
+            n.AddValue("torqueRoll", torqueRoll);
+
+            n.AddValue("moduleName", moduleName);
+            n.AddValue("minSASLevel", minSASLevel);
+
+            n.AddValue("flagBody", flagBody);
+            n.AddValue("destBody", destBody);
+            n.AddValue("destBiome", destBiome);
+            n.AddValue("biome", biome);
+            n.AddValue("destAsteroid", destAsteroid);
+
+            n.AddValue("destVessel", destVessel);
+            n.AddValue("trackedVessel", trackedVessel);
+            n.AddValue("vesselGuid", vesselGuid);
+            n.AddValue("vabCategory", vabCategory);
+            n.AddValue("requiresLanding", requiresLanding);
+
+            n.AddValue("requiresDocking", requiresDocking);
+            n.AddValue("hasDocked", hasDocked);
+            n.AddValue("flagCnt", flagCnt);
+            n.AddValue("crewCount", crewCount);
+            n.AddValue("engineQty", engineQty);
+            n.AddValue("engineType", engineType);
+            n.AddValue("engineGimbaled", engineGimbaled);
+
+            n.AddValue("rcsType", rcsType);
+
 
             n.AddValue("partName", partName ?? "");
             n.AddValue("partTitle", partTitle ?? "");
@@ -158,30 +228,96 @@ namespace MissionPlanner
         public static Step FromConfigNode(ConfigNode n)
         {
             var s = new Step();
-            s.title = n.GetValue("title") ?? s.title;
-            s.descr = n.GetValue("descr") ?? s.descr;
-
+            s.title = n.SafeLoad("title", s.title);
+            s.descr = n.SafeLoad("descr", s.descr);
+            s.completed = n.SafeLoad("completed", false);
+            s.locked = n.SafeLoad("locked", false);
             CriterionType t;
             if (Enum.TryParse(n.GetValue("stepType"), out t)) s.stepType = t;
 
-            bool btmp;
-            if (bool.TryParse(n.GetValue("completed"), out btmp)) s.completed = btmp;
-            if (bool.TryParse(n.GetValue("locked"), out btmp)) s.locked = btmp;
-            if (bool.TryParse(n.GetValue("toggle"), out btmp)) s.toggle = btmp;
-            if (bool.TryParse(n.GetValue("initialToggleValue"), out btmp)) s.initialToggleValue = btmp;
+            s.toggle = n.SafeLoad("toggle", false);
+            s.initialToggleValue = n.SafeLoad("initialToggleValue", false);
+            s.minFloatRange = n.SafeLoad("minFloatRange", 0f);
+            s.maxFloatRange = n.SafeLoad("maxFloatRange", 0f);
+            s.number = n.SafeLoad("number", 0f);
+            s.traitName = n.SafeLoad("traitName", "");
 
-            int itmp;
-            if (int.TryParse(n.GetValue("crewCount"), out itmp)) s.crewCount = itmp;
+            var nodes = n.GetNodes("RESOURCE_LIST");
+            foreach (var node in nodes)
+            {
+                ResInfo ri = new ResInfo();
+                ri.resourceName = node.SafeLoad("resourceName", "");
+                ri.resourceAmount = node.SafeLoad("resourceAmount", 0f);
+                ri.resourceCapacity = node.SafeLoad("resourceCapacity", 0f);
+                s.resourceList.Add(ri);
+            }
+            nodes = n.GetNodes("ENGINE_RESOURCE_LIST");
+            foreach (var node in nodes)
+            {
+                ResInfo ri = new ResInfo();
+                ri.resourceName = node.SafeLoad("resourceName", "");
+                ri.resourceAmount = node.SafeLoad("resourceAmount", 0f);
+                ri.resourceCapacity = node.SafeLoad("resourceCapacity", 0f);
+                s.engineResourceList.Add(ri);
+            }
+            nodes = n.GetNodes("RCS_RESOURCE_LIST");
+            foreach (var node in nodes)
+            {
+                ResInfo ri = new ResInfo();
+                ri.resourceName = node.SafeLoad("resourceName", "");
+                ri.resourceAmount = node.SafeLoad("resourceAmount", 0f);
+                ri.resourceCapacity = node.SafeLoad("resourceCapacity", 0f);
+                s.rcsResourceList.Add(ri);
+            }
 
-            float ftmp;
-            if (float.TryParse(n.GetValue("number"), out ftmp)) s.number = ftmp;
+            s.batteryCapacity = n.SafeLoad("batteryCapacity", 0f);
+            s.chargeRateTotal = n.SafeLoad("chargeRateTotal", 0f);
 
-            if (float.TryParse(n.GetValue("minFloatRange"), out ftmp)) s.minFloatRange = ftmp;
-            if (float.TryParse(n.GetValue("maxFloatRange"), out ftmp)) s.maxFloatRange = ftmp;
+            s.antennaPower = n.SafeLoad("antennaPower", 0f);
+            s.solarChargeRate = n.SafeLoad("solarChargeRate", 0f);
+            string str = n.SafeLoad("solarPaneltracking", "both");
+            s.solarPaneltracking = (SolarUtils.Tracking)Enum.Parse(typeof(SolarUtils.Tracking), str, true);
 
-            s.partName = n.GetValue("partName") ?? "";
-            s.partTitle = n.GetValue("partTitle") ?? "";
-            if (bool.TryParse(n.GetValue("partOnlyAvailable"), out btmp)) s.partOnlyAvailable = btmp;
+            s.fuelCellChargeRate = n.SafeLoad("fuelCellChargeRate", 0f);
+            s.generatorChargeRate = n.SafeLoad("generatorChargeRate", 0f);
+            s.radiatorCoolingRate = n.SafeLoad("radiatorCoolingRate", 0);
+
+            s.spotlights = n.SafeLoad("spotlights", 0);
+            s.parachutes = n.SafeLoad("parachutes", 0);
+            s.reactionWheels = n.SafeLoad("reactionWheels", 0);
+            s.torquePitchRollYawEqual = n.SafeLoad("torquePitchRollYawEqual", true);
+            
+            s.torquePitch = n.SafeLoad("torquePitch", 0);
+            s.torqueYaw = n.SafeLoad("torqueYaw", 0);
+            s.torqueRoll = n.SafeLoad("torqueRoll", 0);
+
+            s.moduleName = n.SafeLoad("moduleName", "");
+            s.minSASLevel = n.SafeLoad("minSASLevel", 0);
+
+            s.flagBody = n.SafeLoad("flagBody", "");
+            s.destBody = n.SafeLoad("destBody", "");
+            s.destBiome = n.SafeLoad("destBiome", "");
+            s.biome = n.SafeLoad("biome", "");
+            s.destAsteroid = n.SafeLoad("destAsteroid", "");
+
+            s.destVessel = n.SafeLoad("destVessel", "");
+            s.trackedVessel = n.SafeLoad("trackedVessel", "");
+            s.vesselGuid = n.SafeLoad("vesselGuid", Guid.Empty);
+            s.vabCategory = n.SafeLoad("vabCategory", "");
+            s.requiresLanding = n.SafeLoad("requiresLanding", false);
+
+            s.requiresDocking = n.SafeLoad("requiresDocking", false);
+            s.hasDocked = n.SafeLoad("hasDocked", false);
+            s.flagCnt = n.SafeLoad("flagCnt", 0);
+            s.crewCount = n.SafeLoad("crewCount", 0);
+            s.engineQty = n.SafeLoad("engineQty", 0);
+            s.engineType = n.SafeLoad("engineType", "");
+            s.engineGimbaled = n.SafeLoad("engineGimbaled", false);
+            s.rcsType = n.SafeLoad("rcsType", "");
+
+            s.partName = n.SafeLoad("partName", "");
+            s.partTitle = n.SafeLoad("partTitle", "");
+            s.partOnlyAvailable = n.SafeLoad("partOnlyAvailable", false);
 
             return s;
         }
@@ -195,6 +331,7 @@ namespace MissionPlanner
         public Step data = new Step();
         public bool Expanded = true;
         public StepNode Parent = null;
+        public bool requireAll = true;
         public readonly List<StepNode> Children = new List<StepNode>();
 
         public StepNode() { Id = _nextId++; }
@@ -215,7 +352,8 @@ namespace MissionPlanner
         {
             var n = new ConfigNode("NODE");
             n.AddValue("title", data.title ?? "");
-            n.AddValue("expanded", Expanded);
+            n.AddValue("Expanded", Expanded);
+            n.AddValue("requireAll", requireAll);
             n.AddNode(data.ToConfigNode());
             foreach (var c in Children) n.AddNode(c.ToConfigNodeRecursive());
             return n;
@@ -226,7 +364,8 @@ namespace MissionPlanner
             var node = new StepNode();
             node.data.title = n.GetValue("title") ?? node.data.title;
             bool ex;
-            if (bool.TryParse(n.GetValue("expanded"), out ex)) node.Expanded = ex;
+            if (bool.TryParse(n.GetValue("Expanded"), out ex)) node.Expanded = ex;
+            if (bool.TryParse(n.GetValue("requireAll"), out ex)) node.requireAll = ex;
 
             var stepNode = n.GetNode("STEP");
             if (stepNode != null) node.data = Step.FromConfigNode(stepNode);

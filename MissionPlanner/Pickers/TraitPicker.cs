@@ -1,13 +1,5 @@
-﻿using Experience;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System;
 using UnityEngine;
-
-using static MissionPlanner.RegisterToolbar;
 
 
 namespace MissionPlanner
@@ -33,26 +25,20 @@ namespace MissionPlanner
 
         private void DrawTraitPickerWindow(int id)
         {
-            if (_traitTargetNode == null) { _showResourceDialog = false; GUI.DragWindow(new Rect(0, 0, 10000, 10000)); return; }
-            GUILayout.Space(6);
-
-            GUILayout.BeginHorizontal();
-            GUILayout.Label("Available only", GUILayout.Width(110));
-            GUILayout.Space(12);
-            GUILayout.Label("Search", GUILayout.Width(60));
-            _traitFilter = GUILayout.TextField(_traitFilter ?? "", GUILayout.MinWidth(160), GUILayout.ExpandWidth(true));
-            GUILayout.FlexibleSpace();
-#if false
-            if (GUILayout.Button("Close", GUILayout.Width(80)))
+            if (_traitTargetNode == null)
             {
-                _showResourceDialog = false;
-                _traitTargetNode = null;
+                _showTraitDialog = false;
                 GUI.DragWindow(new Rect(0, 0, 10000, 10000));
                 return;
             }
-#endif
-            GUILayout.EndHorizontal();
+            GUILayout.Space(6);
 
+            using (new GUILayout.HorizontalScope())
+            {
+                GUILayout.Label("Search:", ScaledGUILayoutWidth(60));
+                _traitFilter = GUILayout.TextField(_traitFilter ?? "", GUILayout.MinWidth(160), GUILayout.ExpandWidth(true));
+                GUILayout.FlexibleSpace();
+            }
             GUILayout.Space(6);
             _traitScroll = GUILayout.BeginScrollView(_traitScroll, HighLogic.Skin.textArea, GUILayout.ExpandHeight(true));
 
@@ -72,18 +58,19 @@ namespace MissionPlanner
                             continue;
                     }
 
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label(trait, GUILayout.Width(320));
-                    GUILayout.FlexibleSpace();
-                    if (GUILayout.Button("Choose", GUILayout.Width(80)))
+                    using (new GUILayout.HorizontalScope())
                     {
-                        var s = _traitTargetNode.data;
-                        s.traitName = trait;
-                        _showTraitDialog = false;
-                        _traitTargetNode = null;
-                        TrySaveToDisk_Internal(true);
+                        GUILayout.FlexibleSpace();
+                        if (GUILayout.Button(trait, GUILayout.Width(_traitRect.width - 40)))
+                        {
+                            var s = _traitTargetNode.data;
+                            s.traitName = trait;
+                            _showTraitDialog = false;
+                            _traitTargetNode = null;
+                            TrySaveToDisk_Internal(true);
+                        }
+                        GUILayout.FlexibleSpace();
                     }
-                    GUILayout.EndHorizontal();
                 }
             }
             else
@@ -93,15 +80,17 @@ namespace MissionPlanner
 
             GUILayout.EndScrollView();
 
-            GUILayout.Space(6);
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Close", GUILayout.Width(100)))
-            {
-                _showTraitDialog = false;
-                _traitTargetNode = null;
-            }
             GUILayout.FlexibleSpace();
-            GUILayout.EndHorizontal();
+            using (new GUILayout.HorizontalScope())
+            {
+                GUILayout.FlexibleSpace();
+                if (GUILayout.Button("Close", ScaledGUILayoutWidth(100)))
+                {
+                    _showTraitDialog = false;
+                    _traitTargetNode = null;
+                }
+                GUILayout.FlexibleSpace();
+            }
 
             GUI.DragWindow(new Rect(0, 0, 10000, 10000));
         }

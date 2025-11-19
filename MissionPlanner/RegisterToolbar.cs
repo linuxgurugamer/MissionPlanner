@@ -1,7 +1,5 @@
-﻿using System;
-using ToolbarControl_NS;
+﻿using ToolbarControl_NS;
 using UnityEngine;
-
 
 namespace MissionPlanner
 {
@@ -10,9 +8,10 @@ namespace MissionPlanner
     {
         public static KSP_Log.Log Log;
 
+
         void Start()
         {
-            //ToolbarControl.RegisterMod(TrimPlusSettings.MODID, TrimPlusSettings.MODNAME);
+            ToolbarControl.RegisterMod(HierarchicalStepsWindow.MODID, HierarchicalStepsWindow.MODNAME);
             Log = new KSP_Log.Log("MissionPlanner"
 #if DEBUG
                 , KSP_Log.Log.LEVEL.DETAIL
@@ -20,7 +19,6 @@ namespace MissionPlanner
                     );
 
         }
-#if false
         bool initted = false;
         void OnGUI()
         {
@@ -32,12 +30,6 @@ namespace MissionPlanner
         }
         internal static void InitStyle()
         {
-            {
-                TrimPlus.myLabelStyle = new GUIStyle(GUI.skin.label);
-                TrimPlus.myLabelStyle.fontSize = GlobalConfig.FontSize;
-                TrimPlus.myLabelStyle.richText = true;
-            }
         }
-#endif
     }
 }

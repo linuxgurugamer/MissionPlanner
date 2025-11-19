@@ -1,57 +1,50 @@
 ﻿// File: MissionPlanner.cs
 // Mod: MissionPlanner
-// KSP1 (Unity IMGUI)
-//
-// Features implemented:
-// - Recursive hierarchical step tree with expand/collapse and move/promote/demote/duplicate/delete/add
-// - Double-click title to open "Step Details" window
-// - Toolbar button to show/hide main window 
-// - Only titles shown in the main tree; detailed data edited in a separate window
-// - StepType includes: toggle, intNotGreaterThan, intNotLessThan, floatNotGreaterThan, floatNotLessThan, intRange, floatRange, crewCount, part
-// - Part picker dialog with search and "available only" filter; excludes Kerbals/Flags/PotatoRoid
-// - Crew-count validator button (in flight) compares range vs active vessel crew count
-// - Runtime tuning sliders for Title Width %, Controls Pad, Indent/Level, Fold Column Width (persisted) — now moved to the bottom
-// - Skin toggle (use KSP skin) persisted
-// - Persist all window rects across sessions
-// - Save / Load missions as GameData/MissionPlanner/PluginData/<SaveName>__<MissionName>.cfg
-// - Load dialog shows current-save missions by default; toggle to show all saves; delete mission
-// - "Save" saves immediately (overwrites silently)
-// - "Save As..." prompts for new mission name; if exists, shows Overwrite / Auto-increment dialog
-// - "New" mission button asks to Save / Discard / Cancel, then name new mission (optionally add sample root step)
-// - "Clear All" button clears all entries (with confirmation + toggle to add a sample root step)
-// - Mission Summary: add/edit a mission summary text block (in New flow and via 'Summary…' window).
-// - NEW: Summary preview textarea at the top of the main window with an “Expand…” button
-// - Hide main window when game paused; restore after unpause
-// - DragWindow from anywhere (called at end of each window draw)
-// - SyncToolbarState uses KSP.UI.UIRadioButton.State checks as requested
-//
-// Build: Target .NET 3.5 (Unity/KSP1), reference Assembly-CSharp, UnityEngine, KSP assemblies.
 
+using ClickThroughFix;
 using KSP.UI.Screens;
+using MissionPlanner.Utils;
+using SpaceTuxUtility;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using ToolbarControl_NS;
 using UnityEngine;
+using static MissionPlanner.RegisterToolbar;
 
 namespace MissionPlanner
 {
 
-    [KSPAddon(KSPAddon.Startup.AllGameScenes, false)]
+    [KSPAddon(KSPAddon.Startup.AllGameScenes, true)]
     public partial class HierarchicalStepsWindow : MonoBehaviour
     {
+        const float TINY_WIDTH = 635;
+        const float COMPACT_WIDTH = 650;
+        const float FULL_WIDTH = 840;
+
+        const float MAX_TITLE_WIDTH = 300;
+
+
+        internal const string MODID = "Mission Planner";
+        internal const string MODNAME = "Mission Planner";
+        static ToolbarControl toolbarControl = null;
+
+
         // ---- Windows ----
         private Rect _treeRect = new Rect(220, 120, 840, 620);
-        private Rect _detailRect = new Rect(820, 160, 560, 560);
-        private Rect _moveRect = new Rect(760, 120, 460, 500);
+        private Rect _detailRect = new Rect(820, 160, 560, 400); //560
+        private Rect _moveRect = new Rect(760, 120, 460, 400); // 560
         private Rect _loadRect = new Rect(720, 100, 560, 540);
         private Rect _overwriteRect = new Rect(760, 180, 520, 220);
         private Rect _deleteRect = new Rect(760, 160, 520, 180);
-        private Rect _partRect = new Rect(680, 140, 600, 580);
-        private Rect _resourceRect = new Rect(680, 140, 400, 580);
-        private Rect _moduleRect = new Rect(680, 140, 400, 580);
-        private Rect _SASRect = new Rect(680, 140, 300, 580);
-        private Rect _bodyAsteroidVesselRect = new Rect(680, 140, 400, 580);
-        private Rect _traitRect = new Rect(680, 140, 400, 580);
+        private Rect _partRect = new Rect(680, 140, 350, 580);
+        private Rect _resourceRect = new Rect(680, 140, 350, 580);
+        private Rect _moduleRect = new Rect(680, 140, 350, 580);
+        private Rect _SASRect = new Rect(680, 140, 350, 400); // 580
+        private Rect _CategoryRect = new Rect(680, 140, 300, 580);
+        private Rect _bodyAsteroidVesselRect = new Rect(680, 140, 350, 580);
+        private Rect _traitRect = new Rect(680, 140, 200, 250); // 560
         private Rect _saveAsRect = new Rect(740, 200, 520, 310); // includes summary
         private Rect _newConfirmRect = new Rect(760, 200, 520, 180);
         private Rect _clearConfirmRect = new Rect(760, 220, 520, 170);
@@ -60,10 +53,11 @@ namespace MissionPlanner
         private int _treeWinId, _detailWinId, _moveWinId, _loadWinId, _overwriteWinId, _deleteWinId, _partWinId, _resourceWinId,
             _traitWinId, _moduleWinId, _SASWinId, _saveAsWinId, _newConfirmWinId, _clearConfirmWinId, _summaryWinId;
         private bool _visible = false;
+        private bool Hidden = false;
         private bool _visibleBeforePause = true;
 
         // Skin toggle (persisted)
-        private bool _useKspSkin = true;
+        internal static bool _useKspSkin = true;
 
         // Column tuning (persisted)
         private float _titleWidthPct = 0; //0.40f;  // 40–95%
@@ -77,13 +71,15 @@ namespace MissionPlanner
         private Texture2D _resizeBg, _resizeBgHover;
         private const string IconOnPath = "MissionPlanner/Icons/tree_on";
         private const string IconOffPath = "MissionPlanner/Icons/tree_off";
-        private readonly ApplicationLauncher.AppScenes _scenes =
-            ApplicationLauncher.AppScenes.ALWAYS;
+        private const string IconOnPath_24 = "MissionPlanner/Icons/tree_on-24";
+        private const string IconOffPath_24 = "MissionPlanner/Icons/tree_off-24";
 
         // Missions I/O
         private const string SAVE_ROOT_NODE = "MISSION_PLANNER";
+        private const string TRACKEDSAVE_ROOT_NODE = "MISSION_PLANNER_TRACKED_VESSEL";
         private const string SAVE_LIST_NODE = "ROOTS";
         internal const string SAVE_MOD_FOLDER = "MissionPlanner/PluginData";
+
         private const string SAVE_FILE_EXT = ".cfg";
 
         // UI persistence
@@ -93,9 +89,10 @@ namespace MissionPlanner
         // Mission meta
         private string _missionName = "Untitled Mission";
         private string _missionSummary = ""; // Mission summary
+        private bool _simpleChecklist = false;
 
         // Data
-        private readonly List<StepNode> _roots = new List<StepNode>();
+        public static readonly List<StepNode> _roots = new List<StepNode>();
 
         // Selection / dialogs
         private StepNode _selectedNode = null;
@@ -127,10 +124,10 @@ namespace MissionPlanner
         private bool _partAvailableOnly = true;
 
         // Resource picker dialog
-        private bool _showResourceDialog = false;
-        private StepNode _resourceTargetNode = null;
-        private Vector2 _resourceScroll;
-        private string _resourceFilter = "";
+        //private bool _showResourceDialog = false;
+        //private StepNode _resourceTargetNode = null;
+        //private Vector2 _resourceScroll;
+        //private string _resourceFilter = "";
 
         // Save As / New
         private bool _showSaveAs = false;
@@ -146,8 +143,6 @@ namespace MissionPlanner
         private bool _showClearConfirm = false;
         private bool _clearAddSample = false;
 
-        // Summary window
-        //private bool _showSummaryWindow = false;
         private Vector2 _summaryScroll;
 
         // Scroll
@@ -163,10 +158,22 @@ namespace MissionPlanner
         private const float _minTreeH = 420f;
 
         // Styles
-        private GUIStyle _titleLabel, _selectedTitle, _smallBtn, _hintLabel, _errorLabel, _tinyLabel, _titleEdit, _badge, _badgeError, _cornerGlyph;
-        bool lastUseKSPSkin = true;
+        private GUIStyle _titleLabel = null,
+            _unfilledTitleLabel = null,
+            _selectedTitleLabel = null,
+            _selectedUnfilledTitleLabel = null,
+            _smallBtn = null,
+            _hintLabel = null,
+            _errorLabel = null,
+            _errorLargeLabel = null,
+            _tinyLabel = null,
+            _smallLabel = null,
+            _titleEdit = null,
+            _badge = null,
+            _badgeError = null,
+            _cornerGlyph = null;
 
-        //private readonly KeyCode _toggleKey = KeyCode.F10;
+        bool lastUseKSPSkin = true;
 
         // Double-click
         private int _lastClickedId = -1;
@@ -178,59 +185,92 @@ namespace MissionPlanner
         private float _lastSaveShownUntil = 0f;
         private const float SaveIndicatorSeconds = 3f;
         private bool _lastSaveWasSuccess = true;
-        enum View { _short = 0, editable = 1 };
-        View currentView = View.editable;
+        enum View { Tiny = 0, Compact = 1, Full = 2 };
+        View currentView = View.Full;
         private static bool IsNullOrWhiteSpace(string s) { return String.IsNullOrEmpty(s) || s.Trim().Length == 0; }
+
+        public static GUILayoutOption ScaledGUILayoutWidth(float width)
+        {
+            return GUILayout.Width(width * GameSettings.UI_SCALE);
+        }
 
         public void Awake()
         {
-            _treeWinId = GetHashCode();
-            _detailWinId = _treeWinId ^ 0x5A17;
-            _moveWinId = _treeWinId ^ 0x4B33;
-            _loadWinId = _treeWinId ^ 0x23A1;
-            _overwriteWinId = _treeWinId ^ 0x7321;
-            _deleteWinId = _treeWinId ^ 0x19C7;
-            _partWinId = _treeWinId ^ 0x71AF;
-            _resourceWinId = _treeWinId ^ 0x72AF;
-            _traitWinId = _treeWinId ^ 0x73AF;
-            _moduleWinId = _treeWinId ^ 0x74AF;
-            _SASWinId = _treeWinId ^ 0x75AF;
-            _saveAsWinId = _treeWinId ^ 0x5EE5;
-            _newConfirmWinId = _treeWinId ^ 0x6A11;
-            _clearConfirmWinId = _treeWinId ^ 0x6A31;
-            _summaryWinId = _treeWinId ^ 0x7B21;
+            _treeWinId = WindowHelper.NextWindowId("treeWin");
+            _detailWinId = WindowHelper.NextWindowId("detailWin");
+            _moveWinId = WindowHelper.NextWindowId("moveWin");
+            _loadWinId = WindowHelper.NextWindowId("loadWin");
+            _overwriteWinId = WindowHelper.NextWindowId("overwriteWin");
+            _deleteWinId = WindowHelper.NextWindowId("deleteWin");
+            _partWinId = WindowHelper.NextWindowId("partWin");
+            _resourceWinId = WindowHelper.NextWindowId("resourceWin");
+            _traitWinId = WindowHelper.NextWindowId("traitWin");
+            _moduleWinId = WindowHelper.NextWindowId("moduleWin");
+            _SASWinId = WindowHelper.NextWindowId("SASWin");
+            _saveAsWinId = WindowHelper.NextWindowId("saveAsWin");
+            _newConfirmWinId = WindowHelper.NextWindowId("newConfirmWin");
+            _clearConfirmWinId = WindowHelper.NextWindowId("clearConfirmWin");
+            _summaryWinId = WindowHelper.NextWindowId("summaryWin");
 
             LoadIconsOrFallback();
             LoadUISettings();
 
-            Initialization.Initialize();
-            if (!TryAutoLoadMostRecentForCurrentSave())
-                SeedSample();
+            StartCoroutine(Initialization.BackgroundInitialize());
+
             ReparentAll();
 
-            GameEvents.onGamePause.Add(OnGamePaused);
-            GameEvents.onGameUnpause.Add(OnGameUnpaused);
+            GameEvents.onHideUI.Add(onHideUI);
+            GameEvents.onShowUI.Add(onShowUI);
+            //GameEvents.onGamePause.Add(OnGamePaused);
+            //GameEvents.onGameUnpause.Add(OnGameUnpaused);
+
+            GameEvents.onVesselSwitching.Add(onVesselSwitching);
+            GameEvents.onLevelWasLoadedGUIReady.Add(onLevelWasLoadedGUIReady);
+            GameEvents.onGameSceneSwitchRequested.Add(onGameSceneSwitchRequested);
 
             this.resizeHandle = new ResizeHandle();
-
         }
 
         public void Start()
         {
-            GameEvents.onGUIApplicationLauncherReady.Add(OnAppLauncherReady);
-            GameEvents.onGUIApplicationLauncherDestroyed.Add(OnAppLauncherDestroyed);
-            if (ApplicationLauncher.Instance != null) OnAppLauncherReady();
+            if (toolbarControl == null)
+            {
+                toolbarControl = gameObject.AddComponent<ToolbarControl>();
+                toolbarControl.AddToAllToolbars(
+                    onTrue: () => { _visible = true; },
+                    onFalse: () => { _visible = false; },
+                    ApplicationLauncher.AppScenes.ALWAYS,
+                    MODID,
+                    "MissionPlannerbutton",
+                    IconOnPath,
+                    IconOffPath,
+                    IconOnPath_24,
+                    IconOffPath_24,
+                    MODNAME);
+            }
+
+            TryAutoLoadMostRecentForCurrentSave();
+            DontDestroyOnLoad(this);
         }
 
         public void OnDestroy()
         {
-            TrySaveToDisk_Internal(true);
-            SaveUISettings();
+            //if (HighLogic.LoadedSceneIsGame)
+            {
+                TrySaveToDisk_Internal(true);
+                SaveUISettings();
+            }
+            GameEvents.onHideUI.Remove(onHideUI);
+            GameEvents.onShowUI.Remove(onShowUI);
 
-            GameEvents.onGamePause.Remove(OnGamePaused);
-            GameEvents.onGameUnpause.Remove(OnGameUnpaused);
-            GameEvents.onGUIApplicationLauncherReady.Remove(OnAppLauncherReady);
-            GameEvents.onGUIApplicationLauncherDestroyed.Remove(OnAppLauncherDestroyed);
+            //GameEvents.onGamePause.Remove(OnGamePaused);
+            //GameEvents.onGameUnpause.Remove(OnGameUnpaused);
+
+            GameEvents.onVesselSwitching.Remove(onVesselSwitching);
+            GameEvents.onLevelWasLoadedGUIReady.Remove(onLevelWasLoadedGUIReady);
+
+            GameEvents.onGameSceneSwitchRequested.Remove(onGameSceneSwitchRequested);
+
             if (_appButton != null && ApplicationLauncher.Instance != null)
             {
                 ApplicationLauncher.Instance.RemoveModApplication(_appButton);
@@ -238,33 +278,65 @@ namespace MissionPlanner
             }
         }
 
+        void CloseAllDialogs()
+        {
+            _showMoveDialog = false;
+            _showLoadDialog = false; // ???
+            _showOverwriteDialog = false; // ???
+            _showDeleteConfirm = false;
+            _showPartDialog = false;
+            //_showResourceDialog = false;
+            _showSaveAs = false;    // ???
+            _showNewConfirm = false; // ???
+            _showClearConfirm = false;
+            _showTraitDialog =
+                _showModuleDialog =
+                // _showSASDialog =
+                _showBodyAsteroidVesselDialog = false;
+        }
+
         public void OnGUI()
         {
-            if (PauseMenu.exists && PauseMenu.isOpen) return;
-            if (_useKspSkin) GUI.skin = HighLogic.Skin;
+            if ( /* (PauseMenu.exists && PauseMenu.isOpen) || */ Hidden)
+                return;
+            //if (_useKspSkin) GUI.skin = HighLogic.Skin;
+            SetUpSkins();
+            GUI.skin = adjustableSkin;
             EnsureStyles();
 
+            int oldDepth = GUI.depth;
+            GUI.depth = 10;
+
+            ComboBox.DrawGUI();
             if (_visible)
             {
-                _treeRect = GUILayout.Window(
-                    _treeWinId, _treeRect, DrawTreeWindow,
-                    "MissionPlanner — Steps (F10 to toggle)" //,
-                                                             //GUILayout.MinWidth(720), GUILayout.MinHeight(400)
-                );
+                _treeRect = ClickThruBlocker.GUILayoutWindow(_treeWinId, _treeRect, DrawTreeWindow, "Mission Planner/Checklist");
                 // do this here since if it's done within the window you only recieve events that are inside of the window
                 this.resizeHandle.DoResize(ref this._treeRect);
             }
             if (_detailNode != null)
             {
-                _detailRect = GUILayout.Window(
-                    _detailWinId, _detailRect, DrawDetailWindow,
-                    string.Format("Step Details — {0}", _detailNode.data.title),
-                    GUILayout.MinWidth(520), GUILayout.MinHeight(440)
-                );
+                if (_simpleChecklist)
+                {
+                    _detailRect.height = 200f;
+                    _detailRect = ClickThruBlocker.GUILayoutWindow(
+                                     _detailWinId, _detailRect, DrawDetailWindow,
+                                     string.Format("Step Details — {0}", _detailNode.data.title),
+                                     GUILayout.MinWidth(520), GUILayout.MinHeight(200)
+                                 );
+                }
+                else
+                {
+                    _detailRect = ClickThruBlocker.GUILayoutWindow(
+                        _detailWinId, _detailRect, DrawDetailWindow,
+                        string.Format("Step Details — {0}", _detailNode.data.title),
+                        GUILayout.MinWidth(520), GUILayout.MinHeight(440)
+                    );
+                }
             }
             if (_showMoveDialog && _moveNode != null)
             {
-                _moveRect = GUILayout.Window(
+                _moveRect = ClickThruBlocker.GUILayoutWindow(
                     _moveWinId, _moveRect, DrawMoveDialogWindow,
                     string.Format("Move “{0}” — choose new parent", _moveNode.data.title),
                     GUILayout.MinWidth(420), GUILayout.MinHeight(320)
@@ -272,7 +344,7 @@ namespace MissionPlanner
             }
             if (_showLoadDialog)
             {
-                _loadRect = GUILayout.Window(
+                _loadRect = ClickThruBlocker.GUILayoutWindow(
                     _loadWinId, _loadRect, DrawLoadDialogWindow,
                     "Load Mission",
                     GUILayout.MinWidth(480), GUILayout.MinHeight(380)
@@ -280,7 +352,7 @@ namespace MissionPlanner
             }
             if (_showOverwriteDialog)
             {
-                _overwriteRect = GUILayout.Window(
+                _overwriteRect = ClickThruBlocker.GUILayoutWindow(
                     _overwriteWinId, _overwriteRect, DrawOverwriteDialogWindow,
                     "Overwrite Confirmation",
                     GUILayout.MinWidth(420), GUILayout.MinHeight(180)
@@ -288,7 +360,7 @@ namespace MissionPlanner
             }
             if (_showDeleteConfirm)
             {
-                _deleteRect = GUILayout.Window(
+                _deleteRect = ClickThruBlocker.GUILayoutWindow(
                     _deleteWinId, _deleteRect, DrawDeleteDialogWindow,
                     "Delete Mission?",
                     GUILayout.MinWidth(420), GUILayout.MinHeight(160)
@@ -296,60 +368,61 @@ namespace MissionPlanner
             }
             if (_showPartDialog && _partTargetNode != null)
             {
-                _partRect = GUILayout.Window(
+                _partRect = ClickThruBlocker.GUILayoutWindow(
                     _partWinId, _partRect, DrawPartPickerWindow,
                     "Select Part",
-                    GUILayout.MinWidth(480), GUILayout.MinHeight(400)
+                     GUILayout.MinHeight(400)
                 );
             }
+#if false
             if (_showResourceDialog)
             {
-                _resourceRect = GUILayout.Window(
+                _resourceRect = ClickThruBlocker.GUILayoutWindow(
                     _resourceWinId, _resourceRect, DrawResourcePickerWindow,
                     "Select Resource",
-                    GUILayout.MinWidth(480), GUILayout.MinHeight(400)
+                     GUILayout.MinHeight(400)
                 );
             }
-
+#endif
             if (_showTraitDialog)
             {
-                _traitRect = GUILayout.Window(
+                _traitRect = ClickThruBlocker.GUILayoutWindow(
                     _traitWinId, _traitRect, DrawTraitPickerWindow,
                     "Select Trait",
-                    GUILayout.MinWidth(480), GUILayout.MinHeight(400)
+                     GUILayout.MinHeight(400)
                 );
             }
 
             if (_showModuleDialog)
             {
-                _moduleRect = GUILayout.Window(
+                _moduleRect = ClickThruBlocker.GUILayoutWindow(
                     _moduleWinId, _moduleRect, DrawModulePickerWindow,
                     "Select Module",
-                    GUILayout.MinWidth(480), GUILayout.MinHeight(400)
+                    GUILayout.MinHeight(400)
                 );
             }
 
-            if (_showSASDialog)
+            if (_showCategoryDialog)
             {
-                _SASRect = GUILayout.Window(
-                    _SASWinId, _SASRect, DrawSASPickerWindow,
-                    "Select SAS",
-                    GUILayout.MinWidth(480), GUILayout.MinHeight(400)
+                _SASRect = ClickThruBlocker.GUILayoutWindow(
+                    _SASWinId, _SASRect, DrawCategoryPickerWindow,
+                    "Select Category",
+                     GUILayout.MinHeight(400)
                 );
             }
 
             if (_showBodyAsteroidVesselDialog)
             {
-                _bodyAsteroidVesselRect = GUILayout.Window(
+                _bodyAsteroidVesselRect = ClickThruBlocker.GUILayoutWindow(
                     _moduleWinId, _bodyAsteroidVesselRect, DrawBodyAsteroidVesselPickerWindow,
-                    "Select Module",
-                    GUILayout.MinWidth(480), GUILayout.MinHeight(400)
+                    "Select Vessel/Asteroid/Body",
+                    GUILayout.MinHeight(400)
                 );
             }
 
             if (_showSaveAs)
             {
-                _saveAsRect = GUILayout.Window(
+                _saveAsRect = ClickThruBlocker.GUILayoutWindow(
                     _saveAsWinId, _saveAsRect, DrawSaveAsDialogWindow,
                     _creatingNewMission ? "New Mission" : "Save As…",
                     GUILayout.MinWidth(460), GUILayout.MinHeight((_creatingNewMission ? 270 : 170))
@@ -357,7 +430,7 @@ namespace MissionPlanner
             }
             if (_showNewConfirm)
             {
-                _newConfirmRect = GUILayout.Window(
+                _newConfirmRect = ClickThruBlocker.GUILayoutWindow(
                     _newConfirmWinId, _newConfirmRect, DrawNewConfirmWindow,
                     "Start New Mission?",
                     GUILayout.MinWidth(420), GUILayout.MinHeight(160)
@@ -365,84 +438,242 @@ namespace MissionPlanner
             }
             if (_showClearConfirm)
             {
-                _clearConfirmRect = GUILayout.Window(
+                _clearConfirmRect = ClickThruBlocker.GUILayoutWindow(
                     _clearConfirmWinId, _clearConfirmRect, DrawClearConfirmWindow,
                     "Clear All Steps?",
                     GUILayout.MinWidth(420), GUILayout.MinHeight(160)
                 );
             }
-#if false
-            if (_showSummaryWindow)
-            {
-                _summaryRect = GUILayout.Window(
-                    _summaryWinId, _summaryRect, DrawSummaryWindow,
-                    "Mission Summary",
-                    GUILayout.MinWidth(460), GUILayout.MinHeight(260)
-                );
-            }
-#endif
+            GUI.depth = oldDepth;
         }
+
+
+
+        GUIStyle ScaleStyle(GUIStyle s, float scale)
+        {
+            if (s == null) return null;
+
+            GUIStyle st = new GUIStyle(s);
+
+            // Scale font size
+            st.fontSize = Mathf.RoundToInt(s.fontSize * scale);
+
+            // Scale style-specific fields
+            st.fixedHeight *= scale;
+            st.fixedWidth *= scale;
+            //st.lineHeight *= scale;
+
+            // Scale paddings and margins
+            st.padding.left = Mathf.RoundToInt(st.padding.left * scale);
+            st.padding.right = Mathf.RoundToInt(st.padding.right * scale);
+            st.padding.top = Mathf.RoundToInt(st.padding.top * scale);
+            st.padding.bottom = Mathf.RoundToInt(st.padding.bottom * scale);
+
+            st.margin.left = Mathf.RoundToInt(st.margin.left * scale);
+            st.margin.right = Mathf.RoundToInt(st.margin.right * scale);
+            st.margin.top = Mathf.RoundToInt(st.margin.top * scale);
+            st.margin.bottom = Mathf.RoundToInt(st.margin.bottom * scale);
+
+            // Scale overflow
+            st.overflow.left = Mathf.RoundToInt(st.overflow.left * scale);
+            st.overflow.right = Mathf.RoundToInt(st.overflow.right * scale);
+            st.overflow.top = Mathf.RoundToInt(st.overflow.top * scale);
+            st.overflow.bottom = Mathf.RoundToInt(st.overflow.bottom * scale);
+
+            // ContentOffset
+            st.contentOffset = new Vector2(st.contentOffset.x * scale, st.contentOffset.y * scale);
+
+            return st;
+        }
+
+        GUISkin DuplicateAndScaleSkin(GUISkin source, float scale)
+        {
+            if (source == null) return null;
+
+            var newSkin = Instantiate(source);
+
+            // Duplicate and scale all built-in styles
+            newSkin.box = ScaleStyle(source.box, scale);
+            newSkin.button = ScaleStyle(source.button, scale);
+            newSkin.toggle = ScaleStyle(source.toggle, scale);
+            newSkin.label = ScaleStyle(source.label, scale);
+            newSkin.textField = ScaleStyle(source.textField, scale);
+            newSkin.textArea = ScaleStyle(source.textArea, scale);
+            newSkin.window = ScaleStyle(source.window, scale);
+
+            newSkin.horizontalSlider = ScaleStyle(source.horizontalSlider, scale);
+            newSkin.horizontalSliderThumb = ScaleStyle(source.horizontalSliderThumb, scale);
+            newSkin.verticalSlider = ScaleStyle(source.verticalSlider, scale);
+            newSkin.verticalSliderThumb = ScaleStyle(source.verticalSliderThumb, scale);
+
+            newSkin.horizontalScrollbar = ScaleStyle(source.horizontalScrollbar, scale);
+            newSkin.horizontalScrollbarThumb = ScaleStyle(source.horizontalScrollbarThumb, scale);
+            newSkin.horizontalScrollbarLeftButton = ScaleStyle(source.horizontalScrollbarLeftButton, scale);
+            newSkin.horizontalScrollbarRightButton = ScaleStyle(source.horizontalScrollbarRightButton, scale);
+
+            newSkin.verticalScrollbar = ScaleStyle(source.verticalScrollbar, scale);
+            newSkin.verticalScrollbarThumb = ScaleStyle(source.verticalScrollbarThumb, scale);
+            newSkin.verticalScrollbarUpButton = ScaleStyle(source.verticalScrollbarUpButton, scale);
+            newSkin.verticalScrollbarDownButton = ScaleStyle(source.verticalScrollbarDownButton, scale);
+
+            newSkin.scrollView = ScaleStyle(source.scrollView, scale);
+
+            // Custom styles
+            if (source.customStyles != null)
+            {
+                newSkin.customStyles = source.customStyles
+                    .Select(s => ScaleStyle(s, scale))
+                    .ToArray();
+            }
+
+            return newSkin;
+        }
+
+
+        GUISkin adjustableSkin = null;
+        GUISkin originalGuiSkin = null;
+        bool forceRecalcStyles = true;
+        int largeLabelFontSize;
+        int normalLabelFontSize;
+        int smallLabelFontSize;
+        int tinyLabelFontSize;
+
+        void SetUpSkins()
+        {
+            forceRecalcStyles = (lastUseKSPSkin != _useKspSkin);
+            lastUseKSPSkin = _useKspSkin;
+
+            if (originalGuiSkin == null)
+            {
+                originalGuiSkin = DuplicateAndScaleSkin(GUI.skin, 1f);
+                forceRecalcStyles = true;
+            }
+        }
+
 
         private void EnsureStyles()
         {
-            bool force = (lastUseKSPSkin != _useKspSkin);
-            lastUseKSPSkin = _useKspSkin;
-            if (force)
-            {
-                _titleLabel = null;
-                _selectedTitle = null;
-                _smallBtn = null;
-                _hintLabel = null;
-                _tinyLabel = null;
-                _titleEdit = null;
-                _badge = null;
-                _badgeError = null;
-                _errorLabel = null;
-            }
-            if (_errorLabel == null)
+            if (GUI.skin == null)
+                return;
+            if (!forceRecalcStyles)
+                return;
+
+            GUI.skin.label.fontSize = HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().fontSize;
+
+            largeLabelFontSize = (int)((GUI.skin.label.fontSize + 2) * GameSettings.UI_SCALE);
+            normalLabelFontSize = (int)(GUI.skin.label.fontSize * GameSettings.UI_SCALE);
+            smallLabelFontSize = (int)((GUI.skin.label.fontSize - 1) * GameSettings.UI_SCALE);
+            tinyLabelFontSize = (int)((GUI.skin.label.fontSize - 2) * GameSettings.UI_SCALE);
+
+            //Log.Info($"normalLabelFontSize: {normalLabelFontSize}   smallLabelFontSize: {smallLabelFontSize}   tinyLabelFontSize: {tinyLabelFontSize}");
+            //Log.Info($"GUI.skin.label.fontSize: {GUI.skin.label.fontSize}");
+
+            if (_useKspSkin)
+                adjustableSkin = DuplicateAndScaleSkin(HighLogic.Skin, GameSettings.UI_SCALE);
+            else
+                adjustableSkin = DuplicateAndScaleSkin(originalGuiSkin, GameSettings.UI_SCALE);
+
+            Utils.ComboBox.UpdateStyles(normalLabelFontSize);
+            _titleLabel = _unfilledTitleLabel = _selectedTitleLabel = _selectedUnfilledTitleLabel = _smallBtn =
+                _hintLabel = _errorLabel = _tinyLabel = _smallLabel = _titleEdit =
+                _badge = _badgeError = _cornerGlyph = null;
+            forceRecalcStyles = false;
+
             {
                 _errorLabel = new GUIStyle(GUI.skin.label);
+                _errorLabel.fontSize = normalLabelFontSize;
                 _errorLabel.normal.textColor = Color.red;
             }
-
-            if (_titleLabel == null)
-                _titleLabel = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleLeft /*, padding = new RectOffset(6, 6, 3, 3) */ };
-            if (_selectedTitle == null)
             {
-                _selectedTitle = new GUIStyle(_titleLabel);
-                _selectedTitle.normal = _titleLabel.onNormal;
-                _selectedTitle.normal.textColor = Color.white;
-                _selectedTitle.hover = _titleLabel.onHover;
-                _selectedTitle.active = _titleLabel.onActive;
-                _selectedTitle.fontStyle = FontStyle.Bold;
+                _errorLargeLabel = new GUIStyle(GUI.skin.label);
+                _errorLargeLabel.fontSize = largeLabelFontSize + 2;
+                _errorLargeLabel.normal.textColor = Color.red;
             }
-            if (_smallBtn == null)
-                //_smallBtn = new GUIStyle(GUI.skin.button) { fixedWidth = 28f, padding = new RectOffset(0, 0, 0, 0), margin = new RectOffset(2, 2, 2, 2) };
-                _smallBtn = new GUIStyle(_titleLabel) { fixedWidth = 28f };
-            if (_hintLabel == null)
-                _hintLabel = new GUIStyle(GUI.skin.label) { wordWrap = true };
-            if (_tinyLabel == null)
-                _tinyLabel = new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(10, GUI.skin.label.fontSize - 2) };
-            if (_titleEdit == null)
-                _titleEdit = new GUIStyle(GUI.skin.textField) { fontStyle = FontStyle.Bold };
-            if (_badge == null)
+            {
+                _titleLabel = new GUIStyle(GUI.skin.label);
+                _titleLabel.fontSize = largeLabelFontSize;
+            }
+            {
+                _unfilledTitleLabel = new GUIStyle(GUI.skin.label)
+                {
+                    alignment = TextAnchor.MiddleLeft,
+                    normal = _titleLabel.onNormal,
+                    hover = _titleLabel.onHover,
+                    active = _titleLabel.onActive
+
+                };
+                _unfilledTitleLabel.normal.textColor = Color.red;
+                _unfilledTitleLabel.fontSize = largeLabelFontSize;
+            }
+            {
+                _selectedTitleLabel = new GUIStyle(_titleLabel)
+                {
+                    normal = _titleLabel.onNormal,
+                    hover = _titleLabel.onHover,
+                    active = _titleLabel.onActive,
+                    fontStyle = FontStyle.Bold
+                };
+                _selectedTitleLabel.normal.textColor = Color.white;
+                _selectedTitleLabel.fontSize = largeLabelFontSize;
+            }
+            {
+                _selectedUnfilledTitleLabel = new GUIStyle(_titleLabel)
+                {
+                    normal = _titleLabel.onNormal,
+                    hover = _titleLabel.onHover,
+                    active = _titleLabel.onActive,
+                    fontStyle = FontStyle.Bold
+                };
+                _selectedUnfilledTitleLabel.normal.textColor = Color.red;
+                _selectedUnfilledTitleLabel.fontSize = largeLabelFontSize;
+
+            }
+            //_smallBtn = new GUIStyle(GUI.skin.button) { fixedWidth = 28f, padding = new RectOffset(0, 0, 0, 0), margin = new RectOffset(2, 2, 2, 2) };
+            _smallBtn = new GUIStyle(_titleLabel)
+            {
+                fixedWidth = 28f
+            };
+            _hintLabel = new GUIStyle(GUI.skin.label) { wordWrap = true };
+            _tinyLabel = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = tinyLabelFontSize
+            };
+            _smallLabel = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = smallLabelFontSize
+            };
+            {
+                _titleEdit = new GUIStyle(GUI.skin.textField)
+                {
+                    fontStyle = FontStyle.Bold
+                };
+                _titleEdit.fontSize = largeLabelFontSize;
+            }
+
+            //if (_badge == null)
             {
                 _badge = new GUIStyle(GUI.skin.label)
                 {
                     fontStyle = FontStyle.Bold,
-                    normal = { textColor = new Color(0.85f, 0.9f, 1f, 1f) }
+                    normal = {
+                        textColor = new Color(0.85f, 0.9f, 1f, 1f)
+                    }
                 };
+                _badge.fontSize = normalLabelFontSize;
             }
-            if (_badgeError == null)
+            //if (_badgeError == null)
             {
                 _badgeError = new GUIStyle(GUI.skin.label)
                 {
                     fontStyle = FontStyle.Bold,
-                    normal = { textColor = new Color(1f, 0.35f, 0.35f, 1f) }
+                    normal = {
+                        textColor = new Color(1f, 0.35f, 0.35f, 1f)
+                    }
                 };
+                _badgeError.fontSize = normalLabelFontSize;
             }
 
-            if (_cornerGlyph == null)
+            //if (_cornerGlyph == null)
             {
                 _cornerGlyph = new GUIStyle(GUI.skin.label)
                 {
@@ -450,7 +681,17 @@ namespace MissionPlanner
                     fontStyle = FontStyle.Bold,
                     fontSize = Mathf.Max(GUI.skin.label.fontSize + 6, 14)
                 };
+                _cornerGlyph.fontSize = normalLabelFontSize;
             }
+        }
+
+        private void onHideUI()
+        {
+            Hidden = true;
+        }
+        private void onShowUI()
+        {
+            Hidden = false;
         }
 
         private void OnGamePaused()
@@ -466,101 +707,115 @@ namespace MissionPlanner
         }
 
         bool showSummary = false;
+        bool showDetail = false;
 
         private void DrawTreeWindow(int id)
         {
-
             GUILayout.Space(4);
 
             // Top row: Save name, Mission, controls, skin
-    GUILayout.BeginHorizontal();
-#if false
-            GUILayout.Label("Save:", GUILayout.Width(40));
-            string saveName = GetCurrentSaveName();
-            GUI.enabled = false;
-            GUILayout.TextField(saveName, GUILayout.Width(180));
-            GUI.enabled = true;
-            GUILayout.Space(8);
-#endif
-            GUILayout.Label("Mission:", GUILayout.Width(60));
-            _missionName = GUILayout.TextField(_missionName ?? "", _titleEdit, GUILayout.MinWidth(160), GUILayout.ExpandWidth(true));
-#if false
-            if (GUILayout.Button("Summary…", GUILayout.Width(90)))
+            using (new GUILayout.HorizontalScope())
             {
-                _showSummaryWindow = true;
-                var mp = Input.mousePosition;
-                _summaryRect.x = Mathf.Clamp(mp.x, 40, Screen.width - _summaryRect.width - 40);
-                _summaryRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - _summaryRect.height - 40);
+                GUILayout.Label("Mission:", ScaledGUILayoutWidth(60));
+                _missionName = GUILayout.TextField(_missionName ?? "", _titleEdit, GUILayout.MinWidth(160), GUILayout.ExpandWidth(true));
+                showSummary = GUILayout.Toggle(showSummary, "");
+
+                if (showSummary)
+                    GUILayout.Label("Summary Preview:", ScaledGUILayoutWidth(120));
+                else
+                    GUILayout.Label("Show Summary");
+
+                GUILayout.FlexibleSpace();
+                GUILayout.Label(" ");
+                GUILayout.FlexibleSpace();
+                _useKspSkin = GUILayout.Toggle(_useKspSkin, "Use KSP Skin", ScaledGUILayoutWidth(120));
             }
-#endif
 
-            GUILayout.Space(12);
-            _useKspSkin = GUILayout.Toggle(_useKspSkin, "Use KSP Skin", GUILayout.Width(120));
-            GUILayout.EndHorizontal();
-
-            // --- Mission Summary preview (read-only) ---
             GUILayout.Space(4);
-            GUILayout.BeginHorizontal();
-            showSummary = GUILayout.Toggle(showSummary, "");
 
             if (showSummary)
             {
-                GUILayout.Label("Summary Preview:", GUILayout.Width(120));
-#if false
-                if (GUILayout.Button("Expand…", GUILayout.Width(90)))
-                {
-                    _showSummaryWindow = true;
-                    var mp2 = Input.mousePosition;
-                    _summaryRect.x = Mathf.Clamp(mp2.x, 40, Screen.width - _summaryRect.width - 40);
-                    _summaryRect.y = Mathf.Clamp(Screen.height - mp2.y, 40, Screen.height - _summaryRect.height - 40);
-                }
-#endif
-            }
-            else
-                GUILayout.Label("Show Summary");
-
-            GUILayout.FlexibleSpace();
-            GUILayout.EndHorizontal();
-
-            if (showSummary)
-            {
-                //GUI.enabled = false;
                 _summaryScroll = GUILayout.BeginScrollView(_summaryScroll, HighLogic.Skin.textArea, GUILayout.Height(110));
                 _missionSummary = GUILayout.TextArea(string.IsNullOrEmpty(_missionSummary) ? "(no summary)" : _missionSummary, GUILayout.ExpandHeight(true));
                 GUILayout.EndScrollView();
-                //GUI.enabled = true;
             }
             using (new GUILayout.HorizontalScope())
             {
                 GUILayout.Space(8);
-                if (GUILayout.Button("Add Objective/goal", GUILayout.Width(160)))
+                if (GUILayout.Button("Add Objective/goal", ScaledGUILayoutWidth(160)))
                 {
                     var newRoot = new StepNode();
                     _roots.Add(newRoot);
                     _selectedNode = newRoot;
-                    OpenDetail(newRoot); // auto-open details
+                    OpenDetail(newRoot);
                 }
-                if (GUILayout.Button("Expand All", GUILayout.Width(110))) SetAllExpanded(true);
-                if (GUILayout.Button("Collapse All", GUILayout.Width(110))) SetAllExpanded(false);
-                string str = "Short";
-                if (currentView == View._short)
-                    str = "Editable";
-                if (GUILayout.Button(str))
-                    currentView = 1 - currentView;
-                GUILayout.FlexibleSpace();
-            }
-            GUILayout.Space(6);
-            //GUILayout.Label("Double-click a title to edit in a separate window. Use ▲ ▼ ⤴ ⤵ Move… ⊕ Dup ✖ to manage hierarchy.", _hintLabel);
-            if (currentView == View._short)
-                GUILayout.Label("Done | Lock | Double-click a title to edit in a separate window.", _hintLabel);
-            else
-                GUILayout.Label("Done | Lock | Double-click a title to edit in a separate window. Use ▲ ▼ ⤴ ⤵ Move… Dup + ✖ to manage hierarchy.", _hintLabel);
+                if (GUILayout.Button("Expand All", ScaledGUILayoutWidth(110))) SetAllExpanded(true);
+                if (GUILayout.Button("Collapse All", ScaledGUILayoutWidth(110))) SetAllExpanded(false);
 
+                GUILayout.FlexibleSpace();
+                if (!_simpleChecklist)
+                {
+                    showDetail = GUILayout.Toggle(showDetail, "");
+                    GUILayout.Label("Show Detail");
+                    GUILayout.FlexibleSpace();
+                }
+                else
+                {
+                    GUILayout.Label("Simple Checklist");
+                    GUILayout.FlexibleSpace();
+                }
+
+
+                GUILayout.FlexibleSpace();
+                GUILayout.Label("View: ");
+
+                View localType = currentView;
+                var names = Enum.GetNames(typeof(View));
+                currentView = (View)Utils.ComboBox.Box(VIEW_COMBO, (int)currentView, names, this, 100);
+                if (currentView != localType)
+                {
+                    float width = 0;
+                    switch (currentView)
+                    {
+                        case View.Compact: width = COMPACT_WIDTH; break;
+                        case View.Tiny: width = TINY_WIDTH; break;
+                        case View.Full: width = FULL_WIDTH; break;
+                    }
+                    _treeRect.width = width;
+                }
+            }
+            using (new GUILayout.HorizontalScope())
+            {
+                if (_useKspSkin)
+                    GUILayout.Space(15);
+                if (_simpleChecklist)
+                {
+                    GUILayout.Label("Done", _titleLabel);
+                }
+                else
+                {
+                    switch (currentView)
+                    {
+                        case View.Compact:
+                            GUILayout.Label("Done|Lock|All | Double-click a title to edit in a separate window.", _titleLabel);
+                            break;
+
+                        case View.Tiny:
+                            GUILayout.Label("Done|Lock|All", _titleLabel);
+                            break;
+
+                        case View.Full:
+                            GUILayout.Label("Done|Lock|All | Double-click a title to edit in a separate window. Use ▲ ▼ ⤴ ⤵ Move… Dup + ✖ to manage hierarchy.", _titleLabel);
+                            break;
+                    }
+                }
+            }
             GUILayout.Space(4);
 
             _scroll = GUILayout.BeginScrollView(_scroll);
-            foreach (var r in _roots)
+            for (int i = 0; i < _roots.Count; i++)
             {
+                var r = _roots[i];
                 DrawNodeRow(r, 0);
                 GUILayout.Space(2);
             }
@@ -569,20 +824,20 @@ namespace MissionPlanner
             // --- Column tuning sliders (moved here to bottom) ---
             GUILayout.Space(8);
             GUILayout.BeginHorizontal();
-            GUILayout.Label(string.Format("Title Width %: {0}", (int)Mathf.Round(_titleWidthPct * 100f)), GUILayout.Width(140));
-            _titleWidthPct = GUILayout.HorizontalSlider(_titleWidthPct, 0.40f, 0.95f, GUILayout.Width(160));
+            GUILayout.Label(string.Format("Title Width %: {0}", (int)Mathf.Round(_titleWidthPct * 100f)), ScaledGUILayoutWidth(140));
+            _titleWidthPct = GUILayout.HorizontalSlider(_titleWidthPct, 0.40f, 0.95f, ScaledGUILayoutWidth(160));
             GUILayout.Space(12);
-            GUILayout.Label(string.Format("Controls Pad: {0}px", (int)_controlsPad), GUILayout.Width(140));
-            _controlsPad = Mathf.Round(GUILayout.HorizontalSlider(_controlsPad, 0f, 120f, GUILayout.Width(160)));
+            GUILayout.Label(string.Format("Controls Pad: {0}px", (int)_controlsPad), ScaledGUILayoutWidth(140));
+            _controlsPad = Mathf.Round(GUILayout.HorizontalSlider(_controlsPad, 0f, 120f, ScaledGUILayoutWidth(160)));
             GUILayout.Space(12);
-            GUILayout.Label(string.Format("Indent/Level: {0}px", (int)_indentPerLevel), GUILayout.Width(140));
-            _indentPerLevel = Mathf.Round(GUILayout.HorizontalSlider(_indentPerLevel, 10f, 40f, GUILayout.Width(160)));
+            GUILayout.Label(string.Format("Indent/Level: {0}px", (int)_indentPerLevel), ScaledGUILayoutWidth(140));
+            _indentPerLevel = Mathf.Round(GUILayout.HorizontalSlider(_indentPerLevel, 10f, 40f, ScaledGUILayoutWidth(160)));
             GUILayout.Space(12);
-            GUILayout.Label(string.Format("Fold Col: {0}px", (int)_foldColWidth), GUILayout.Width(120));
-            _foldColWidth = Mathf.Round(GUILayout.HorizontalSlider(_foldColWidth, 16f, 48f, GUILayout.Width(160)));
+            GUILayout.Label(string.Format("Fold Col: {0}px", (int)_foldColWidth), ScaledGUILayoutWidth(120));
+            _foldColWidth = Mathf.Round(GUILayout.HorizontalSlider(_foldColWidth, 16f, 48f, ScaledGUILayoutWidth(160)));
 
             GUILayout.Space(16);
-            if (GUILayout.Button("Reset", GUILayout.Width(80)))
+            if (GUILayout.Button("Reset", ScaledGUILayoutWidth(80)))
             {
                 _titleWidthPct = 0.75f;
                 _controlsPad = 40f;
@@ -593,60 +848,66 @@ namespace MissionPlanner
             GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
 #endif
-            // --- Bottom bar: New / Clear All / Save / Save As… / Load / Hide + Save indicator ---
+
             GUILayout.Space(6);
-            GUILayout.BeginHorizontal();
 
-            if (GUILayout.Button("New", GUILayout.Width(90)))
+            using (new GUILayout.HorizontalScope())
             {
-                _showNewConfirm = true;
-                var mp = Input.mousePosition;
-                _newConfirmRect.x = Mathf.Clamp(mp.x, 40, Screen.width - _newConfirmRect.width - 40);
-                _newConfirmRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - _newConfirmRect.height - 40);
+                if (GUILayout.Button("New", ScaledGUILayoutWidth(90)))
+                {
+                    _showNewConfirm = true;
+                    var mp = Input.mousePosition;
+                    _newConfirmRect.x = Mathf.Clamp(mp.x, 40, Screen.width - _newConfirmRect.width - 40);
+                    _newConfirmRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - _newConfirmRect.height - 40);
+                }
+
+                if (GUILayout.Button("Clear All", ScaledGUILayoutWidth(90)))
+                {
+                    _clearAddSample = false;
+                    _showClearConfirm = true;
+                    var mp = Input.mousePosition;
+                    _clearConfirmRect.x = Mathf.Clamp(mp.x, 40, Screen.width - _clearConfirmRect.width - 40);
+                    _clearConfirmRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - _clearConfirmRect.height - 40);
+                }
+
+                if (GUILayout.Button("Save", ScaledGUILayoutWidth(90)))
+                {
+                    TrySaveToDisk_Internal(true);
+                }
+
+                if (GUILayout.Button("Save As…", ScaledGUILayoutWidth(100)))
+                {
+                    _creatingNewMission = false;
+                    OpenSaveAsDialog();
+                }
+
+                if (GUILayout.Button("Load/Import…", ScaledGUILayoutWidth(120)))
+                    OpenLoadDialog();
+
+                GUILayout.FlexibleSpace();
+
+                if (Time.realtimeSinceStartup <= _lastSaveShownUntil && !String.IsNullOrEmpty(_lastSaveInfo))
+                {
+                    var style = _lastSaveWasSuccess ? _badge : _badgeError;
+                    GUILayout.Label(_lastSaveInfo, style);
+                }
+
+                GUILayout.FlexibleSpace();
+                if (currentView != View.Tiny)
+                    GUILayout.Label(string.Format("Count: {0}", CountAll()), _badge);
+                if (GUILayout.Button("Close", ScaledGUILayoutWidth(70)))
+                {
+                    _visible = false;
+                    SyncToolbarState();
+                }
+                GUILayout.Space(20);
             }
-
-            if (GUILayout.Button("Clear All", GUILayout.Width(90)))
-            {
-                _clearAddSample = false;
-                _showClearConfirm = true;
-                var mp = Input.mousePosition;
-                _clearConfirmRect.x = Mathf.Clamp(mp.x, 40, Screen.width - _clearConfirmRect.width - 40);
-                _clearConfirmRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - _clearConfirmRect.height - 40);
-            }
-
-            if (GUILayout.Button("Save", GUILayout.Width(90))) { TrySaveToDisk_Internal(true); }
-
-            if (GUILayout.Button("Save As…", GUILayout.Width(100)))
-            {
-                _creatingNewMission = false;
-                OpenSaveAsDialog();
-            }
-
-            if (GUILayout.Button("Load…", GUILayout.Width(90))) { OpenLoadDialog(); }
-
-            GUILayout.FlexibleSpace();
-
-            if (Time.realtimeSinceStartup <= _lastSaveShownUntil && !String.IsNullOrEmpty(_lastSaveInfo))
-            {
-                var style = _lastSaveWasSuccess ? _badge : _badgeError;
-                GUILayout.Label(_lastSaveInfo, style);
-            }
-
-            GUILayout.Space(10);
-            GUILayout.Label(string.Format("Count: {0}", CountAll()), _badge);
-            if (GUILayout.Button("Close", GUILayout.Width(70)))
-            {
-                _visible = false;
-                SyncToolbarState();
-            }
-            GUILayout.Space(20);
-            GUILayout.EndHorizontal();
 
             this.resizeHandle.Draw(ref this._treeRect);
 
             GUI.DragWindow(new Rect(0, 0, 10000, 10000));
         }
-        private ResizeHandle resizeHandle;
+        private ResizeHandle resizeHandle = null;
 
         private void DrawNewConfirmWindow(int id)
         {
@@ -654,33 +915,36 @@ namespace MissionPlanner
             GUILayout.Label("Create a new mission. Save current mission first?", _hintLabel);
 
             GUILayout.Space(10);
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Save", GUILayout.Width(100)))
+            using (new GUILayout.HorizontalScope())
             {
-                TrySaveToDisk_Internal(true);
-                _showNewConfirm = false;
+                if (GUILayout.Button("Save", ScaledGUILayoutWidth(100)))
+                {
+                    TrySaveToDisk_Internal(true);
+                    _showNewConfirm = false;
 
-                _creatingNewMission = true;
-                _newMissionAddSample = true;
-                _saveAsName = "New Mission";
-                _saveAsSummaryText = "";
-                OpenSaveAsDialog();
+                    _creatingNewMission = true;
+                    _newMissionAddSample = true;
+                    _saveAsName = "New Mission";
+                    _saveAsSummaryText = "";
+                    _simpleChecklist = false;
+                    OpenSaveAsDialog();
+                }
+                if (GUILayout.Button("Discard", ScaledGUILayoutWidth(100)))
+                {
+                    _showNewConfirm = false;
+                    _creatingNewMission = true;
+                    _newMissionAddSample = true;
+                    _saveAsName = "New Mission";
+                    _saveAsSummaryText = "";
+                    _simpleChecklist = false;
+                    OpenSaveAsDialog();
+                }
+                if (GUILayout.Button("Cancel", ScaledGUILayoutWidth(100)))
+                {
+                    _showNewConfirm = false;
+                }
+                GUILayout.FlexibleSpace();
             }
-            if (GUILayout.Button("Discard", GUILayout.Width(100)))
-            {
-                _showNewConfirm = false;
-                _creatingNewMission = true;
-                _newMissionAddSample = true;
-                _saveAsName = "New Mission";
-                _saveAsSummaryText = "";
-                OpenSaveAsDialog();
-            }
-            if (GUILayout.Button("Cancel", GUILayout.Width(100)))
-            {
-                _showNewConfirm = false;
-            }
-            GUILayout.FlexibleSpace();
-            GUILayout.EndHorizontal();
 
             GUI.DragWindow(new Rect(0, 0, 10000, 10000));
         }
@@ -691,158 +955,244 @@ namespace MissionPlanner
             GUILayout.Label("This will remove ALL steps from the current mission.\n(Your mission name is kept.)", _hintLabel);
 
             GUILayout.Space(6);
-            GUILayout.BeginHorizontal();
-            GUILayout.Label("Add sample root step", GUILayout.Width(160));
-            _clearAddSample = GUILayout.Toggle(_clearAddSample, GUIContent.none, GUILayout.Width(22));
-            GUILayout.FlexibleSpace();
-            GUILayout.EndHorizontal();
+            using (new GUILayout.HorizontalScope())
+            {
+                GUILayout.Label("Add sample root step", ScaledGUILayoutWidth(160));
+                _clearAddSample = GUILayout.Toggle(_clearAddSample, GUIContent.none, ScaledGUILayoutWidth(22));
+                GUILayout.FlexibleSpace();
+            }
 
             GUILayout.Space(10);
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Clear", GUILayout.Width(100)))
+            using (new GUILayout.HorizontalScope())
             {
-                _roots.Clear();
-                _selectedNode = null;
-                _detailNode = null;
-                if (_clearAddSample)
+                GUILayout.FlexibleSpace();
+                if (GUILayout.Button("Clear", ScaledGUILayoutWidth(100)))
                 {
-                    var root = new StepNode
+                    _roots.Clear();
+                    _selectedNode = null;
+                    _detailNode = null;
+                    if (_clearAddSample)
                     {
-                        data = new Step
+                        var root = new StepNode
                         {
-                            title = "New Step"
-                        },
-                        Expanded = true
-                    };
-                    _roots.Add(root);
-                    _selectedNode = root;
-                    OpenDetail(root);
+                            data = new Step
+                            {
+                                title = "New Step"
+                            },
+                            Expanded = true
+                        };
+                        _roots.Add(root);
+                        _selectedNode = root;
+                        OpenDetail(root);
+                    }
+                    _showClearConfirm = false;
                 }
-                _showClearConfirm = false;
+                GUILayout.FlexibleSpace();
+                if (GUILayout.Button("Cancel", ScaledGUILayoutWidth(100)))
+                {
+                    _showClearConfirm = false;
+                }
+                GUILayout.FlexibleSpace();
             }
-            if (GUILayout.Button("Cancel", GUILayout.Width(100)))
-            {
-                _showClearConfirm = false;
-            }
-            GUILayout.FlexibleSpace();
-            GUILayout.EndHorizontal();
 
             GUI.DragWindow(new Rect(0, 0, 10000, 10000));
         }
-
-#if false
-        private void DrawSummaryWindow(int id)
-        {
-            GUILayout.Space(6);
-            GUILayout.Label("Summary for mission:", _tinyLabel);
-            GUILayout.Label(_missionName, _titleEdit);
-            GUILayout.Space(6);
-
-            _summaryScroll = GUILayout.BeginScrollView(_summaryScroll, HighLogic.Skin.textArea, GUILayout.MinHeight(180), GUILayout.ExpandHeight(true));
-            _missionSummary = GUILayout.TextArea(_missionSummary ?? "", GUILayout.ExpandHeight(true));
-            GUILayout.EndScrollView();
-
-            GUILayout.Space(6);
-
-            GUILayout.BeginHorizontal();
-            GUILayout.FlexibleSpace();
-#if false
-            if (GUILayout.Button("Save", GUILayout.Width(100)))
-            {
-                TrySaveToDisk_Internal(true);
-            }
-#endif
-            if (GUILayout.Button("Close", GUILayout.Width(100)))
-            {
-                _showSummaryWindow = false;
-            }
-            GUILayout.FlexibleSpace();
-            GUILayout.EndHorizontal();
-
-            GUI.DragWindow(new Rect(0, 0, 10000, 10000));
-        }
-#endif
 
         private void DrawNodeRow(StepNode node, int depth)
         {
-            GUILayout.BeginVertical(); // HighLogic.Skin.textArea);
-            GUILayout.BeginHorizontal();
-
-            var b = GUILayout.Toggle(node.data.completed, "");
-            if (!node.data.locked)
-                node.data.completed = b;
-
-
-            node.data.locked = GUILayout.Toggle(node.data.locked, "");
-
-            float indent = 12f + _indentPerLevel * depth;
-            GUILayout.Space(indent);
-
-            if (node.Children.Count == 0)
+            Rect titleRect;
+            bool up, down, promote, demote, moveTo, dup, add, del;
+            float indent = 0;
+            string criteria = "";
+            using (new GUILayout.VerticalScope())
             {
-                GUILayout.Label("·", GUILayout.Width(_foldColWidth));
-            }
-            else
-            {
-                string sign = node.Expanded ? "−" : "+";
-                if (GUILayout.Button(sign, _titleLabel, GUILayout.Width(_foldColWidth))) node.Expanded = !node.Expanded;
-            }
-
-            const float controlsBase = 100f;
-            float controlsWidth = controlsBase + _controlsPad;
-            float available = Mathf.Max(120f, _treeRect.width - indent - _foldColWidth - controlsWidth - 12f);
-            float titleWidth = Mathf.Clamp(available * _titleWidthPct, 200, available);
-
-            var style = (_selectedNode == node) ? _selectedTitle : _titleLabel;
-            GUILayout.Label(node.data.title ?? "(untitled)", style, GUILayout.Width(titleWidth));
-            Rect titleRect = GUILayoutUtility.GetLastRect();
-            GUILayout.FlexibleSpace();
-            bool up=false, down=false, promote=false, demote=false, moveTo=false, dup=false, add=false, del=false;
-            if (currentView == View.editable)
-            {
-                up = GUILayout.Button("▲", _smallBtn);
-                down = GUILayout.Button("▼", _smallBtn);
-                promote = GUILayout.Button("⤴", _smallBtn);
-                demote = GUILayout.Button("⤵", _smallBtn);
-                moveTo = GUILayout.Button("Move…", GUILayout.Width(60f /* 54f */));
-                dup = GUILayout.Button("Dup", GUILayout.Width(40f));
-                GUILayout.Space(20);
-                add = GUILayout.Button("+", _smallBtn /* "⊕" */, GUILayout.Width(28));
-                del = GUILayout.Button("✖", _smallBtn);
-            }
-            GUILayout.EndHorizontal();
-
-            HandleTitleClicks(node, titleRect);
-
-            if (currentView == View.editable)
-            {
-                if (up) MoveUp(node);
-                if (down) MoveDown(node);
-                if (promote) Promote(node);
-                if (demote) Demote(node);
-                if (moveTo) OpenMoveDialog(node);
-                if (dup) Duplicate(node);
-                if (add)
+                using (new GUILayout.HorizontalScope())
                 {
-                    var child = node.AddChild();
-                    node.Expanded = true;
-                    _selectedNode = child;
-                    OpenDetail(child);
-                }
-                if (del) Delete(node);
-            }
-            if (node.Expanded && node.Children.Count > 0)
-            {
-                GUILayout.Space(2);
-                foreach (var c in node.Children)
-                {
-                    DrawNodeRow(c, depth + 1);
-                    GUILayout.Space(1);
-                }
-            }
+                    if (!_useKspSkin)
+                        GUILayout.Space(10);
+                    node.data.completed = GUILayout.Toggle(node.data.completed, new GUIContent("", "Mark this line as completed"));
+                    if (_simpleChecklist)
+                    {
 
-            GUILayout.EndVertical();
+                    }
+                    else
+                    {
+                        if (!_useKspSkin)
+                            GUILayout.Space(15);
+
+                        node.data.locked = GUILayout.Toggle(node.data.locked, new GUIContent("", "Lock this line"));
+                        if (!_useKspSkin)
+                            GUILayout.Space(10);
+
+                        bool b = GUILayout.Toggle(node.requireAll, new GUIContent("", "Require all children to be fulfilled for this to be fulfilled"));
+                        if (!node.data.locked)
+                            node.requireAll = b;
+                    }
+                    indent = 12f + _indentPerLevel * depth;
+                    GUILayout.Space(indent);
+
+                    if (node.Children.Count == 0)
+                    {
+                        GUILayout.Label(" ", ScaledGUILayoutWidth(_foldColWidth));
+                    }
+                    else
+                    {
+                        string sign = node.Expanded ? "-" : "+";
+                        if (GUILayout.Button(sign, _titleLabel, ScaledGUILayoutWidth(_foldColWidth))) node.Expanded = !node.Expanded;
+                    }
+
+                    const float controlsBase = 100f;
+                    float controlsWidth = controlsBase + _controlsPad;
+                    float available = Mathf.Max(120f, _treeRect.width - indent - _foldColWidth - controlsWidth - 12f);
+                    float titleWidth = Mathf.Clamp(available * _titleWidthPct, MAX_TITLE_WIDTH, available);
+
+                    var style = (_selectedNode == node) ? _selectedTitleLabel : _titleLabel;
+
+                    bool fulfilled = FlightChecks.CheckChildStatus(node);
+                    if (!fulfilled)
+                    {
+                        style = (_selectedNode == node) ? _selectedUnfilledTitleLabel : _unfilledTitleLabel;
+                    }
+                    //criteria = "";
+                    switch (node.data.stepType)
+                    {
+                        case CriterionType.SolarPanels:
+                        case CriterionType.FuelCells:
+                            float chargeRate = Utils.FlightChecks.chargeRate;
+                            criteria = $"Charge rate: {chargeRate}";
+                            break;
+
+                        case CriterionType.Radiators:
+                            float coolingRate = Utils.FlightChecks.coolingRate;
+                            criteria = $"Cooling rate: {coolingRate}";
+                            break;
+
+                        case CriterionType.Flags:
+                            int flagCount = FlightChecks.flagCount;
+                            criteria = $"Flag count: {flagCount}";
+                            break;
+
+                        case CriterionType.ChecklistItem:
+                            criteria = node.data.completed ? ": Completed" : ": Incomplete";
+
+                            if (HighLogic.LoadedSceneIsFlight)
+                            {
+                                if (_selectedNode == node)
+                                    style = (node.data.completed) ? _selectedTitleLabel : _selectedUnfilledTitleLabel;
+                                else
+                                    style = (node.data.completed) ? _titleLabel : _unfilledTitleLabel;
+                            }
+                            break;
+
+                        case CriterionType.CrewMemberTrait:
+                            criteria = ": " + node.data.traitName;
+                            break;
+
+                        //case CriterionType.Engines:
+                        //criteria = $": {node.data.number}";
+                        //    break;
+
+                        case CriterionType.Number:
+                            criteria = $": {node.data.number}";
+                            break;
+                        case CriterionType.Range:
+                            criteria = $": {node.data.minFloatRange} - {node.data.maxFloatRange}";
+                            break;
+
+                        default:
+                            break;
+                    }
+
+                    GUILayout.Label(node.data.title, style, ScaledGUILayoutWidth(titleWidth));
+                    titleRect = GUILayoutUtility.GetLastRect();
+                    up = down = promote = demote = moveTo = dup = add = del = false;
+
+                    GUILayout.FlexibleSpace();
+                    if (currentView == View.Full)
+                    {
+                        up = GUILayout.Button("▲", _smallBtn);
+                        down = GUILayout.Button("▼", _smallBtn);
+                        promote = GUILayout.Button("⤴", _smallBtn);
+                        demote = GUILayout.Button("⤵", _smallBtn);
+                        moveTo = GUILayout.Button("Move…", ScaledGUILayoutWidth(60f /* 54f */));
+                        dup = GUILayout.Button("Dup", ScaledGUILayoutWidth(40f));
+                        GUILayout.Space(20);
+                        add = GUILayout.Button("+", _smallBtn /* "⊕" */, ScaledGUILayoutWidth(28));
+                        del = GUILayout.Button("✖", _smallBtn);
+                    }
+                }
+
+                if (currentView != View.Tiny)
+                    HandleTitleClicks(node, titleRect);
+
+                if (currentView == View.Full)
+                {
+                    if (up) MoveUp(node);
+                    if (down) MoveDown(node);
+                    if (promote) Promote(node);
+                    if (demote) Demote(node);
+                    if (moveTo) OpenMoveDialog(node);
+                    if (dup) Duplicate(node);
+                    if (add)
+                    {
+                        var child = node.AddChild();
+                        node.Expanded = true;
+                        _selectedNode = child;
+                        OpenDetail(child);
+                    }
+                    if (del) Delete(node);
+                }
+                if (showDetail)
+                {
+                    using (new GUILayout.HorizontalScope())
+                    {
+                        GUILayout.Space(140 + indent);
+                        switch (node.data.stepType)
+                        {
+                            case CriterionType.TrackedVessel:
+                                GUILayout.Label("(" + StringFormatter.BeautifyName(node.data.stepType.ToString()) + $": {node.data.trackedVessel})", _smallLabel);
+                                break;
+                            case CriterionType.ControlSource:
+                            case CriterionType.Engines:
+                                GUILayout.Label("(" + StringFormatter.BeautifyName(node.data.stepType.ToString()) + " checklist item)", _smallLabel);
+                                break;
+
+                            default:
+                                if (criteria != "")
+                                    GUILayout.Label("(" + StringFormatter.BeautifyName(node.data.stepType.ToString()) + criteria + ")", _smallLabel);
+                                else
+                                    GUILayout.Label("(" + StringFormatter.BeautifyName(node.data.stepType.ToString()) + ")", _smallLabel);
+                                break;
+                        }
+                    }
+                }
+                if (node.Expanded && node.Children.Count > 0)
+                {
+                    GUILayout.Space(2);
+                    for (int i = 0; i < node.Children.Count; i++)
+                    {
+                        StepNode c = node.Children[i];
+                        DrawNodeRow(c, depth + 1);
+                        GUILayout.Space(1);
+                    }
+                }
+            }
+            // Optionally display the tooltip near the mouse cursor
+            if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().showTooltips)
+            {
+                if (!string.IsNullOrEmpty(GUI.tooltip))
+                {
+                    Vector2 mouse = Event.current.mousePosition;
+                    GUIStyle style = GUI.skin.box;
+                    Vector2 size = style.CalcSize(new GUIContent(GUI.tooltip));
+
+                    // Small offset so it doesn’t overlap the cursor
+                    Rect tipRect = new Rect(mouse.x + 16f, mouse.y + 16f, size.x + 8f, size.y + 4f);
+                    GUI.Box(tipRect, GUI.tooltip);
+                }
+            }
         }
+
 
         private void HandleTitleClicks(StepNode node, Rect titleRect)
         {
@@ -933,10 +1283,46 @@ namespace MissionPlanner
                     number = n.data.number,
                     partName = n.data.partName,
                     partTitle = n.data.partTitle,
-                    partOnlyAvailable = n.data.partOnlyAvailable
+                    partOnlyAvailable = n.data.partOnlyAvailable,
+                    traitName = n.data.traitName,
+                    batteryCapacity = n.data.batteryCapacity,
+                    antennaPower = n.data.antennaPower,
+                    solarChargeRate = n.data.solarChargeRate,
+                    fuelCellChargeRate = n.data.fuelCellChargeRate,
+                    radiatorCoolingRate = n.data.radiatorCoolingRate,
+                    spotlights = n.data.spotlights,
+                    parachutes = n.data.parachutes,
+                    reactionWheels = n.data.reactionWheels,
+
+                    moduleName = n.data.moduleName,
+                    minSASLevel = n.data.minSASLevel,
+
+                    flagBody = n.data.flagBody,
+                    destBody = n.data.destBody,
+                    destBiome = n.data.destBiome,
+                    biome = n.data.biome,
+                    destAsteroid = n.data.destAsteroid,
+                    destVessel = n.data.destVessel,
+
+                    vabCategory = n.data.vabCategory,
+
+                    requiresLanding = n.data.requiresLanding,
+                    flagCnt = n.data.flagCnt,
+                    crewCount = n.data.crewCount
                 },
-                Expanded = n.Expanded
+                Expanded = n.Expanded,
+
             };
+            cloned.data.resourceList = new List<ResInfo>();
+
+            foreach (var r in n.data.resourceList)
+            {
+                ResInfo res = new ResInfo();
+                res.resourceName = r.resourceName;
+                res.resourceCapacity = r.resourceCapacity;
+                res.resourceAmount = r.resourceAmount;
+                cloned.data.resourceList.Add(res);
+            }
 
             var list = (n.Parent == null) ? _roots : n.Parent.Children;
             int idx = list.IndexOf(n);
@@ -963,30 +1349,33 @@ namespace MissionPlanner
             GUILayout.Label("Choose a new parent (or Root). You cannot move an item under itself or its descendants.", _hintLabel);
 
             GUILayout.Space(6);
-            GUILayout.BeginHorizontal();
-            bool rootChosen = (_moveTargetParent == null);
-            if (GUILayout.Toggle(rootChosen, "⟂ Root", HighLogic.Skin.toggle, GUILayout.Width(120)))
-                _moveTargetParent = null;
-            GUILayout.FlexibleSpace();
-            GUILayout.EndHorizontal();
+            using (new GUILayout.HorizontalScope())
+            {
+                bool rootChosen = (_moveTargetParent == null);
+                if (GUILayout.Toggle(rootChosen, "⟂ Root", HighLogic.Skin.toggle, ScaledGUILayoutWidth(120)))
+                    _moveTargetParent = null;
+                GUILayout.FlexibleSpace();
+            }
 
             GUILayout.Space(6);
             GUILayout.Label("Or select an existing parent:", _tinyLabel);
 
             _moveScroll = GUILayout.BeginScrollView(_moveScroll, HighLogic.Skin.textArea, GUILayout.ExpandHeight(true));
-            foreach (var r in _roots) DrawMoveTargetRecursive(r, 0, _moveNode);
+            foreach (var r in _roots)
+                DrawMoveTargetRecursive(r, 0, _moveNode);
             GUILayout.EndScrollView();
 
             GUILayout.Space(8);
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("OK", GUILayout.Width(100)))
+            using (new GUILayout.HorizontalScope())
             {
-                MoveToParent(_moveNode, _moveTargetParent);
-                CloseMoveDialog();
+                if (GUILayout.Button("OK", ScaledGUILayoutWidth(100)))
+                {
+                    MoveToParent(_moveNode, _moveTargetParent);
+                    CloseMoveDialog();
+                }
+                if (GUILayout.Button("Cancel", ScaledGUILayoutWidth(100))) CloseMoveDialog();
+                GUILayout.FlexibleSpace();
             }
-            if (GUILayout.Button("Cancel", GUILayout.Width(100))) CloseMoveDialog();
-            GUILayout.FlexibleSpace();
-            GUILayout.EndHorizontal();
 
             GUI.DragWindow(new Rect(0, 0, 10000, 10000));
         }
@@ -995,14 +1384,15 @@ namespace MissionPlanner
         {
             if (node == moving || IsDescendant(moving, node)) return;
 
-            GUILayout.BeginHorizontal();
-            GUILayout.Space(12 + _indentPerLevel * depth);
-            bool chosen = (_moveTargetParent == node);
-            string label = string.Format("📁 {0}", node.data.title);
-            if (GUILayout.Toggle(chosen, label, HighLogic.Skin.toggle))
-                _moveTargetParent = node;
-            GUILayout.FlexibleSpace();
-            GUILayout.EndHorizontal();
+            using (new GUILayout.HorizontalScope())
+            {
+                GUILayout.Space(12 + _indentPerLevel * depth);
+                bool chosen = (_moveTargetParent == node);
+                string label = string.Format("📁 {0}", node.data.title);
+                if (GUILayout.Toggle(chosen, label, HighLogic.Skin.toggle))
+                    _moveTargetParent = node;
+                GUILayout.FlexibleSpace();
+            }
 
             foreach (var c in node.Children) DrawMoveTargetRecursive(c, depth + 1, moving);
         }
@@ -1037,7 +1427,8 @@ namespace MissionPlanner
 
         private void OpenDetail(StepNode node)
         {
-            if (_detailNode != null && _detailNode != node) TrySaveToDisk_Internal(true);
+            if (_detailNode != null && _detailNode != node)
+                TrySaveToDisk_Internal(true);
 
             _detailNode = node;
             var mp = Input.mousePosition;
@@ -1069,20 +1460,28 @@ namespace MissionPlanner
         {
             GUILayout.Space(6);
 
-            GUILayout.BeginHorizontal();
-            GUILayout.Label(_creatingNewMission ? "New mission name:" : "Save as name:", GUILayout.Width(140));
-            GUI.SetNextControlName("SaveAsNameField");
-            _saveAsName = GUILayout.TextField(_saveAsName ?? "", GUILayout.MinWidth(180), GUILayout.ExpandWidth(true));
-            GUILayout.EndHorizontal();
+            using (new GUILayout.HorizontalScope())
+            {
+                GUILayout.Label(_creatingNewMission ? "New mission name:" : "Save as name:", ScaledGUILayoutWidth(140));
+                GUI.SetNextControlName("SaveAsNameField");
+                _saveAsName = GUILayout.TextField(_saveAsName ?? "", GUILayout.MinWidth(180), GUILayout.ExpandWidth(true));
+            }
 
             if (_creatingNewMission)
             {
                 GUILayout.Space(6);
-                GUILayout.BeginHorizontal();
-                GUILayout.Label("Add sample root step", GUILayout.Width(160));
-                _newMissionAddSample = GUILayout.Toggle(_newMissionAddSample, GUIContent.none, GUILayout.Width(22));
-                GUILayout.FlexibleSpace();
-                GUILayout.EndHorizontal();
+                using (new GUILayout.HorizontalScope())
+                {
+                    GUILayout.Label("Simple Checklist", ScaledGUILayoutWidth(160));
+                    _simpleChecklist = GUILayout.Toggle(_simpleChecklist, GUIContent.none, ScaledGUILayoutWidth(22));
+                    GUILayout.FlexibleSpace();
+                }
+                using (new GUILayout.HorizontalScope())
+                {
+                    GUILayout.Label("Add sample root step", ScaledGUILayoutWidth(160));
+                    _newMissionAddSample = GUILayout.Toggle(_newMissionAddSample, GUIContent.none, ScaledGUILayoutWidth(22));
+                    GUILayout.FlexibleSpace();
+                }
 
                 GUILayout.Space(6);
                 GUILayout.Label("Mission summary (optional):");
@@ -1093,69 +1492,70 @@ namespace MissionPlanner
                 GUI.FocusControl("SaveAsNameField");
 
             GUILayout.Space(10);
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("OK", GUILayout.Width(100)))
+            using (new GUILayout.HorizontalScope())
             {
-                string proposed = IsNullOrWhiteSpace(_saveAsName) ? "Unnamed" : _saveAsName.Trim();
-
-                if (_creatingNewMission)
+                if (GUILayout.Button("OK", ScaledGUILayoutWidth(100)))
                 {
-                    _roots.Clear();
-                    _selectedNode = null;
-                    _detailNode = null;
-                    _missionName = proposed;
-                    _missionSummary = _saveAsSummaryText ?? "";
+                    string proposed = IsNullOrWhiteSpace(_saveAsName) ? "Unnamed" : _saveAsName.Trim();
 
-                    if (_newMissionAddSample)
+                    if (_creatingNewMission)
                     {
-                        var root = new StepNode
+                        _roots.Clear();
+                        _selectedNode = null;
+                        _detailNode = null;
+                        _missionName = proposed;
+                        _missionSummary = _saveAsSummaryText ?? "";
+
+                        if (_newMissionAddSample)
                         {
-                            data = new Step
+                            var root = new StepNode
                             {
-                                title = "New Step"
-                            },
-                            Expanded = true
-                        };
-                        _roots.Add(root);
-                        _selectedNode = root;
-                        OpenDetail(root);
-                    }
+                                data = new Step
+                                {
+                                    title = "New Step"
+                                },
+                                Expanded = true
+                            };
+                            _roots.Add(root);
+                            _selectedNode = root;
+                            OpenDetail(root);
+                        }
 
-                    _creatingNewMission = false;
-                    _showSaveAs = false;
-                }
-                else
-                {
-                    string save = GetCurrentSaveName();
-                    string path = GetSaveFileAbsolute(save, proposed);
-
-                    _pendingSaveMission = proposed;
-                    _pendingSavePath = path;
-
-                    if (File.Exists(path))
-                    {
+                        _creatingNewMission = false;
                         _showSaveAs = false;
-                        _showOverwriteDialog = true;
-
-                        var mp = Input.mousePosition;
-                        _overwriteRect.x = Mathf.Clamp(mp.x, 40, Screen.width - _overwriteRect.width - 40);
-                        _overwriteRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - _overwriteRect.height - 40);
                     }
                     else
                     {
-                        _missionName = proposed;
-                        _showSaveAs = false;
-                        TrySaveToDisk_Internal(true);
+                        string save = GetCurrentSaveName();
+                        string path = GetSaveFileAbsolute(save, proposed);
+
+                        _pendingSaveMission = proposed;
+                        _pendingSavePath = path;
+
+                        if (File.Exists(path))
+                        {
+                            _showSaveAs = false;
+                            _showOverwriteDialog = true;
+
+                            var mp = Input.mousePosition;
+                            _overwriteRect.x = Mathf.Clamp(mp.x, 40, Screen.width - _overwriteRect.width - 40);
+                            _overwriteRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - _overwriteRect.height - 40);
+                        }
+                        else
+                        {
+                            _missionName = proposed;
+                            _showSaveAs = false;
+                            TrySaveToDisk_Internal(true);
+                        }
                     }
                 }
+                if (GUILayout.Button("Cancel", ScaledGUILayoutWidth(100)))
+                {
+                    _creatingNewMission = false;
+                    _showSaveAs = false;
+                }
+                GUILayout.FlexibleSpace();
             }
-            if (GUILayout.Button("Cancel", GUILayout.Width(100)))
-            {
-                _creatingNewMission = false;
-                _showSaveAs = false;
-            }
-            GUILayout.FlexibleSpace();
-            GUILayout.EndHorizontal();
 
             GUI.DragWindow(new Rect(0, 0, 10000, 10000));
         }
@@ -1176,28 +1576,6 @@ namespace MissionPlanner
 
         private void ReparentAll() { foreach (var r in _roots) { r.Parent = null; ReparentRecursive(r); } }
         private void ReparentRecursive(StepNode n) { foreach (var c in n.Children) { c.Parent = n; ReparentRecursive(c); } }
-
-        private void SeedSample()
-        {
-            _missionName = "Sample Mission";
-            _missionSummary = "Example mission demonstrating preflight and ascent steps.";
-            _roots.Clear();
-
-            var preflight = new StepNode { data = new Step { title = "Preflight Checks", descr = "Before launch." }, Expanded = true };
-            preflight.AddChild(new Step { title = "Batteries", stepType = CriterionType.toggle, initialToggleValue = true });
-            preflight.AddChild(new Step { title = "Crew on board", stepType = CriterionType.toggle });
-            var limits = preflight.AddChild(new Step { title = "Set Limits", stepType = CriterionType.range, minFloatRange = 0f, maxFloatRange = 5f });
-
-            var ascent = new StepNode { data = new Step { title = "Ascent", descr = "Liftoff to orbit." }, Expanded = true };
-            ascent.AddChild(new Step { title = "SAS On", stepType = CriterionType.toggle, initialToggleValue = true, toggle = true });
-
-            preflight.AddChild(new Step { title = "Crew count 1–3", stepType = CriterionType.crewCount, crewCount = 1 });
-            preflight.AddChild(new Step { title = "Has Parachute part", stepType = CriterionType.part, partName = "", partTitle = "", partOnlyAvailable = true });
-
-            _roots.Add(preflight);
-            _roots.Add(ascent);
-        }
-
         private struct MissionFileInfo
         {
             public string FullPath;
@@ -1206,26 +1584,61 @@ namespace MissionPlanner
             public DateTime LastWriteUtc;
         }
 
-
-        private void OnAppLauncherReady()
+        void onVesselSwitching(Vessel from, Vessel to)
         {
-            if (ApplicationLauncher.Instance == null || _appButton != null) return;
-
-            _appButton = ApplicationLauncher.Instance.AddModApplication(
-                onTrue: () => { _visible = true; SetButtonIcon(_iconOn); },
-                onFalse: () => { _visible = false; SetButtonIcon(_iconOff); },
-                onHover: null, onHoverOut: null, onEnable: null, onDisable: null,
-                visibleInScenes: _scenes,
-                texture: _visible ? _iconOn : _iconOff
-            );
-            SyncToolbarState();
+            LoadTrackedVesselMission(to.id);
         }
 
-        private void OnAppLauncherDestroyed()
+        List<StepNode> trackedVesselUpdated = new List<StepNode>();
+        void onLevelWasLoadedGUIReady(GameScenes gs)
         {
-            if (_appButton != null && ApplicationLauncher.Instance != null)
-                ApplicationLauncher.Instance.RemoveModApplication(_appButton);
-            _appButton = null;
+            if (HighLogic.LoadedSceneIsFlight && FlightGlobals.ActiveVessel != null)
+            {
+                trackedVesselUpdated.Clear();
+
+                // Find all steps of Criterion.trackedVessel, if no vessel specified, then assign the active vessel
+                for (int i = 0; i < _roots.Count; i++)
+                {
+                    StepNode r = _roots[i];
+                    CheckNode(r);
+                    CheckChildren(r);
+                }
+            }
+        }
+
+        // Need to be able to revert this
+        void CheckChildren(StepNode node)
+        {
+            for (int i = 0; i < node.Children.Count; i++)
+            {
+                CheckNode(node.Children[i]);
+                CheckChildren(node.Children[i]);
+            }
+        }
+
+        void CheckNode(StepNode c)
+        {
+            if (c.data.stepType == CriterionType.TrackedVessel)
+            {
+                if (string.IsNullOrEmpty(c.data.trackedVessel))
+                {
+                    c.data.trackedVessel = FlightGlobals.ActiveVessel.vesselName;
+                    c.data.vesselGuid = FlightGlobals.ActiveVessel.id;
+                    trackedVesselUpdated.Add(c);
+                }
+            }
+        }
+
+        void onGameSceneSwitchRequested(GameEvents.FromToAction<GameScenes, GameScenes> fta)
+        {
+            if (fta.from == GameScenes.FLIGHT && fta.to == GameScenes.EDITOR)
+            {
+                foreach (var tvu in trackedVesselUpdated)
+                {
+                    tvu.data.trackedVessel = "";
+                    tvu.data.vesselGuid = Guid.Empty;
+                }
+            }
         }
 
         private void SyncToolbarState()
@@ -1287,10 +1700,17 @@ namespace MissionPlanner
         {
             if (n == null) return fallback;
             float x = fallback.x, y = fallback.y, w = fallback.width, h = fallback.height;
-            float.TryParse(n.GetValue("x"), out x);
-            float.TryParse(n.GetValue("y"), out y);
-            float.TryParse(n.GetValue("w"), out w);
-            float.TryParse(n.GetValue("h"), out h);
+
+            x = n.SafeLoad("x", x);
+            x = n.SafeLoad("y", y);
+            x = n.SafeLoad("w", w);
+            x = n.SafeLoad("h", h);
+
+            //float.TryParse(n.GetValue("x"), out x);
+            //float.TryParse(n.GetValue("y"), out y);
+            //float.TryParse(n.GetValue("w"), out w);
+            //float.TryParse(n.GetValue("h"), out h);
+
             return new Rect(x, y, w, h);
         }
 
@@ -1336,11 +1756,18 @@ namespace MissionPlanner
                 var root = ConfigNode.Load(path);
                 if (root == null || root.name != UI_ROOT_NODE) return;
 
-                bool.TryParse(root.GetValue("UseKspSkin"), out _useKspSkin);
-                float.TryParse(root.GetValue("TitleWidthPct"), out _titleWidthPct);
-                float.TryParse(root.GetValue("ControlsPad"), out _controlsPad);
-                float.TryParse(root.GetValue("IndentPerLevel"), out _indentPerLevel);
-                float.TryParse(root.GetValue("FoldColWidth"), out _foldColWidth);
+                _useKspSkin = root.SafeLoad("UseKspSkin", _useKspSkin);
+                _titleWidthPct = root.SafeLoad("TitleWidthPct", _titleWidthPct);
+                _controlsPad = root.SafeLoad("ControlsPad", _controlsPad);
+                _indentPerLevel = root.SafeLoad("IndentPerLevel", _indentPerLevel);
+                _foldColWidth = root.SafeLoad("FoldColWidth", _foldColWidth);
+
+
+                //bool.TryParse(root.GetValue("UseKspSkin"), out _useKspSkin);
+                //float.TryParse(root.GetValue("TitleWidthPct"), out _titleWidthPct);
+                //float.TryParse(root.GetValue("ControlsPad"), out _controlsPad);
+                //float.TryParse(root.GetValue("IndentPerLevel"), out _indentPerLevel);
+                //float.TryParse(root.GetValue("FoldColWidth"), out _foldColWidth);
 
                 if (_titleWidthPct <= 0f) _titleWidthPct = 0.75f;
                 _controlsPad = Mathf.Clamp(_controlsPad, 0f, 120f);
