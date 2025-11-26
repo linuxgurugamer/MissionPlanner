@@ -2,39 +2,40 @@
 using System.Linq;
 using UnityEngine;
 
+using static MissionPlanner.RegisterToolbar;
 public static class VesselResourceQuery
 {
     // ===== Public entry points =====
 
     // Pass a resource by NAME (e.g., "LiquidFuel")
-    public static bool TryGet(Vessel v, string resourceName, out double amount, out double capacity, bool includeLocked = true)
+    public static bool TryGet(Vessel v, string resourceName, out double amount, out double capacity, bool includeLocked = true, bool onlyLocked = false)
     {
         amount = capacity = 0;
         if (v == null || string.IsNullOrEmpty(resourceName)) return false;
 
         var lib = PartResourceLibrary.Instance;
-        var def = lib?.GetDefinition(resourceName);
+        PartResourceDefinition def = lib?.GetDefinition(resourceName);
         if (def == null) return false;
 
-        return TryGet(v, def.id, out amount, out capacity, includeLocked);
+        return TryGet(v, def.id, out amount, out capacity, includeLocked, onlyLocked);
     }
 
     // Pass a resource by ID (slightly faster if you already have it)
-    public static bool TryGet(Vessel v, int resourceId, out double amount, out double capacity, bool includeLocked = true)
+    public static bool TryGet(Vessel v, int resourceId, out double amount, out double capacity, bool includeLocked = true, bool onlyLocked = false)
     {
         amount = capacity = 0;
         if (v == null) return false;
 
         // If the vessel is loaded (has live Part objects), use the fast loaded path.
         if (v.loaded && v.parts != null && v.parts.Count > 0)
-            return TryGetLoaded(v, resourceId, out amount, out capacity, includeLocked);
+            return TryGetLoaded(v, resourceId, out amount, out capacity, includeLocked, onlyLocked);
 
         // Otherwise, fall back to the ProtoVessel snapshot.
-        return TryGet(v.protoVessel, resourceId, out amount, out capacity, includeLocked);
+        return TryGet(v.protoVessel, resourceId, out amount, out capacity, includeLocked, onlyLocked);
     }
 
     // Unloaded vessel (ProtoVessel) by NAME
-    public static bool TryGet(ProtoVessel pv, string resourceName, out double amount, out double capacity, bool includeLocked = true)
+    public static bool TryGet(ProtoVessel pv, string resourceName, out double amount, out double capacity, bool includeLocked = true, bool onlyLocked = false)
     {
         amount = capacity = 0;
         if (pv == null || string.IsNullOrEmpty(resourceName)) return false;
@@ -46,7 +47,8 @@ public static class VesselResourceQuery
             foreach (var r in p.resources)
             {
                 if (!string.Equals(r.resourceName, resourceName, StringComparison.Ordinal)) continue;
-                if (!includeLocked && !r.flowState) continue;
+                if ((!includeLocked && r.flowState == false) &&
+                    (onlyLocked && r.flowState)) continue;
 
                 found = true;
                 amount += r.amount;
@@ -57,7 +59,7 @@ public static class VesselResourceQuery
     }
 
     // Editor ship (VAB/SPH)
-    public static bool TryGet(ShipConstruct ship, string resourceName, out double amount, out double capacity, bool includeLocked = true)
+    public static bool TryGet(ShipConstruct ship, string resourceName, out double amount, out double capacity, bool includeLocked = false, bool onlyLocked = false)
     {
         amount = capacity = 0;
         if (ship == null || string.IsNullOrEmpty(resourceName)) return false;
@@ -69,7 +71,8 @@ public static class VesselResourceQuery
 
             PartResource pr = p.Resources[resourceName];
             if (pr == null) continue;
-            if (!includeLocked && pr.flowState == false) continue;
+            if ((!includeLocked && pr.flowState == false) ||
+                (onlyLocked && pr.flowState)) continue;
 
             found = true;
             amount += pr.amount;
@@ -80,7 +83,7 @@ public static class VesselResourceQuery
 
     // ===== Private helpers =====
 
-    private static bool TryGetLoaded(Vessel v, int resourceId, out double amount, out double capacity, bool includeLocked)
+    private static bool TryGetLoaded(Vessel v, int resourceId, out double amount, out double capacity, bool includeLocked = true, bool onlyLocked = false)
     {
         amount = capacity = 0;
         bool found = false;
@@ -93,7 +96,8 @@ public static class VesselResourceQuery
             var pr = p.Resources.Get(resourceId);
             if (pr == null) continue;
 
-            if (!includeLocked && pr.flowState == false) continue;
+            if ((!includeLocked && pr.flowState == false) &&
+                (onlyLocked && pr.flowState)) continue;
 
             found = true;
             amount += pr.amount;
@@ -102,7 +106,7 @@ public static class VesselResourceQuery
         return found;
     }
 
-    private static bool TryGet(ProtoVessel pv, int resourceId, out double amount, out double capacity, bool includeLocked)
+    private static bool TryGet(ProtoVessel pv, int resourceId, out double amount, out double capacity, bool includeLocked, bool onlyLocked = false)
     {
         amount = capacity = 0;
         if (pv == null) return false;
@@ -119,7 +123,8 @@ public static class VesselResourceQuery
             foreach (var r in p.resources)
             {
                 if (!string.Equals(r.resourceName, targetName, StringComparison.Ordinal)) continue;
-                if (!includeLocked && !r.flowState) continue;
+                if ((!includeLocked && r.flowState == false) &&
+                    (onlyLocked && r.flowState)) continue;
 
                 found = true;
                 amount += r.amount;

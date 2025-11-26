@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using static MissionPlanner.RegisterToolbar;
 using static MissionPlanner.Utils.FuelCellUtils;
 using static ParachuteUtils;
 using static RadiatorUtils;
@@ -22,16 +21,20 @@ namespace MissionPlanner
         const int ENGINETYPE_COMBO = 5;
         const int RCSTYPE_COMBO = 6;
         const int TRACKING_COMBO = 7;
+        const int MANEUVER_COMBO = 8;
         const int RESOURCE_COMBO = 20; // Needs to make sure doesn't conflict with any others since this is just a base number
 
         // Following two vars cache this info for use by the comboboxes
         public static string[] criterionTypeStrings;
+        public static string[] maneuverStrings;
         public static string[] ResourceStrings;
         public static bool vabOrganizer = false;
 
         Vector2 resScroll = Vector2.zero;
+
         private void DrawDetailWindow(int id)
         {
+            BringWindowForward(id);
             GUILayout.Space(6);
             if (_detailNode == null)
             {
@@ -53,39 +56,6 @@ namespace MissionPlanner
             tmpstr = GUILayout.TextArea(s.descr ?? "", HighLogic.Skin.textArea, GUILayout.MinHeight(60));
             if (!s.locked)
                 s.descr = tmpstr;
-#if false
-            GUILayout.Space(6);
-            using (new GUILayout.HorizontalScope())
-            {
-
-                GUILayout.Label("Type", ScaledGUILayoutWidth(60));
-                var vals = (CriterionType[])Enum.GetValues(typeof(CriterionType));
-                int curIdx = Array.IndexOf(vals, s.stepType);
-                if (!s.locked)
-                {
-                    if (GUILayout.Button("◀", ScaledGUILayoutWidth(26)))
-                    {
-                        curIdx = (curIdx - 1 + vals.Length) % vals.Length;
-                        s.stepType = vals[curIdx];
-                        //GetCriterium(s.stepType, ref s);
-                        CloseAllDialogs();
-
-                    }
-                }
-                GUILayout.Label(StringFormatter.BeautifyName(s.stepType.ToString()), ScaledGUILayoutWidth(180));
-                if (!s.locked)
-                {
-                    if (GUILayout.Button("▶", ScaledGUILayoutWidth(26)))
-                    {
-                        curIdx = (curIdx + 1) % vals.Length;
-                        s.stepType = vals[curIdx];
-                        //GetCriterium(s.stepType, ref s);
-                        CloseAllDialogs();
-                    }
-                }
-                GUILayout.FlexibleSpace();
-            }
-#endif
             GUILayout.Space(6);
             string ErrorMessage = "";
             string StatusMessage = "";
@@ -97,7 +67,6 @@ namespace MissionPlanner
                     GUILayout.Label("Criterion Type");
 
                     s.stepType = (CriterionType)ComboBox.Box(CRITERIUM_COMBO, (int)s.stepType, criterionTypeStrings, this, 250);
-                    //                GUILayout.FlexibleSpace();
 
                     if (!s.locked)
                     {
@@ -115,6 +84,18 @@ namespace MissionPlanner
                         }
                     }
                     GUILayout.FlexibleSpace();
+                    if (_detailNode.data.stepType != CriterionType.ChecklistItem)
+                    {
+                        if (GUILayout.Button("Update Title", GUILayout.Width(120)))
+                        {
+                            GUIStyle x = null;
+                            string criteria = OneLineSummary(_detailNode, ref x);
+                            if (criteria.StartsWith(s.stepType.ToString()))
+                                s.title = criteria;
+                            else
+                                s.title = StringFormatter.BeautifyName(s.stepType.ToString()) + " " + criteria;
+                        }
+                    }
                 }
                 GUILayout.Space(4);
                 DoCriteria(s, ref ErrorMessage, ref StatusMessage);
@@ -123,19 +104,25 @@ namespace MissionPlanner
                 s.stepType = CriterionType.ChecklistItem;
             GUILayout.Space(10);
             GUILayout.FlexibleSpace();
-            using (new GUILayout.HorizontalScope())
+            foreach (var str in ErrorMessage.Split(':'))
             {
-                GUILayout.FlexibleSpace();
-                if (!string.IsNullOrEmpty(ErrorMessage))
-                    GUILayout.Label(ErrorMessage, _errorLargeLabel);
-                GUILayout.FlexibleSpace();
+                using (new GUILayout.HorizontalScope())
+                {
+                    GUILayout.FlexibleSpace();
+                    if (!string.IsNullOrEmpty(str))
+                        GUILayout.Label(str, _errorLargeLabel);
+                    GUILayout.FlexibleSpace();
+                }
             }
-            using (new GUILayout.HorizontalScope())
+            foreach (string str in StatusMessage.Split(':'))
             {
-                GUILayout.FlexibleSpace();
-                if (!string.IsNullOrEmpty(StatusMessage))
-                    GUILayout.Label(StatusMessage);
-                GUILayout.FlexibleSpace();
+                using (new GUILayout.HorizontalScope())
+                {
+                    GUILayout.FlexibleSpace();
+                    if (!string.IsNullOrEmpty(str))
+                        GUILayout.Label(str);
+                    GUILayout.FlexibleSpace();
+                }
             }
             GUILayout.Space(10);
             using (new GUILayout.HorizontalScope())
@@ -156,6 +143,88 @@ namespace MissionPlanner
         {
             switch (s.stepType)
             {
+                case CriterionType.Maneuver:
+                    {
+                        using (new GUILayout.HorizontalScope())
+                        {
+                            GUILayout.Label("Maneuver: ");
+                            s.maneuver = (Maneuver)ComboBox.Box(MANEUVER_COMBO, (int)s.maneuver, maneuverStrings, this, 250);
+                            GUILayout.FlexibleSpace();
+                        }
+                        switch (s.maneuver)
+                        {
+                            case Maneuver.ImpactAsteroid:
+                                {
+                                    using (new GUILayout.HorizontalScope())
+                                    {
+                                        GUILayout.Label("Destination Asteroid: ");
+                                        GUILayout.Label(String.IsNullOrEmpty(s.destAsteroid) ? "(none)" : s.destAsteroid, GUI.skin.label, ScaledGUILayoutWidth(250));
+                                        if (!s.locked)
+                                        {
+                                            GUILayout.FlexibleSpace();
+                                            if (GUILayout.Button("Select…", ScaledGUILayoutWidth(90)))
+                                            {
+                                                OpenBodyAsteroidVesselPicker(_detailNode, BodyAsteroidVessel.asteroid);
+                                            }
+                                            if (!String.IsNullOrEmpty(s.destAsteroid))
+                                            {
+                                                if (GUILayout.Button("Clear", ScaledGUILayoutWidth(70)))
+                                                {
+                                                    s.destAsteroid = "";
+                                                }
+                                            }
+                                        }
+                                        else
+                                            GUILayout.FlexibleSpace();
+                                    }
+                                }
+                                break;
+
+                            case Maneuver.FineTuneClosestApproachToVessel:
+                            case Maneuver.InterceptVessel:
+                            case Maneuver.MatchPlanesWithVessel:
+                            case Maneuver.MatchVelocitiesWithVessel:
+                                GUILayout.Space(30);
+
+                                SelectVessel(s.locked, ref s.destVessel, BodyAsteroidVessel.vessel);
+                                break;
+
+                            case Maneuver.Landing:
+                            case Maneuver.Splashdown:
+                            case Maneuver.TransferToAnotherPlanet:
+                                {
+                                    GUILayout.Space(30);
+                                    using (new GUILayout.HorizontalScope())
+                                    {
+                                        GUILayout.Label("Body: ");
+                                        GUILayout.Label(String.IsNullOrEmpty(s.destBody) ? "(none)" : s.destBody, GUI.skin.label, ScaledGUILayoutWidth(250));
+                                        if (!s.locked)
+                                        {
+                                            GUILayout.FlexibleSpace();
+                                            using (new GUILayout.HorizontalScope())
+                                            {
+                                                if (GUILayout.Button("Select…", ScaledGUILayoutWidth(90)))
+                                                {
+                                                    OpenBodyAsteroidVesselPicker(_detailNode, BodyAsteroidVessel.body);
+                                                }
+                                                if (!String.IsNullOrEmpty(s.destBody))
+                                                {
+                                                    if (GUILayout.Button("Clear", ScaledGUILayoutWidth(70)))
+                                                    {
+                                                        s.destBody = "";
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                break;
+
+                            default: break;
+                        }
+                    }
+                    break;
+
                 case CriterionType.Module:
                     GUILayout.Space(2);
                     using (new GUILayout.HorizontalScope())
@@ -343,7 +412,7 @@ namespace MissionPlanner
                     break;
 
                 case CriterionType.Number:
-                    FloatField("(float)", ref s.number, s.locked);
+                    FloatField("(float)", ref s.number, 0, s.locked);
                     break;
 
                 case CriterionType.Range:
@@ -423,15 +492,12 @@ namespace MissionPlanner
                                 if (s.partName != "")
                                 {
                                     ErrorMessage = "Part is not on the vessel";
-                                    //GUILayout.Label("Part is not on the vessel", _errorLabel);
                                 }
                                 else
                                 {
                                     ErrorMessage = "No part specified";
-                                    //GUILayout.Label("No part specified", _errorLabel);
                                 }
                             }
-                            //GUILayout.FlexibleSpace();
                         }
                     break;
 
@@ -444,15 +510,20 @@ namespace MissionPlanner
                         }
                         using (new GUILayout.HorizontalScope())
                         {
+                            GUILayout.Space(20);
                             GUILayout.Label("Resource", ScaledGUILayoutWidth(150));
                             GUILayout.Space(10);
                             GUILayout.Label("Min Amt", ScaledGUILayoutWidth(90));
                             GUILayout.Space(20);
-                            GUILayout.Label("Min Capacity", ScaledGUILayoutWidth(100));
+                            GUILayout.Label("Min Capacity", ScaledGUILayoutWidth(80));
                             GUILayout.Space(20);
-                            GUILayout.Label("On Vessel", ScaledGUILayoutWidth(100));
+                            GUILayout.Label("Locked", ScaledGUILayoutWidth(60));
+                            if (HighLogic.LoadedSceneIsEditor || HighLogic.LoadedSceneIsFlight)
+                            {
+                                //GUILayout.Label("On Vessel", ScaledGUILayoutWidth(100));
+                                GUILayout.Label("Status");
+                            }
                             GUILayout.FlexibleSpace();
-                            GUILayout.Label("Status", ScaledGUILayoutWidth(60));
                         }
                         resScroll = GUILayout.BeginScrollView(resScroll, HighLogic.Skin.textArea, GUILayout.Height(200));
                         StatusMessage = "All Resource Capacities/Amounts Met";
@@ -466,14 +537,14 @@ namespace MissionPlanner
                                 resId = ComboBox.Box(RESOURCE_COMBO + i, resId, ResourceStrings, this, 150);
                                 resinfo.resourceName = ResourceStrings[resId];
                                 GUILayout.Space(10);
-                                FloatField("", ref resinfo.resourceAmount, s.locked, width: 100, flex: false);
+                                FloatField("", ref resinfo.resourceAmount, 0, s.locked, width: 100, flex: false);
                                 GUILayout.Space(10);
-                                FloatField("", ref resinfo.resourceCapacity, s.locked, width: 100, flex: false);
+                                FloatField("", ref resinfo.resourceCapacity, 0, s.locked, width: 100, flex: false);
                                 resinfo.resourceCapacity = Math.Max(resinfo.resourceCapacity, resinfo.resourceAmount);
-                                GUILayout.Space(20);
+                                resinfo.locked = GUILayout.Toggle(resinfo.locked, "", GUILayout.Width(40));
                                 if (HighLogic.LoadedSceneIsEditor || HighLogic.LoadedSceneIsFlight)
                                 {
-                                    s.CheckResource(resinfo.resourceName, out double amt, out double capacity);
+                                    s.CheckResource(resinfo.resourceName, resinfo.locked, out double amt, out double capacity, resinfo.locked);
                                     if (amt >= resinfo.resourceAmount && capacity >= resinfo.resourceCapacity)
                                     {
                                         GUILayout.Label("Met");
@@ -511,11 +582,11 @@ namespace MissionPlanner
 
                                 GUILayout.Space(20);
                                 GUILayout.FlexibleSpace();
-                                if (GUILayout.Button("+", GUILayout.Width(20)))
+                                if (GUILayout.Button("<B>+</B>", GUILayout.Width(20)))
                                     s.resourceList.Add(new ResInfo());
                                 if (s.resourceList.Count > 1)
                                 {
-                                    if (GUILayout.Button("-", GUILayout.Width(20)))
+                                    if (GUILayout.Button("<B>-</B>", GUILayout.Width(20)))
                                         s.resourceList.Remove(s.resourceList[i]);
                                 }
                             }
@@ -656,12 +727,18 @@ namespace MissionPlanner
                             GUILayout.Label("Min Amt", ScaledGUILayoutWidth(90));
                             GUILayout.Space(20);
                             GUILayout.Label("Min Capacity", ScaledGUILayoutWidth(100));
-                            GUILayout.Space(20);
-                            GUILayout.Label("On Vessel", ScaledGUILayoutWidth(100));
+                            if (HighLogic.LoadedSceneIsEditor || HighLogic.LoadedSceneIsFlight)
+                            {
+                                GUILayout.Space(20);
+                                GUILayout.Label("On Vessel", ScaledGUILayoutWidth(100));
+                            }
                             GUILayout.FlexibleSpace();
                         }
 
-                        StatusMessage = "All Resource Capacities/Amounts Met";
+                        if (HighLogic.LoadedSceneIsEditor || HighLogic.LoadedSceneIsFlight)
+                            StatusMessage = "All Resource Capacities/Amounts Met";
+                        else
+                            StatusMessage = "";
                         string status = "met";
 
                         foreach (var resinfo in s.rcsResourceList)
@@ -670,14 +747,14 @@ namespace MissionPlanner
                             {
                                 GUILayout.Label(resinfo.resourceName, GUILayout.Width(150));
                                 GUILayout.Space(10);
-                                FloatField("", ref resinfo.resourceAmount, s.locked, width: 100, flex: false);
+                                FloatField("", ref resinfo.resourceAmount, 0, s.locked, width: 100, flex: false);
                                 GUILayout.Space(10);
-                                FloatField("", ref resinfo.resourceCapacity, s.locked, width: 100, flex: false);
+                                FloatField("", ref resinfo.resourceCapacity, 0, s.locked, width: 100, flex: false);
                                 resinfo.resourceCapacity = Math.Max(resinfo.resourceCapacity, resinfo.resourceAmount);
                                 GUILayout.Space(20);
                                 if (HighLogic.LoadedSceneIsEditor || HighLogic.LoadedSceneIsFlight)
                                 {
-                                    s.CheckResource(resinfo.resourceName, out double amt, out double capacity);
+                                    s.CheckResource(resinfo.resourceName, false, out double amt, out double capacity);
                                     if (amt >= resinfo.resourceAmount && capacity >= resinfo.resourceCapacity)
                                     {
                                         GUILayout.Label("Met");
@@ -717,23 +794,22 @@ namespace MissionPlanner
                             }
                         }
 
-#warning need to check vessel for rcs of the correct enginetype
                         List<Part> partsList = HighLogic.LoadedSceneIsEditor ? EditorLogic.fetch.ship.parts :
                             (HighLogic.LoadedSceneIsFlight ? FlightGlobals.ActiveVessel.parts : null);
-
-                        Log.Info($"s.rcsType: {s.rcsType}");
-                        if (RCSUtils.PartsHaveRCSType(partsList, s.rcsType))
-                            StatusMessage += (StatusMessage.Length > 0 ? ", " : "") + "Vessel has correct RCS type";
-                        else
-                            ErrorMessage += (ErrorMessage.Length > 0 ? ", " : "") + "Vessel missing correct RCS type";
-
+                        if (partsList != null)
+                        {
+                            if (RCSUtils.PartsHaveRCSType(partsList, s.rcsType))
+                                StatusMessage += (StatusMessage.Length > 0 ? ":" : "") + "Vessel has correct RCS type";
+                            else
+                                ErrorMessage += (ErrorMessage.Length > 0 ? ":" : "") + "Vessel missing correct RCS type";
+                        }
                     }
 
                     break;
 
                 case CriterionType.Batteries:
                     {
-                        FloatField("Min Battery Capacity: ", ref s.batteryCapacity, s.locked, "EC");
+                        FloatField("Min Battery Capacity: ", ref s.batteryCapacity, 0, s.locked, "EC");
                         bool capacityMet = false;
                         double availBatCap = 0;
                         if (HighLogic.LoadedSceneIsFlight)
@@ -768,6 +844,28 @@ namespace MissionPlanner
                         }
                     }
                     break;
+
+#if false
+                case CriterionType.DeltaV:
+                    {
+                        DoubleField("Minimum DeltaV in current stage: ", ref s.deltaV, s.locked, "m/sec");
+
+                        double dV = 0;
+                        if (HighLogic.LoadedSceneIsEditor || HighLogic.LoadedSceneIsFlight)
+                        {
+                            var info = DeltaVUtils.GetActiveStageInfo_Vac(useLaunchpadFirstStageIfPrelaunch: true);
+                            dV = info.deltaV;
+
+                            GUILayout.Label("Calculated Delta V in current stage: " + dV.ToString("F0"));
+                            if (dV >= s.deltaV)
+                                StatusMessage = "Sufficient Delta V is available";
+                            else
+                                ErrorMessage = "Not sufficient Delta V available";
+                        }
+
+                        break;
+                    }
+#endif
 
                 case CriterionType.ChargeRateTotal:
                     {
@@ -866,7 +964,7 @@ namespace MissionPlanner
                     {
                         using (new GUILayout.HorizontalScope())
                         {
-                            FloatField("Solar Charge Rate: ", ref s.solarChargeRate, s.locked);
+                            FloatField("Solar Charge Rate: ", ref s.solarChargeRate, 0, s.locked, " EC/sec");
                             GUILayout.FlexibleSpace();
                             GUILayout.Label("Tracking:");
                             var old = (int)s.solarPaneltracking;
@@ -929,7 +1027,7 @@ namespace MissionPlanner
 
                 case CriterionType.FuelCells:
                     {
-                        FloatField("Fuel Cell Charge Rate: ", ref s.fuelCellChargeRate, s.locked);
+                        FloatField("Fuel Cell Charge Rate: ", ref s.fuelCellChargeRate, 0, s.locked);
                         bool chargeRateMet = false;
                         float chargeRate = 0;
                         if (HighLogic.LoadedSceneIsFlight)
@@ -984,7 +1082,7 @@ namespace MissionPlanner
 
                 case CriterionType.Generators:
                     {
-                        FloatField("Generator Charge Rate: ", ref s.generatorChargeRate, s.locked);
+                        FloatField("Generator Charge Rate: ", ref s.generatorChargeRate, 0, s.locked);
                         bool chargeRateMet = false;
                         float chargeRate = 0;
                         if (HighLogic.LoadedSceneIsFlight)
@@ -1037,7 +1135,7 @@ namespace MissionPlanner
 
                 case CriterionType.Radiators:
                     {
-                        FloatField("Radiator Cooling Rate: ", ref s.radiatorCoolingRate, s.locked);
+                        FloatField("Radiator Cooling Rate: ", ref s.radiatorCoolingRate, 0, s.locked);
                         bool coolingRateMet = false;
                         float coolingRate = 0;
                         RadiatorCoolingSummary rcs = null;
@@ -1297,11 +1395,11 @@ namespace MissionPlanner
                                         ErrorMessage = "Insufficient Reaction Wheels";
                                     if (ts.Roll >= s.torqueRoll && ts.Pitch >= s.torquePitch && ts.Yaw >= s.torqueYaw)
                                     {
-                                        StatusMessage += (StatusMessage.Length > 0 ? ", " : "") + "Sufficient Torque is available";
+                                        StatusMessage += (StatusMessage.Length > 0 ? ":" : "") + "Sufficient Torque is available";
                                     }
                                     else
                                     {
-                                        ErrorMessage += (ErrorMessage.Length > 0 ? ", " : "") + "Insufficient torque";
+                                        ErrorMessage += (ErrorMessage.Length > 0 ? ":" : "") + "Insufficient torque";
                                     }
                                 }
                             }
@@ -1309,8 +1407,135 @@ namespace MissionPlanner
                     }
                     break;
 
-#warning Need to do ControlSource
+                case CriterionType.Drills:
+                    {
+                        using (new GUILayout.HorizontalScope())
+                        {
+                            GUILayout.Label("Minimum Quantity: ");
+                            IntField("", ref s.drillQty, s.locked);
+                        }
+
+
+                        if (HighLogic.LoadedSceneIsEditor)
+                        {
+                            int i = DrillUtils.GetDrillParts(EditorLogic.fetch.ship).Count;
+                            if (i >= s.drillQty)
+                            {
+                                StatusMessage = "Sufficient Drills found";
+                            }
+                            else
+                            {
+                                if (i > 0)
+                                    ErrorMessage = "Insufficient Drills found";
+                                else
+                                    ErrorMessage = "No Drills found";
+                            }
+                        }
+                        else
+                        if (HighLogic.LoadedSceneIsFlight)
+                        {
+                            int i = DrillUtils.GetDrillParts(FlightGlobals.ActiveVessel).Count;
+                            if (i >= s.drillQty)
+                            {
+                                StatusMessage = "Sufficient Drills found";
+                            }
+                            else
+                            {
+                                if (i > 0)
+                                    ErrorMessage = "Insufficient Drills found";
+                                else
+                                    ErrorMessage = "No Drills found";
+                            }
+
+                        }
+                        break;
+                    }
+
+                case CriterionType.DockingPort:
+                    {
+                        using (new GUILayout.HorizontalScope())
+                        {
+                            GUILayout.Label("Minimum Quantity: ");
+                            IntField("", ref s.dockingPortQty, s.locked);
+                        }
+
+
+                        if (HighLogic.LoadedSceneIsEditor)
+                        {
+                            int i = DockingPortUtils.GetDockingParts(EditorLogic.fetch.ship).Count;
+                            if (i >= s.dockingPortQty)
+                            {
+                                StatusMessage = "Sufficient Docking Ports found";
+                            }
+                            else
+                            {
+                                if (i > 0)
+                                    ErrorMessage = "Insufficient Docking Ports found";
+                                else
+                                    ErrorMessage = "No Docking Ports found";
+                            }
+                        }
+                        else
+                        if (HighLogic.LoadedSceneIsFlight)
+                        {
+                            int i = DockingPortUtils.GetDockingParts(FlightGlobals.ActiveVessel).Count;
+                            if (i >= s.dockingPortQty)
+                            {
+                                StatusMessage = "Sufficient Docking Ports found";
+                            }
+                            else
+                            {
+                                if (i > 0)
+                                    ErrorMessage = "Insufficient Docking Ports found";
+                                else
+                                    ErrorMessage = "No Docking Ports found";
+                            }
+
+                        }
+                        break;
+                    }
+
                 case CriterionType.ControlSource:
+                    using (new GUILayout.HorizontalScope())
+                    {
+                        GUILayout.Label("Minimum Quantity: ");
+                        IntField("", ref s.controlSourceQty, s.locked);
+                    }
+
+
+                    if (HighLogic.LoadedSceneIsEditor)
+                    {
+                        int i = PartLookupUtils.ShipModulesCount<ModuleCommand>(EditorLogic.fetch.ship);
+                        if (i >= s.controlSourceQty)
+                        {
+                            StatusMessage = "Sufficient Control Sources found";
+                        }
+                        else
+                        {
+                            if (i > 0)
+                                ErrorMessage = "Insufficient Control Sources found";
+                            else
+                                ErrorMessage = "No Control Sources found";
+
+                        }
+                    }
+                    else
+                    if (HighLogic.LoadedSceneIsFlight)
+                    {
+                        int i = PartLookupUtils.ShipModulesCount<ModuleCommand>(FlightGlobals.ActiveVessel);
+                        if (i >= s.controlSourceQty)
+                        {
+                            StatusMessage = "Sufficient Control Sources found";
+                        }
+                        else
+                        {
+                            if (i > 0)
+                                ErrorMessage = "Insufficient Control Sources found";
+                            else
+                                ErrorMessage = "No Control Sources found";
+
+                        }
+                    }
                     break;
 
                 case CriterionType.Engines:
@@ -1349,6 +1574,12 @@ namespace MissionPlanner
                         {
                             s.engineGimbaled = GUILayout.Toggle(s.engineGimbaled, "");
                             GUILayout.Label("Gimbaled");
+                            GUILayout.FlexibleSpace();
+                            GUILayout.Label("Delta V: ");
+                            DoubleField("", ref s.deltaV, s.locked, "dV");
+                            GUILayout.FlexibleSpace();
+                            GUILayout.Label("TWR: ");
+                            FloatField("", ref s.TWR, 2, s.locked);
                         }
 
                         using (new GUILayout.HorizontalScope())
@@ -1358,8 +1589,11 @@ namespace MissionPlanner
                             GUILayout.Label("Min Amt", ScaledGUILayoutWidth(90));
                             GUILayout.Space(20);
                             GUILayout.Label("Min Capacity", ScaledGUILayoutWidth(100));
-                            GUILayout.Space(20);
-                            GUILayout.Label("On Vessel", ScaledGUILayoutWidth(100));
+                            if (HighLogic.LoadedSceneIsEditor || HighLogic.LoadedSceneIsFlight)
+                            {
+                                GUILayout.Space(20);
+                                GUILayout.Label("On Vessel", ScaledGUILayoutWidth(100));
+                            }
                             GUILayout.FlexibleSpace();
                         }
 
@@ -1372,14 +1606,14 @@ namespace MissionPlanner
                             {
                                 GUILayout.Label(resinfo.resourceName, GUILayout.Width(150));
                                 GUILayout.Space(10);
-                                FloatField("", ref resinfo.resourceAmount, s.locked, width: 100, flex: false);
+                                FloatField("", ref resinfo.resourceAmount, 0, s.locked, width: 100, flex: false);
                                 GUILayout.Space(10);
-                                FloatField("", ref resinfo.resourceCapacity, s.locked, width: 100, flex: false);
+                                FloatField("", ref resinfo.resourceCapacity, 0, s.locked, width: 100, flex: false);
                                 resinfo.resourceCapacity = Math.Max(resinfo.resourceCapacity, resinfo.resourceAmount);
                                 GUILayout.Space(20);
                                 if (HighLogic.LoadedSceneIsEditor || HighLogic.LoadedSceneIsFlight)
                                 {
-                                    s.CheckResource(resinfo.resourceName, out double amt, out double capacity);
+                                    s.CheckResource(resinfo.resourceName, false, out double amt, out double capacity);
                                     if (amt >= resinfo.resourceAmount && capacity >= resinfo.resourceCapacity)
                                     {
                                         GUILayout.Label("Met");
@@ -1418,14 +1652,49 @@ namespace MissionPlanner
                             }
                         }
 
-#warning need to check vessel for engines of the correct enginetype
-
                         List<Part> partsList = HighLogic.LoadedSceneIsEditor ? EditorLogic.fetch.ship.parts :
                             (HighLogic.LoadedSceneIsFlight ? FlightGlobals.ActiveVessel.parts : null);
-                        if (EngineTypeMatcher.PartsHaveEngineType(partsList, s.engineType))
-                            StatusMessage += (StatusMessage.Length > 0 ? ", " : "") + "Vessel has correct engine type";
-                        else
-                            ErrorMessage += (ErrorMessage.Length > 0 ? ", " : "") + "Vessel missing correct engine type";
+                        if (partsList != null)
+                        {
+                            if (EngineTypeMatcher.PartsHaveEngineType(partsList, s.engineType))
+                                StatusMessage += (StatusMessage.Length > 0 ? ":" : "") + "Vessel has correct engine type";
+                            else
+                                ErrorMessage += (ErrorMessage.Length > 0 ? ":" : "") + "Vessel missing correct engine type";
+                        }
+
+                        if (HighLogic.LoadedSceneIsEditor || HighLogic.LoadedSceneIsFlight)
+                        {
+                            var info = DeltaVUtils.GetActiveStageInfo_Vac(useLaunchpadFirstStageIfPrelaunch: true);
+                            double dV = info.deltaV;
+
+                            GUILayout.Label("Calculated Delta V in current stage: " + dV.ToString("F0"));
+                            GUILayout.Label("Calculated TWR in current stage: " + info.TWR.ToString("F2"));
+                            if (dV >= s.deltaV)
+                            {
+                                if (StatusMessage.Length > 0)
+                                    StatusMessage += ":";
+                                StatusMessage += "Sufficient Delta V is available";
+                            }
+                            else
+                            {
+                                if (ErrorMessage.Length > 0)
+                                    ErrorMessage += ":";
+                                ErrorMessage += "Not sufficient Delta V available";
+                            }
+
+                            if (info.TWR >= s.TWR)
+                            {
+                                if (StatusMessage.Length > 0)
+                                    StatusMessage += ":";
+                                StatusMessage += "Sufficient TWR is available";
+                            }
+                            else
+                            {
+                                if (ErrorMessage.Length > 0)
+                                    ErrorMessage += ":";
+                                ErrorMessage += "TWR too low";
+                            }
+                        }
                     }
                     break;
 
@@ -1589,12 +1858,10 @@ namespace MissionPlanner
                                 {
                                     using (new GUILayout.HorizontalScope())
                                     {
-#if true
                                         if (GUILayout.Button("Select…", ScaledGUILayoutWidth(90)))
                                         {
                                             OpenBodyAsteroidVesselPicker(_detailNode, BodyAsteroidVessel.body);
                                         }
-#endif
                                         if (!String.IsNullOrEmpty(s.destBody))
                                         {
                                             if (GUILayout.Button("Clear", ScaledGUILayoutWidth(70)))
@@ -1645,7 +1912,7 @@ namespace MissionPlanner
                                 {
                                     if (s.destBiome == "" || s.destBiome == BiomeUtils.ANYBIOME)
                                     {
-                                        StatusMessage += (StatusMessage.Length > 0 ? ", " : "") + "Has landed {count} times";
+                                        StatusMessage += (StatusMessage.Length > 0 ? ":" : "") + "Has landed {count} times";
                                     }
                                     else
                                     {
@@ -1706,12 +1973,16 @@ namespace MissionPlanner
             }
         }
 
-        private void FloatField(string label, ref float value, bool locked, string suffix = "", float width = 120, bool flex = true)
+        private void FloatField(string label, ref float value, int places, bool locked, string suffix = "", float width = 120, bool flex = true)
         {
             using (new GUILayout.HorizontalScope())
             {
                 GUILayout.Label(label); //, ScaledGUILayoutWidth(120));
-                string buf = GUILayout.TextField(value.ToString("G"), ScaledGUILayoutWidth(width));
+                string buf = "";
+                if (places == 0)
+                    buf = GUILayout.TextField(value.ToString("G"), ScaledGUILayoutWidth(width));
+                else
+                    buf = GUILayout.TextField(value.ToString($"F{places}"), ScaledGUILayoutWidth(width));
 
                 if (!locked && float.TryParse(buf, out float parsed))
                     value = parsed;

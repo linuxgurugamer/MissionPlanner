@@ -72,6 +72,9 @@
     <Compile Include="MissionPlanner.cs" />
     <Compile Include="InstallChecker.cs" />
     <Compile Include="Pickers\ModulePicker.cs" />
+    <Compile Include="Utils\DeltaVUtils.cs" />
+    <Compile Include="Utils\DockingPortUtils.cs" />
+    <Compile Include="Utils\DrillUtils.cs" />
     <Compile Include="Utils\EngineTypeMatcher.cs" />
     <Compile Include="Utils\GeneratorUtils.cs" />
     <Compile Include="Utils\PartLookupUtils.cs" />

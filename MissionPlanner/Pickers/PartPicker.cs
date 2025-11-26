@@ -8,6 +8,8 @@ namespace MissionPlanner
         private void OpenPartPicker(StepNode target, bool availableOnly)
         {
             _partTargetNode = target;
+            newWindow = true;
+
             _partAvailableOnly = availableOnly;
             _partFilter = "";
             _showPartDialog = true;
@@ -19,6 +21,7 @@ namespace MissionPlanner
 
         private void DrawPartPickerWindow(int id)
         {
+            BringWindowForward(id, true);
             if (_partTargetNode == null) { _showPartDialog = false; GUI.DragWindow(new Rect(0, 0, 10000, 10000)); return; }
             GUILayout.Space(6);
 

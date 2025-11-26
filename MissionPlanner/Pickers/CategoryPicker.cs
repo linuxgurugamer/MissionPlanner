@@ -26,6 +26,7 @@ namespace MissionPlanner
 
         private void DrawCategoryPickerWindow(int id)
         {
+            BringWindowForward(id, true);
             if (_CategoryTargetNode == null)
             {
                 _showCategoryDialog = false;

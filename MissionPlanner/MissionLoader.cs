@@ -13,9 +13,9 @@ namespace MissionPlanner
             var results = new List<MissionFileInfo>();
             try
             {
-                string dir = GetSaveDirectoryAbsolute();
+                string dir = GetMissionDirectoryAbsolute();
                 if (!Directory.Exists(dir)) return results;
-                foreach (var file in Directory.GetFiles(dir, "*" + SAVE_FILE_EXT, SearchOption.TopDirectoryOnly))
+                foreach (var file in Directory.GetFiles(dir, "*", SearchOption.TopDirectoryOnly))
                 {
                     var name = Path.GetFileNameWithoutExtension(file);
                     string save = "", mission = "";
@@ -63,6 +63,7 @@ namespace MissionPlanner
 
         private void DrawLoadDialogWindow(int id)
         {
+            BringWindowForward(id, true);
             GUILayout.Space(6);
             using (new GUILayout.HorizontalScope())
             {
@@ -155,6 +156,7 @@ namespace MissionPlanner
 
         private void DrawDeleteDialogWindow(int id)
         {
+            BringWindowForward(id, true);
             GUILayout.Space(6);
             GUILayout.Label("Delete mission:\nSave: " + _deleteTarget.SaveName + "\nMission: " + _deleteTarget.MissionName, _hintLabel);
 

@@ -25,6 +25,7 @@ namespace MissionPlanner
 
         private void DrawTraitPickerWindow(int id)
         {
+            BringWindowForward(id, true);
             if (_traitTargetNode == null)
             {
                 _showTraitDialog = false;

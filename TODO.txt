@@ -1,51 +1,15 @@
 
-Add way to show more detail in list (specifially, type)	DONE
-Add support for scaling window							DONE
-
-Flight check dest body not checking for landing	FIXED
-
-Remove "Steps" from main window title bar		FIXED
-
-Add new criteris for tracked vessel				ADDED
-Add way to link mission to specific ship		ADDED
-
-Add option to load mission for ship when ship is loaded		not doing
-Add button to load mission for current ship		ADDED
-
-add way to track new vessel launch from the editor	ADDED
-
-add docking criteria for dest vessel:			ADDED
-	Docked
-	optional destVessel
-
-add method to import one mission and add to either end or beginning of current mission  DONE
 
 Add check and warning about existing mission for a vessel when tracking a vessel ????
 
 
-Total charge rate								DONE
-Add flag for simple checklist					DONE
-
-add support for generator charge rates			DONE
-				RTGs
-
-Need to verify saving and loading all values in StepNode	DONE
-
-
-Improve resource criteria to allow multiple resources in one criteria window	DONE
 
 
 
 Science????
 
 
-Solar panels, tracking or nontracking or either					DONE
-
-
-
-Engines, doesn't show error if selected engine type not on vessel (flight)
-same for rcs
-
+Mission:  Create Orbital Fueling Station
 
 
 

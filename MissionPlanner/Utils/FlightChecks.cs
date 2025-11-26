@@ -13,8 +13,8 @@ namespace MissionPlanner.Utils
     {
         public static int crew;
         static public bool powerMet;
-        static public float chargeRate;
-        static public float coolingRate;
+        //static public float chargeRate;
+        //static public float coolingRate;
         static public int flagCount;
 
         public static bool CheckCrew(Step s, out int crew)
@@ -53,12 +53,29 @@ namespace MissionPlanner.Utils
 
             switch (s.stepType)
             {
+#if false
+                case CriterionType.DeltaV:
+                    var info = DeltaVUtils.GetActiveStageInfo_Vac(useLaunchpadFirstStageIfPrelaunch: true);
+                    return info.deltaV >= s.deltaV;
+#endif
+
+                case CriterionType.Drills:
+                    return (HighLogic.LoadedSceneIsFlight && DrillUtils.GetDrillParts(FlightGlobals.ActiveVessel).Count >= s.drillQty) ||
+                    (HighLogic.LoadedSceneIsEditor && DrillUtils.GetDrillParts(EditorLogic.fetch.ship).Count >= s.drillQty);
+
+                case CriterionType.DockingPort:
+                    return (HighLogic.LoadedSceneIsFlight && DockingPortUtils.GetDockingParts(FlightGlobals.ActiveVessel).Count >= s.dockingPortQty) ||
+                    (HighLogic.LoadedSceneIsEditor && DockingPortUtils.GetDockingParts(EditorLogic.fetch.ship).Count >= s.dockingPortQty);
+
+                case CriterionType.ControlSource:
+                    return (HighLogic.LoadedSceneIsFlight && PartLookupUtils.ShipModulesCount<ModuleCommand>(FlightGlobals.ActiveVessel)  >= s.controlSourceQty)||
+                        (HighLogic.LoadedSceneIsEditor && PartLookupUtils.ShipModulesCount<ModuleCommand>(EditorLogic.fetch.ship) >= s.controlSourceQty);
+
                 case CriterionType.Part:
                     return s.CheckPart();
 
                 case CriterionType.Module:
                     {
-                        //foreach (var p in FlightGlobals.ActiveVessel.Parts)
                         for (int i = 0; i < partsList.Count; i++)
                         {
                             foreach (var m in partsList[i].Modules)
@@ -77,7 +94,7 @@ namespace MissionPlanner.Utils
                         for (int i = 0; i < s.resourceList.Count; i++)
                         {
                             var resinfo = s.resourceList[i];
-                            s.CheckResource(resinfo.resourceName, out double amt, out double capacity);
+                            s.CheckResource(resinfo.resourceName, resinfo.locked, out double amt, out double capacity, resinfo.locked);
                             if (amt < resinfo.resourceAmount || capacity < resinfo.resourceCapacity)
                                 return false;
                         }
@@ -86,7 +103,6 @@ namespace MissionPlanner.Utils
 
                 case CriterionType.VABOrganizerCategory:
                     {
-                        //foreach (var p in FlightGlobals.ActiveVessel.parts)
                         for (int i = 0; i < partsList.Count; i++)
                         {
                             var rc = VABOrganizerUtils.IsPartInCategory(s.vabCategory, partsList[i].partInfo.name);
@@ -115,6 +131,7 @@ namespace MissionPlanner.Utils
                         crew = FlightGlobals.ActiveVessel.GetCrewCount();
                         return crew >= s.crewCount;
                     }
+
                 case CriterionType.SAS:
                     if (HighLogic.LoadedSceneIsEditor)
                         return true;
@@ -122,40 +139,36 @@ namespace MissionPlanner.Utils
                     return SASUtils.IsRequiredSASAvailable(s.minSASLevel, sasInfo);
 
                 case CriterionType.RCS:
-                    //if (RCSUtils.IsRCSAvailableFlight(FlightGlobals.ActiveVessel))
                     {
                         for (int i = 0; i < s.rcsResourceList.Count; i++)
                         {
                             var resinfo = s.rcsResourceList[i];
-                            s.CheckResource(resinfo.resourceName, out double amt, out double capacity);
+                            s.CheckResource(resinfo.resourceName, false, out double amt, out double capacity);
                             if (amt < resinfo.resourceAmount || capacity < resinfo.resourceCapacity)
                                 return false;
                         }
-                        //List<Part> partsList = HighLogic.LoadedSceneIsEditor ? EditorLogic.fetch.ship.parts :
-                        //    (HighLogic.LoadedSceneIsFlight ? FlightGlobals.ActiveVessel.parts : null);
                         if (RCSUtils.PartsHaveRCSType(partsList, s.rcsType))
                             return true;
                         else
                             return false;
-
-
-
-                        return true;
                     }
-                    return false;
 
                 case CriterionType.Engines:
                     {
                         for (int i = 0; i < s.engineResourceList.Count; i++)
                         {
                             var resinfo = s.engineResourceList[i];
-                            s.CheckResource(resinfo.resourceName, out double amt, out double capacity);
+                            s.CheckResource(resinfo.resourceName, false, out double amt, out double capacity);
                             if (amt < resinfo.resourceAmount || capacity < resinfo.resourceCapacity)
                                 return false;
                         }
-#warning need to check vessel for engines of the correct enginetype
 
-                        return EngineTypeMatcher.PartsHaveEngineType(partsList, s.engineType);
+                        bool rc =  EngineTypeMatcher.PartsHaveEngineType(partsList, s.engineType);
+                        var info = DeltaVUtils.GetActiveStageInfo_Vac(useLaunchpadFirstStageIfPrelaunch: true);
+                        rc &=  info.deltaV >= s.deltaV & info.TWR >= s.TWR;
+
+
+                        return rc;
                     }
 
                 case CriterionType.Batteries:
@@ -165,23 +178,19 @@ namespace MissionPlanner.Utils
                         return BatteryUtils.GetTotalBatteryCapacityEditor(EditorLogic.fetch.ship) >= s.batteryCapacity;
 
                     }
+
                 case CriterionType.Communication:
-#warning need to add check for Communication in editor 
                     if (HighLogic.LoadedSceneIsFlight)
                     {
                         if (AntennaUtils.HasAntennaFlight(FlightGlobals.ActiveVessel))
-                        {
                             return (Utils.AntennaUtils.GetTotalAntennaPowerFlight(FlightGlobals.ActiveVessel) >= s.antennaPower);
-                        }
                         else
                             return false;
                     }
                     else
                     {
                         if (AntennaUtils.HasAntennaEditor(EditorLogic.fetch.ship))
-                        {
                             return Utils.AntennaUtils.GetTotalAntennaPowerEditor(EditorLogic.fetch.ship) >= s.antennaPower;
-                        }
                         else
                             return false;
                     }
@@ -203,12 +212,11 @@ namespace MissionPlanner.Utils
                             if (sgs.TotalSolarParts == 0)
                                 return false;
                             if (EditorLogic.fetch.ship != null)
-                            {
                                 return (float)sgs.TotalECps >= s.solarChargeRate;
-                            }
                             return false;
                         }
                     }
+
                 case CriterionType.FuelCells:
                     {
                         if (HighLogic.LoadedSceneIsEditor)
@@ -217,9 +225,7 @@ namespace MissionPlanner.Utils
                             if (fcgs.TotalFuelCellParts == 0)
                                 return false;
                             if (EditorLogic.fetch.ship != null)
-                            {
                                 return (float)fcgs.TotalECps >= s.fuelCellChargeRate;
-                            }
                             return false;
                         }
                         else
@@ -231,6 +237,7 @@ namespace MissionPlanner.Utils
                             return (float)fcgs.TotalECps >= s.fuelCellChargeRate;
                         }
                     }
+
                 case CriterionType.Generators:
                     {
                         if (HighLogic.LoadedSceneIsEditor)
@@ -287,12 +294,11 @@ namespace MissionPlanner.Utils
                             rcs = RadiatorUtils.GetEstimatedCoolingEditor(EditorLogic.fetch.ship);
 
                             if (EditorLogic.fetch.ship != null)
-                            {
                                 return rcs.TotalKW >= s.radiatorCoolingRate;
-                            }
                             return false;
                         }
                     }
+
                 case CriterionType.Lights:
                     {
                         if (HighLogic.LoadedSceneIsFlight)
@@ -308,6 +314,7 @@ namespace MissionPlanner.Utils
                             return false;
                         }
                     }
+
                 case CriterionType.Parachutes:
                     {
                         if (HighLogic.LoadedSceneIsFlight)
@@ -326,10 +333,10 @@ namespace MissionPlanner.Utils
                             return false;
                         }
                     }
+
                 case CriterionType.ReactionWheels:
                     {
                         TorqueSummary ts;
-                        bool rc = false;
                         if (HighLogic.LoadedSceneIsFlight)
                             ts = ReactionWheelUtils.GetEnabledTorqueFlight(FlightGlobals.ActiveVessel);
                         else
@@ -338,6 +345,7 @@ namespace MissionPlanner.Utils
                         return (ts.Total >= s.reactionWheels &&
                             ts.Roll >= s.torqueRoll && ts.Pitch >= s.torquePitch && ts.Yaw >= s.torqueYaw);
                     }
+
                 case CriterionType.Flags:
                     {
                         if (HighLogic.LoadedSceneIsEditor)
@@ -348,6 +356,7 @@ namespace MissionPlanner.Utils
 
                         return s.flagCnt <= flagCount;
                     }
+
                 case CriterionType.Destination_vessel:
                     if (HighLogic.LoadedSceneIsEditor)
                         return true;

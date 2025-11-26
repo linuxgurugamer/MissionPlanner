@@ -1,44 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-
-using static MissionPlanner.RegisterToolbar;
-
-namespace MissionPlanner
+﻿namespace MissionPlanner
 {
     public enum CriterionType
     {
-#if false
-        ChecklistItem,
-        trackedVessel,
-        Module,
-        VABOrganizerSubcategory,
-        CrewMemberTrait,
-
-        toggle,
-        number,
-        range,
-        crewCount,
-        part,
-        resource,
-
-        SAS,
-        RCS,
-        Batteries,
-        Communication,
-        SolarPanels,
-        FuelCells,
-        Radiators,
-        Lights,
-        Parachutes,
-        ControlSource,
-        ReactionWheels,
-        Engines,
-        Flags, 
-        Dest_vessel,
-        Dest_body,
-        Dest_asteroid
-#else
         Batteries,
         ChargeRateTotal,
         ChecklistItem,
@@ -49,25 +12,47 @@ namespace MissionPlanner
         Destination_asteroid,
         Destination_body,
         Destination_vessel,
+        DockingPort,
+        Drills,
         Engines,
         Flags,
-        FuelCells, 
-        Generators, 
+        FuelCells,
+        Generators,
         Lights,
+        Maneuver,
         Module,
         Number,
         Part,
         Parachutes,
-        RCS,
         Radiators,
         Range,
+        RCS,
         ReactionWheels,
         Resource,
         SAS,
-        SolarPanels, 
+        SolarPanels,
         TrackedVessel,
         VABOrganizerCategory
+    }
 
-#endif
+    public enum Maneuver
+    {
+        None,
+        Launch,
+        Reentry,
+        Landing,                    // planet
+        Splashdown,                 // planet
+        ImpactAsteroid,                     // asteroid or planet
+        TransferToAnotherPlanet,    // planet
+        ChangeApoapsis,
+        ChangeBothPeAndAp,
+        ChangeInclination,
+        ChangePeriapsis,
+        ChangeSemiMajorAxis,
+        FineTuneClosestApproachToVessel,    // vessel
+        InterceptVessel,                  // vessel
+        MatchPlanesWithVessel,                // vessel
+        MatchVelocitiesWithVessel,            // vessel
+        ReturnFromAMoon
     }
 }

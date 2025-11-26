@@ -13,6 +13,8 @@ namespace MissionPlanner
     {
         private string GetCurrentSaveName()
         {
+            if (HighLogic.SaveFolder == null)
+                Log.Error("SaveFolder is  null");
             return HighLogic.SaveFolder ?? "UnknownSave";
         }
 
@@ -25,8 +27,10 @@ namespace MissionPlanner
         }
 
         private string GetSaveDirectoryAbsolute() { return Path.Combine(KSPUtil.ApplicationRootPath, "GameData", SAVE_MOD_FOLDER); }
+        private string GetMissionDirectoryAbsolute() { return Path.Combine(KSPUtil.ApplicationRootPath, "GameData", MISSION_FOLDER); }
+
         private string GetCombinedFileName(string save, string mission) { return SanitizeForFile(save) + "__" + SanitizeForFile(mission) + SAVE_FILE_EXT; }
-        private string GetSaveFileAbsolute(string save, string mission) { return Path.Combine(GetSaveDirectoryAbsolute(), GetCombinedFileName(save, mission)); }
+        private string GetSaveFileAbsolute(string save, string mission) { return Path.Combine(GetMissionDirectoryAbsolute(), GetCombinedFileName(save, mission)); }
 
         private bool TrySaveToDisk()
         {
@@ -181,6 +185,7 @@ namespace MissionPlanner
 
         private void DrawOverwriteDialogWindow(int id)
         {
+            BringWindowForward(id, true);
             GUILayout.Space(6);
             GUILayout.Label("A mission with this name already exists.", _tinyLabel);
 

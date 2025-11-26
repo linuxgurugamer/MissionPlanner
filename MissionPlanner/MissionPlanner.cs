@@ -11,6 +11,7 @@ using System.IO;
 using System.Linq;
 using ToolbarControl_NS;
 using UnityEngine;
+
 using static MissionPlanner.RegisterToolbar;
 
 namespace MissionPlanner
@@ -33,7 +34,7 @@ namespace MissionPlanner
 
         // ---- Windows ----
         private Rect _treeRect = new Rect(220, 120, 840, 620);
-        private Rect _detailRect = new Rect(820, 160, 560, 400); //560
+        private Rect _detailRect = new Rect(820, 160, 600, 400); //560
         private Rect _moveRect = new Rect(760, 120, 460, 400); // 560
         private Rect _loadRect = new Rect(720, 100, 560, 540);
         private Rect _overwriteRect = new Rect(760, 180, 520, 220);
@@ -79,6 +80,7 @@ namespace MissionPlanner
         private const string TRACKEDSAVE_ROOT_NODE = "MISSION_PLANNER_TRACKED_VESSEL";
         private const string SAVE_LIST_NODE = "ROOTS";
         internal const string SAVE_MOD_FOLDER = "MissionPlanner/PluginData";
+        internal const string MISSION_FOLDER = SAVE_MOD_FOLDER + "/Missions";
 
         private const string SAVE_FILE_EXT = ".cfg";
 
@@ -241,7 +243,7 @@ namespace MissionPlanner
                     onFalse: () => { _visible = false; },
                     ApplicationLauncher.AppScenes.ALWAYS,
                     MODID,
-                    "MissionPlannerbutton",
+                    "MissionPlannerButton",
                     IconOnPath,
                     IconOffPath,
                     IconOnPath_24,
@@ -255,11 +257,9 @@ namespace MissionPlanner
 
         public void OnDestroy()
         {
-            //if (HighLogic.LoadedSceneIsGame)
-            {
-                TrySaveToDisk_Internal(true);
-                SaveUISettings();
-            }
+            TrySaveToDisk_Internal(true);
+            SaveUISettings();
+
             GameEvents.onHideUI.Remove(onHideUI);
             GameEvents.onShowUI.Remove(onShowUI);
 
@@ -285,7 +285,6 @@ namespace MissionPlanner
             _showOverwriteDialog = false; // ???
             _showDeleteConfirm = false;
             _showPartDialog = false;
-            //_showResourceDialog = false;
             _showSaveAs = false;    // ???
             _showNewConfirm = false; // ???
             _showClearConfirm = false;
@@ -293,6 +292,16 @@ namespace MissionPlanner
                 _showModuleDialog =
                 // _showSASDialog =
                 _showBodyAsteroidVesselDialog = false;
+        }
+
+        bool newWindow = false;
+        void BringWindowForward(int id, bool force = false)
+        {
+            if (newWindow || force)
+            {
+                newWindow = false;
+                GUI.BringWindowToFront(id);
+            }
         }
 
         public void OnGUI()
@@ -313,67 +322,66 @@ namespace MissionPlanner
                 _treeRect = ClickThruBlocker.GUILayoutWindow(_treeWinId, _treeRect, DrawTreeWindow, "Mission Planner/Checklist");
                 // do this here since if it's done within the window you only recieve events that are inside of the window
                 this.resizeHandle.DoResize(ref this._treeRect);
-            }
-            if (_detailNode != null)
-            {
-                if (_simpleChecklist)
+                if (_detailNode != null)
                 {
-                    _detailRect.height = 200f;
-                    _detailRect = ClickThruBlocker.GUILayoutWindow(
-                                     _detailWinId, _detailRect, DrawDetailWindow,
-                                     string.Format("Step Details — {0}", _detailNode.data.title),
-                                     GUILayout.MinWidth(520), GUILayout.MinHeight(200)
-                                 );
+                    if (_simpleChecklist)
+                    {
+                        _detailRect.height = 200f;
+                        _detailRect = ClickThruBlocker.GUILayoutWindow(
+                                         _detailWinId, _detailRect, DrawDetailWindow,
+                                         string.Format("Step Details — {0}", _detailNode.data.title),
+                                         GUILayout.MinWidth(520), GUILayout.MinHeight(200)
+                                     );
+                    }
+                    else
+                    {
+                        _detailRect = ClickThruBlocker.GUILayoutWindow(
+                            _detailWinId, _detailRect, DrawDetailWindow,
+                            string.Format("Step Details — {0}", _detailNode.data.title),
+                            GUILayout.MinWidth(520), GUILayout.MinHeight(440)
+                        );
+                    }
                 }
-                else
+                if (_showMoveDialog && _moveNode != null)
                 {
-                    _detailRect = ClickThruBlocker.GUILayoutWindow(
-                        _detailWinId, _detailRect, DrawDetailWindow,
-                        string.Format("Step Details — {0}", _detailNode.data.title),
-                        GUILayout.MinWidth(520), GUILayout.MinHeight(440)
+                    _moveRect = ClickThruBlocker.GUILayoutWindow(
+                        _moveWinId, _moveRect, DrawMoveDialogWindow,
+                        string.Format("Move “{0}” — choose new parent", _moveNode.data.title),
+                        GUILayout.MinWidth(420), GUILayout.MinHeight(320)
                     );
                 }
-            }
-            if (_showMoveDialog && _moveNode != null)
-            {
-                _moveRect = ClickThruBlocker.GUILayoutWindow(
-                    _moveWinId, _moveRect, DrawMoveDialogWindow,
-                    string.Format("Move “{0}” — choose new parent", _moveNode.data.title),
-                    GUILayout.MinWidth(420), GUILayout.MinHeight(320)
-                );
-            }
-            if (_showLoadDialog)
-            {
-                _loadRect = ClickThruBlocker.GUILayoutWindow(
-                    _loadWinId, _loadRect, DrawLoadDialogWindow,
-                    "Load Mission",
-                    GUILayout.MinWidth(480), GUILayout.MinHeight(380)
-                );
-            }
-            if (_showOverwriteDialog)
-            {
-                _overwriteRect = ClickThruBlocker.GUILayoutWindow(
-                    _overwriteWinId, _overwriteRect, DrawOverwriteDialogWindow,
-                    "Overwrite Confirmation",
-                    GUILayout.MinWidth(420), GUILayout.MinHeight(180)
-                );
-            }
-            if (_showDeleteConfirm)
-            {
-                _deleteRect = ClickThruBlocker.GUILayoutWindow(
-                    _deleteWinId, _deleteRect, DrawDeleteDialogWindow,
-                    "Delete Mission?",
-                    GUILayout.MinWidth(420), GUILayout.MinHeight(160)
-                );
-            }
-            if (_showPartDialog && _partTargetNode != null)
-            {
-                _partRect = ClickThruBlocker.GUILayoutWindow(
-                    _partWinId, _partRect, DrawPartPickerWindow,
-                    "Select Part",
-                     GUILayout.MinHeight(400)
-                );
-            }
+                if (_showLoadDialog)
+                {
+                    _loadRect = ClickThruBlocker.GUILayoutWindow(
+                        _loadWinId, _loadRect, DrawLoadDialogWindow,
+                        "Load Mission",
+                        GUILayout.MinWidth(480), GUILayout.MinHeight(380)
+                    );
+                }
+                if (_showOverwriteDialog)
+                {
+                    _overwriteRect = ClickThruBlocker.GUILayoutWindow(
+                        _overwriteWinId, _overwriteRect, DrawOverwriteDialogWindow,
+                        "Overwrite Confirmation",
+                        GUILayout.MinWidth(420), GUILayout.MinHeight(180)
+                    );
+                }
+                if (_showDeleteConfirm)
+                {
+                    _deleteRect = ClickThruBlocker.GUILayoutWindow(
+                        _deleteWinId, _deleteRect, DrawDeleteDialogWindow,
+                        "Delete Mission?",
+                        GUILayout.MinWidth(420), GUILayout.MinHeight(160)
+                    );
+                }
+                if (_showPartDialog && _partTargetNode != null)
+                {
+                    _partRect = ClickThruBlocker.GUILayoutWindow(
+                        _partWinId, _partRect, DrawPartPickerWindow,
+                        "Select Part",
+                         GUILayout.MinHeight(400)
+                    );
+                }
 #if false
             if (_showResourceDialog)
             {
@@ -384,65 +392,66 @@ namespace MissionPlanner
                 );
             }
 #endif
-            if (_showTraitDialog)
-            {
-                _traitRect = ClickThruBlocker.GUILayoutWindow(
-                    _traitWinId, _traitRect, DrawTraitPickerWindow,
-                    "Select Trait",
-                     GUILayout.MinHeight(400)
-                );
-            }
+                if (_showTraitDialog)
+                {
+                    _traitRect = ClickThruBlocker.GUILayoutWindow(
+                        _traitWinId, _traitRect, DrawTraitPickerWindow,
+                        "Select Trait",
+                         GUILayout.MinHeight(400)
+                    );
+                }
 
-            if (_showModuleDialog)
-            {
-                _moduleRect = ClickThruBlocker.GUILayoutWindow(
-                    _moduleWinId, _moduleRect, DrawModulePickerWindow,
-                    "Select Module",
-                    GUILayout.MinHeight(400)
-                );
-            }
+                if (_showModuleDialog)
+                {
+                    _moduleRect = ClickThruBlocker.GUILayoutWindow(
+                        _moduleWinId, _moduleRect, DrawModulePickerWindow,
+                        "Select Module",
+                        GUILayout.MinHeight(400)
+                    );
+                }
 
-            if (_showCategoryDialog)
-            {
-                _SASRect = ClickThruBlocker.GUILayoutWindow(
-                    _SASWinId, _SASRect, DrawCategoryPickerWindow,
-                    "Select Category",
-                     GUILayout.MinHeight(400)
-                );
-            }
+                if (_showCategoryDialog)
+                {
+                    _SASRect = ClickThruBlocker.GUILayoutWindow(
+                        _SASWinId, _SASRect, DrawCategoryPickerWindow,
+                        "Select Category",
+                         GUILayout.MinHeight(400)
+                    );
+                }
 
-            if (_showBodyAsteroidVesselDialog)
-            {
-                _bodyAsteroidVesselRect = ClickThruBlocker.GUILayoutWindow(
-                    _moduleWinId, _bodyAsteroidVesselRect, DrawBodyAsteroidVesselPickerWindow,
-                    "Select Vessel/Asteroid/Body",
-                    GUILayout.MinHeight(400)
-                );
-            }
+                if (_showBodyAsteroidVesselDialog)
+                {
+                    _bodyAsteroidVesselRect = ClickThruBlocker.GUILayoutWindow(
+                        _moduleWinId, _bodyAsteroidVesselRect, DrawBodyAsteroidVesselPickerWindow,
+                        "Select Vessel/Asteroid/Body",
+                        GUILayout.MinHeight(400)
+                    );
+                }
 
-            if (_showSaveAs)
-            {
-                _saveAsRect = ClickThruBlocker.GUILayoutWindow(
-                    _saveAsWinId, _saveAsRect, DrawSaveAsDialogWindow,
-                    _creatingNewMission ? "New Mission" : "Save As…",
-                    GUILayout.MinWidth(460), GUILayout.MinHeight((_creatingNewMission ? 270 : 170))
-                );
-            }
-            if (_showNewConfirm)
-            {
-                _newConfirmRect = ClickThruBlocker.GUILayoutWindow(
-                    _newConfirmWinId, _newConfirmRect, DrawNewConfirmWindow,
-                    "Start New Mission?",
-                    GUILayout.MinWidth(420), GUILayout.MinHeight(160)
-                );
-            }
-            if (_showClearConfirm)
-            {
-                _clearConfirmRect = ClickThruBlocker.GUILayoutWindow(
-                    _clearConfirmWinId, _clearConfirmRect, DrawClearConfirmWindow,
-                    "Clear All Steps?",
-                    GUILayout.MinWidth(420), GUILayout.MinHeight(160)
-                );
+                if (_showSaveAs)
+                {
+                    _saveAsRect = ClickThruBlocker.GUILayoutWindow(
+                        _saveAsWinId, _saveAsRect, DrawSaveAsDialogWindow,
+                        _creatingNewMission ? "New Mission" : "Save As…",
+                        GUILayout.MinWidth(460), GUILayout.MinHeight((_creatingNewMission ? 270 : 170))
+                    );
+                }
+                if (_showNewConfirm)
+                {
+                    _newConfirmRect = ClickThruBlocker.GUILayoutWindow(
+                        _newConfirmWinId, _newConfirmRect, DrawNewConfirmWindow,
+                        "Start New Mission?",
+                        GUILayout.MinWidth(420), GUILayout.MinHeight(160)
+                    );
+                }
+                if (_showClearConfirm)
+                {
+                    _clearConfirmRect = ClickThruBlocker.GUILayoutWindow(
+                        _clearConfirmWinId, _clearConfirmRect, DrawClearConfirmWindow,
+                        "Clear All Steps?",
+                        GUILayout.MinWidth(420), GUILayout.MinHeight(160)
+                    );
+                }
             }
             GUI.depth = oldDepth;
         }
@@ -736,7 +745,7 @@ namespace MissionPlanner
             if (showSummary)
             {
                 _summaryScroll = GUILayout.BeginScrollView(_summaryScroll, HighLogic.Skin.textArea, GUILayout.Height(110));
-                _missionSummary = GUILayout.TextArea(string.IsNullOrEmpty(_missionSummary) ? "(no summary)" : _missionSummary, GUILayout.ExpandHeight(true));
+                _missionSummary = GUILayout.TextArea(string.IsNullOrEmpty(_missionSummary) ? "" : _missionSummary, GUILayout.ExpandHeight(true));
                 GUILayout.EndScrollView();
             }
             using (new GUILayout.HorizontalScope())
@@ -911,6 +920,7 @@ namespace MissionPlanner
 
         private void DrawNewConfirmWindow(int id)
         {
+            BringWindowForward(id, true);
             GUILayout.Space(6);
             GUILayout.Label("Create a new mission. Save current mission first?", _hintLabel);
 
@@ -951,6 +961,7 @@ namespace MissionPlanner
 
         private void DrawClearConfirmWindow(int id)
         {
+            BringWindowForward(id, true);
             GUILayout.Space(6);
             GUILayout.Label("This will remove ALL steps from the current mission.\n(Your mission name is kept.)", _hintLabel);
 
@@ -998,6 +1009,213 @@ namespace MissionPlanner
             GUI.DragWindow(new Rect(0, 0, 10000, 10000));
         }
 
+
+
+        public string OneLineSummary(StepNode node, ref GUIStyle style)
+        {
+            string criteria = "";
+            switch (node.data.stepType)
+            {
+                case CriterionType.Batteries:
+                    criteria = node.data.batteryCapacity.ToString() + " EC";
+                    break;
+                case CriterionType.ChargeRateTotal:
+                    criteria = node.data.chargeRateTotal.ToString() + " EC/sec";
+                    break;
+
+#if false
+                case CriterionType.ChecklistItem:
+                    criteria = node.data.completed ? ": Completed" : ": Incomplete";
+
+                    if (HighLogic.LoadedSceneIsFlight)
+                    {
+                        if (_selectedNode == node)
+                            style = (node.data.completed) ? _selectedTitleLabel : _selectedUnfilledTitleLabel;
+                        else
+                            style = (node.data.completed) ? _titleLabel : _unfilledTitleLabel;
+
+                    }
+                    break;
+#endif
+
+                case CriterionType.Communication:
+                    criteria = node.data.antennaPower.ToString();  // may need a suffix added 
+                    break;
+
+
+                case CriterionType.ControlSource:
+                    criteria = $"{node.data.controlSourceQty} needed";
+                    break;
+
+                case CriterionType.CrewCount:
+                    criteria = node.data.crewCount.ToString() + " kerbals";
+                    break;
+
+                case CriterionType.CrewMemberTrait:
+                    criteria = node.data.traitName;
+                    break;
+
+                case CriterionType.Destination_asteroid:
+                    criteria = node.data.destAsteroid;
+                    break;
+
+                case CriterionType.Destination_body:
+                    criteria = node.data.destBody;
+                    break;
+
+                case CriterionType.Destination_vessel:
+                    criteria = node.data.destVessel;
+                    break;
+
+                case CriterionType.DockingPort:
+                    criteria = node.data.dockingPortQty.ToString() + " docking ports";
+                    break;
+
+                case CriterionType.Drills:
+                    criteria = node.data.drillQty.ToString() + " drills";
+                    break;
+
+                case CriterionType.Engines:
+                    for (int i = 0; i < Initialization.engineTypesAr.Length; i++)
+                    {
+                        if (Initialization.engineTypesAr[i] == node.data.engineType)
+                        {
+                            criteria = Initialization.engineTypesDisplayAr[i];
+                            break;
+                        }
+                    }
+                    break;
+
+
+                case CriterionType.Flags:
+                    {
+                        int flagCount = FlightChecks.flagCount;
+                        criteria = $"Need to plant {flagCount} flags";
+                        break;
+                    }
+
+                case CriterionType.FuelCells:
+                    {
+                        float chargeRate = node.data.fuelCellChargeRate; //  Utils.FlightChecks.chargeRate;
+                        criteria = $"Charge rate: {chargeRate}";
+                        break;
+                    }
+
+                case CriterionType.Generators:
+                    criteria = node.data.generatorChargeRate.ToString() + " EC/sec";
+                    break;
+
+                case CriterionType.Lights:
+                    criteria = node.data.spotlights.ToString() + " spotlights";
+                    break;
+
+                case CriterionType.Maneuver:
+                    criteria = StringFormatter.BeautifyName(node.data.maneuver.ToString());
+
+                    switch (node.data.maneuver)
+                    {
+                        case Maneuver.ImpactAsteroid:
+                            criteria += ": " + node.data.destAsteroid;
+                            break;
+
+                        case Maneuver.FineTuneClosestApproachToVessel:
+                        case Maneuver.InterceptVessel:
+                        case Maneuver.MatchPlanesWithVessel:
+                        case Maneuver.MatchVelocitiesWithVessel:
+                            criteria += ": " + node.data.destVessel;
+                            break;
+
+                        case Maneuver.Landing:
+                        case Maneuver.Splashdown:
+                        case Maneuver.TransferToAnotherPlanet:
+                            criteria += ": " + node.data.destBody;
+                            break;
+
+                        default: break;
+                    }
+
+
+                    break;
+
+                case CriterionType.Module:
+                    criteria = node.data.moduleName;
+                    break;
+
+                case CriterionType.Number:
+                    criteria = $"{node.data.number}";
+                    break;
+
+                case CriterionType.Part:
+                    if (node.data.partName != null)
+                        criteria = node.data.partTitle;
+                    else
+                        criteria = "Unnamed Part";
+                    break;
+
+                case CriterionType.Parachutes:
+                    criteria = node.data.parachutes.ToString() + " parachutes";
+                    break;
+
+                case CriterionType.Radiators:
+                    {
+                        float coolingRate = node.data.radiatorCoolingRate;
+                        criteria = $"Cooling rate: {coolingRate} kW";
+                        break;
+                    }
+                case CriterionType.Range:
+                    criteria = $"{node.data.minFloatRange} - {node.data.maxFloatRange}";
+                    break;
+
+                case CriterionType.RCS:
+                    for (int i = 0; i < Initialization.rcsTypesAr.Length; i++)
+                    {
+                        if (Initialization.rcsTypesAr[i] == node.data.rcsType)
+                        {
+                            criteria = Initialization.rcsTypesDisplayAr[i];
+                            break;
+                        }
+                    }
+                    break;
+
+                case CriterionType.ReactionWheels:
+                    criteria = node.data.reactionWheels.ToString() + " reaction wheels";
+                    break;
+
+                case CriterionType.Resource:
+                    for (int i = 0; i < node.data.resourceList.Count; i++)
+                    {
+                        ResInfo resinfo = node.data.resourceList[i];
+                        if (criteria.Length > 0)
+                            criteria += ", ";
+                        criteria += resinfo.resourceName;
+
+                    }
+                    break;
+
+                case CriterionType.SAS:
+                    criteria = SASUtils.SasLevelDescriptions[node.data.minSASLevel];
+                    break;
+
+                case CriterionType.SolarPanels:
+                    {
+                        float chargeRate = node.data.solarChargeRate; //  Utils.FlightChecks.chargeRate;
+                        criteria = $"Charge rate: {chargeRate} EC/sec";
+                        break;
+                    }
+                case CriterionType.TrackedVessel:
+                    criteria = StringFormatter.BeautifyName(node.data.stepType.ToString()) + $": {node.data.trackedVessel})";
+                    break;
+
+                case CriterionType.VABOrganizerCategory:
+                    criteria = StringFormatter.BeautifyName(node.data.vabCategory);
+                    break;
+
+
+                default:
+                    break;
+            }
+            return ": " + criteria;
+        }
         private void DrawNodeRow(StepNode node, int depth)
         {
             Rect titleRect;
@@ -1038,7 +1256,7 @@ namespace MissionPlanner
                     else
                     {
                         string sign = node.Expanded ? "-" : "+";
-                        if (GUILayout.Button(sign, _titleLabel, ScaledGUILayoutWidth(_foldColWidth))) node.Expanded = !node.Expanded;
+                        if (GUILayout.Button("<B>" + sign + "</B>", _titleLabel, ScaledGUILayoutWidth(_foldColWidth))) node.Expanded = !node.Expanded;
                     }
 
                     const float controlsBase = 100f;
@@ -1053,54 +1271,92 @@ namespace MissionPlanner
                     {
                         style = (_selectedNode == node) ? _selectedUnfilledTitleLabel : _unfilledTitleLabel;
                     }
-                    //criteria = "";
-                    switch (node.data.stepType)
+
+                    if (showDetail)
                     {
-                        case CriterionType.SolarPanels:
-                        case CriterionType.FuelCells:
-                            float chargeRate = Utils.FlightChecks.chargeRate;
-                            criteria = $"Charge rate: {chargeRate}";
-                            break;
+                        criteria = OneLineSummary(node, ref style);
+#if false
+                        switch (node.data.stepType)
+                        {
+                            case CriterionType.Resource:
+                                for (int i = 0; i < node.data.resourceList.Count; i++)
+                                {
+                                    ResInfo resinfo = node.data.resourceList[i];
+                                    if (criteria.Length > 0)
+                                        criteria += ", ";
+                                    criteria += resinfo.resourceName;
 
-                        case CriterionType.Radiators:
-                            float coolingRate = Utils.FlightChecks.coolingRate;
-                            criteria = $"Cooling rate: {coolingRate}";
-                            break;
+                                }
+                                break;
 
-                        case CriterionType.Flags:
-                            int flagCount = FlightChecks.flagCount;
-                            criteria = $"Flag count: {flagCount}";
-                            break;
+                            case CriterionType.TrackedVessel:
+                                criteria = StringFormatter.BeautifyName(node.data.stepType.ToString()) + $": {node.data.trackedVessel})";
+                                break;
 
-                        case CriterionType.ChecklistItem:
-                            criteria = node.data.completed ? ": Completed" : ": Incomplete";
+                            case CriterionType.SolarPanels:
+                                {
+                                    float chargeRate = node.data.solarChargeRate; //  Utils.FlightChecks.chargeRate;
+                                    criteria = $"Charge rate: {chargeRate}";
+                                    break;
+                                }
 
-                            if (HighLogic.LoadedSceneIsFlight)
-                            {
-                                if (_selectedNode == node)
-                                    style = (node.data.completed) ? _selectedTitleLabel : _selectedUnfilledTitleLabel;
-                                else
-                                    style = (node.data.completed) ? _titleLabel : _unfilledTitleLabel;
-                            }
-                            break;
+                            case CriterionType.FuelCells:
+                                {
+                                    float chargeRate = node.data.fuelCellChargeRate; //  Utils.FlightChecks.chargeRate;
+                                    criteria = $"Charge rate: {chargeRate}";
+                                    break;
+                                }
 
-                        case CriterionType.CrewMemberTrait:
-                            criteria = ": " + node.data.traitName;
-                            break;
+                            case CriterionType.Radiators:
+                                {
+                                    float coolingRate = node.data.radiatorCoolingRate;
+                                    criteria = $"Cooling rate: {coolingRate}";
+                                    break;
+                                }
 
-                        //case CriterionType.Engines:
-                        //criteria = $": {node.data.number}";
-                        //    break;
+                            case CriterionType.Flags:
+                                {
+                                    int flagCount = FlightChecks.flagCount;
+                                    criteria = $"Flag count: {flagCount}";
+                                    break;
+                                }
 
-                        case CriterionType.Number:
-                            criteria = $": {node.data.number}";
-                            break;
-                        case CriterionType.Range:
-                            criteria = $": {node.data.minFloatRange} - {node.data.maxFloatRange}";
-                            break;
+                            case CriterionType.ChecklistItem:
+                                criteria = node.data.completed ? ": Completed" : ": Incomplete";
 
-                        default:
-                            break;
+                                if (HighLogic.LoadedSceneIsFlight)
+                                {
+                                    if (_selectedNode == node)
+                                        style = (node.data.completed) ? _selectedTitleLabel : _selectedUnfilledTitleLabel;
+                                    else
+                                        style = (node.data.completed) ? _titleLabel : _unfilledTitleLabel;
+                                }
+                                break;
+
+                            case CriterionType.CrewMemberTrait:
+                                criteria = ": " + node.data.traitName;
+                                break;
+
+                            case CriterionType.ControlSource:
+                                criteria = $": {node.data.controlSourceQty} needed";
+                                break;
+
+                            case CriterionType.Engines:
+                                criteria = $": {node.data.engineType}";
+                                break;
+
+                            case CriterionType.Number:
+                                criteria = $": {node.data.number}";
+                                break;
+                            case CriterionType.Range:
+                                criteria = $": {node.data.minFloatRange} - {node.data.maxFloatRange}";
+                                break;
+
+                            default:
+                                break;
+                        }
+
+#endif
                     }
 
                     GUILayout.Label(node.data.title, style, ScaledGUILayoutWidth(titleWidth));
@@ -1117,8 +1373,9 @@ namespace MissionPlanner
                         moveTo = GUILayout.Button("Move…", ScaledGUILayoutWidth(60f /* 54f */));
                         dup = GUILayout.Button("Dup", ScaledGUILayoutWidth(40f));
                         GUILayout.Space(20);
-                        add = GUILayout.Button("+", _smallBtn /* "⊕" */, ScaledGUILayoutWidth(28));
+                        add = GUILayout.Button("<B>+</B>", _smallBtn /* "⊕" */, ScaledGUILayoutWidth(28));
                         del = GUILayout.Button("✖", _smallBtn);
+                        GUILayout.Space(5);
                     }
                 }
 
@@ -1147,23 +1404,10 @@ namespace MissionPlanner
                     using (new GUILayout.HorizontalScope())
                     {
                         GUILayout.Space(140 + indent);
-                        switch (node.data.stepType)
-                        {
-                            case CriterionType.TrackedVessel:
-                                GUILayout.Label("(" + StringFormatter.BeautifyName(node.data.stepType.ToString()) + $": {node.data.trackedVessel})", _smallLabel);
-                                break;
-                            case CriterionType.ControlSource:
-                            case CriterionType.Engines:
-                                GUILayout.Label("(" + StringFormatter.BeautifyName(node.data.stepType.ToString()) + " checklist item)", _smallLabel);
-                                break;
-
-                            default:
-                                if (criteria != "")
-                                    GUILayout.Label("(" + StringFormatter.BeautifyName(node.data.stepType.ToString()) + criteria + ")", _smallLabel);
-                                else
-                                    GUILayout.Label("(" + StringFormatter.BeautifyName(node.data.stepType.ToString()) + ")", _smallLabel);
-                                break;
-                        }
+                        if (criteria != "")
+                            GUILayout.Label("(" + StringFormatter.BeautifyName(node.data.stepType.ToString()) + " " + criteria + ")", _smallLabel);
+                        else
+                            GUILayout.Label("(" + StringFormatter.BeautifyName(node.data.stepType.ToString()) + ")", _smallLabel);
                     }
                 }
                 if (node.Expanded && node.Children.Count > 0)
@@ -1177,6 +1421,7 @@ namespace MissionPlanner
                     }
                 }
             }
+
             // Optionally display the tooltip near the mouse cursor
             if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().showTooltips)
             {
@@ -1259,75 +1504,37 @@ namespace MissionPlanner
 
         private void Delete(StepNode n)
         {
-            if (n.Parent == null) _roots.Remove(n);
-            else n.Parent.Children.Remove(n);
+            Log.Info("delete, id: " + n.Id);
+            if (n.Parent == null)
+                Log.Info("n.Parent is null");
+            if (n.Parent == null)
+                _roots.Remove(n);
+            else
+            {
+                for (int i = 0; i < n.Parent.Children.Count; i++)
+                {
+                    var v = n.Parent.Children[i];
+                    Log.Info("v.Id: " + v.Id);
+                    if (v.Id == n.Id)
+                    {
+                        Log.Info("Deleting id: " + v.Id);
+                        n.Parent.Children.RemoveAt(i);
+                        break;
+                    }
+                }
+            }
             if (_selectedNode == n) _selectedNode = null;
             if (_detailNode == n) _detailNode = null;
         }
 
         private void Duplicate(StepNode n)
         {
-            var cloned = new StepNode
-            {
-                data = new Step
-                {
-                    title = (n.data.title ?? "New Step") + " (copy)",
-                    descr = n.data.descr,
-                    stepType = n.data.stepType,
-                    completed = n.data.completed,
-                    locked = n.data.locked,
-                    toggle = n.data.toggle,
-                    initialToggleValue = n.data.initialToggleValue,
-                    minFloatRange = n.data.minFloatRange,
-                    maxFloatRange = n.data.maxFloatRange,
-                    number = n.data.number,
-                    partName = n.data.partName,
-                    partTitle = n.data.partTitle,
-                    partOnlyAvailable = n.data.partOnlyAvailable,
-                    traitName = n.data.traitName,
-                    batteryCapacity = n.data.batteryCapacity,
-                    antennaPower = n.data.antennaPower,
-                    solarChargeRate = n.data.solarChargeRate,
-                    fuelCellChargeRate = n.data.fuelCellChargeRate,
-                    radiatorCoolingRate = n.data.radiatorCoolingRate,
-                    spotlights = n.data.spotlights,
-                    parachutes = n.data.parachutes,
-                    reactionWheels = n.data.reactionWheels,
-
-                    moduleName = n.data.moduleName,
-                    minSASLevel = n.data.minSASLevel,
-
-                    flagBody = n.data.flagBody,
-                    destBody = n.data.destBody,
-                    destBiome = n.data.destBiome,
-                    biome = n.data.biome,
-                    destAsteroid = n.data.destAsteroid,
-                    destVessel = n.data.destVessel,
-
-                    vabCategory = n.data.vabCategory,
-
-                    requiresLanding = n.data.requiresLanding,
-                    flagCnt = n.data.flagCnt,
-                    crewCount = n.data.crewCount
-                },
-                Expanded = n.Expanded,
-
-            };
-            cloned.data.resourceList = new List<ResInfo>();
-
-            foreach (var r in n.data.resourceList)
-            {
-                ResInfo res = new ResInfo();
-                res.resourceName = r.resourceName;
-                res.resourceCapacity = r.resourceCapacity;
-                res.resourceAmount = r.resourceAmount;
-                cloned.data.resourceList.Add(res);
-            }
+            var cloned = new StepNode(n);
+            cloned.data.title = (n.data.title ?? "New Step") + " (copy)";
 
             var list = (n.Parent == null) ? _roots : n.Parent.Children;
             int idx = list.IndexOf(n);
             list.Insert(Mathf.Clamp(idx + 1, 0, list.Count), cloned);
-            cloned.Parent = n.Parent;
         }
 
         private void OpenMoveDialog(StepNode node)
@@ -1335,6 +1542,7 @@ namespace MissionPlanner
             if (_detailNode != null && _detailNode != node) TrySaveToDisk_Internal(true);
 
             _moveNode = node;
+            newWindow = true;
             _moveTargetParent = null;
             _showMoveDialog = true;
 
@@ -1345,6 +1553,7 @@ namespace MissionPlanner
 
         private void DrawMoveDialogWindow(int id)
         {
+            BringWindowForward(id);
             GUILayout.Space(6);
             GUILayout.Label("Choose a new parent (or Root). You cannot move an item under itself or its descendants.", _hintLabel);
 
@@ -1431,6 +1640,8 @@ namespace MissionPlanner
                 TrySaveToDisk_Internal(true);
 
             _detailNode = node;
+            newWindow = true;
+
             var mp = Input.mousePosition;
             _detailRect.x = Mathf.Clamp(mp.x, 40, Screen.width - _detailRect.width - 40);
             _detailRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - _detailRect.height - 40);
@@ -1458,6 +1669,7 @@ namespace MissionPlanner
 
         private void DrawSaveAsDialogWindow(int id)
         {
+            BringWindowForward(id, true);
             GUILayout.Space(6);
 
             using (new GUILayout.HorizontalScope())
@@ -1527,6 +1739,10 @@ namespace MissionPlanner
                     else
                     {
                         string save = GetCurrentSaveName();
+                        if (!Directory.Exists(GetMissionDirectoryAbsolute()))
+                        {
+                            Directory.CreateDirectory(GetMissionDirectoryAbsolute());
+                        }
                         string path = GetSaveFileAbsolute(save, proposed);
 
                         _pendingSaveMission = proposed;
@@ -1639,6 +1855,8 @@ namespace MissionPlanner
                     tvu.data.vesselGuid = Guid.Empty;
                 }
             }
+            toolbarControl.SetFalse(true);
+
         }
 
         private void SyncToolbarState()

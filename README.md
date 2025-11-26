@@ -18,11 +18,12 @@ The following is the list of entries that can be specified:
 	Batteries				Updates status based on whether  specified capacity is available
 	Checklist Item			Manual checklist item, no status updates
 	Communication			Updates status on whether specified antenna power is available
-	Control Source			A checklist item, given it's own name due to a desire to have explicit step for this
+	Control Source			Checks for parts with ModuleCommand
 	Crew Member Trait		Updates status depending on whether a crew member with the desired trait is 
 							on the vessel.  Supports USI and Civilian Population traits
 	Crew Count				Checks for minimum crew
-	Engines					A checklist item, currently no special checks are implemented
+	Docking Ports			Checks for docking ports
+	Engines					Has specific checks for TWR, dV and resources used by the engine
 	Flags					Updates if one or more flags have been planted on the selected body.
 	Lights					Checks for the required number of spotlights on the vessel
 	Module					Checks for a specified part module on the vessel
@@ -101,3 +102,20 @@ Note:  The contents of the file ComboBox2.cs are a derivitive of the combobox fr
 
 
 		The Mechanical Jeb - Pod version 2.0 from MechJeb is ignored, as it's not used anymore
+
+Note regarding docking ports:
+	Most known docking ports are recognized.  Specifically, the following part modules are recognized as being docking ports:
+
+            // Stock							ModuleDockingNode,
+
+            // USI Konstruction					ModuleWeldablePort,
+
+            // KAS								ModuleKASPort, ModuleKASJointDock,
+
+            // SSTU								SSTUDockingPort, SSTUAnimateControlledDockingNode,
+
+            // Tundra Exploration				ModuleGimbalDockingPort,
+
+            // B9-style							ModuleDockingNodeHinge,
+
+            // Kerbal Reusability Expansion		ModuleKREDockingPort,

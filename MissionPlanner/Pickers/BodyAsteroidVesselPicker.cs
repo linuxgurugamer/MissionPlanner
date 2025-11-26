@@ -30,6 +30,7 @@ namespace MissionPlanner
 
         private void DrawBodyAsteroidVesselPickerWindow(int id)
         {
+            BringWindowForward(id, true);
             if (_bodyAsteroidTargetNode == null) { _showBodyAsteroidVesselDialog = false; GUI.DragWindow(new Rect(0, 0, 10000, 10000)); return; }
             GUILayout.Space(6);
 

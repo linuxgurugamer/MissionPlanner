@@ -28,7 +28,7 @@ namespace MissionPlanner
             // PartResourceDefinitionList implements IEnumerable<PartResourceDefinition>
             foreach (var def in lib.resourceDefinitions)
             {
-                if (def != null) partResourceDefinitions.Add(def);
+                if (def != null && def.name != "MJPropellant") partResourceDefinitions.Add(def);
             }
 
             return partResourceDefinitions;

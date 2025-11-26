@@ -1,5 +1,4 @@
 ﻿using SpaceTuxUtility;
-using Steamworks;
 using System;
 using System.Collections.Generic;
 using static MissionPlanner.RegisterToolbar;
@@ -12,10 +11,17 @@ namespace MissionPlanner
         public string resourceName = "";
         public float resourceAmount = 0f;
         public float resourceCapacity = 0f;
+        public bool locked = false;
 
         public ResInfo() { }
-        public ResInfo(string resourceName)
-        {  this.resourceName = resourceName; }
+        public ResInfo(string resourceName) { this.resourceName = resourceName; }
+        public ResInfo(ResInfo r)
+        {
+            this.resourceName = r.resourceName;
+            this.resourceAmount = r.resourceAmount;
+            this.resourceCapacity = r.resourceCapacity;
+            this.locked = r.locked;
+        }
     }
 
     [Serializable]
@@ -28,6 +34,7 @@ namespace MissionPlanner
         public bool locked = false;
 
         public CriterionType stepType = CriterionType.ChecklistItem;
+        public Maneuver maneuver = Maneuver.None;
         //public ChecklistItem checklistItem = null;
 
         public bool toggle = false;
@@ -48,7 +55,7 @@ namespace MissionPlanner
         public double chargeRateTotal = 0f;
         public double antennaPower = 0f;
         public float solarChargeRate = 0f;
-        public SolarUtils.Tracking solarPaneltracking = SolarUtils.Tracking.both; 
+        public SolarUtils.Tracking solarPaneltracking = SolarUtils.Tracking.both;
         public float fuelCellChargeRate = 0f;
         public float generatorChargeRate = 0f;
         public float radiatorCoolingRate = 0f;
@@ -85,7 +92,13 @@ namespace MissionPlanner
         public int engineQty = 0;
         public string engineType = "";
         public bool engineGimbaled = false;
-        public string rcsType = ""; 
+        public string rcsType = "";
+
+        public int controlSourceQty = 0;
+        public int dockingPortQty = 0;
+        public int drillQty = 0;
+        public double deltaV = 0d;
+        public float TWR = 0f;
 
         // Part selection
         public string partName = "";        // internal name (AvailablePart.name)
@@ -95,6 +108,93 @@ namespace MissionPlanner
         public Step()
         {
             //criterion = new Criterion();
+        }
+
+        public Step(Step step)
+        {
+            title = step.title;
+            descr = step.descr;
+
+            completed = step.completed;
+            locked = step.locked;
+
+            stepType = step.stepType;
+            maneuver = step.maneuver;
+
+            toggle = step.toggle;
+            initialToggleValue = step.initialToggleValue;
+
+            minFloatRange = step.minFloatRange;
+            maxFloatRange = step.maxFloatRange;
+
+            number = step.number;
+
+            traitName = step.traitName;
+
+            resourceList = new List<ResInfo>();
+            engineResourceList = new List<ResInfo>();
+            rcsResourceList = new List<ResInfo>();
+
+            foreach (var r in step.resourceList)
+                resourceList.Add(new ResInfo(r));
+            foreach (var r in step.engineResourceList)
+                engineResourceList.Add(new ResInfo(r));
+            foreach (var r in step.rcsResourceList)
+                rcsResourceList.Add(new ResInfo(r));
+
+
+            batteryCapacity = step.batteryCapacity;
+            chargeRateTotal = step.chargeRateTotal;
+            antennaPower = step.antennaPower;
+            solarChargeRate = step.solarChargeRate;
+            solarPaneltracking = step.solarPaneltracking;
+            fuelCellChargeRate = step.fuelCellChargeRate;
+            generatorChargeRate = step.generatorChargeRate;
+            radiatorCoolingRate = step.radiatorCoolingRate;
+            spotlights = step.spotlights;
+            parachutes = step.parachutes;
+            reactionWheels = step.reactionWheels;
+            torquePitchRollYawEqual = step.torquePitchRollYawEqual;
+            torquePitch = step.torquePitch;
+            torqueYaw = step.torqueYaw;
+            torqueRoll = step.torqueRoll;
+
+            moduleName = step.moduleName;
+            minSASLevel = step.minSASLevel;
+
+            flagBody = step.flagBody;
+            destBody = step.destBody;
+            destBiome = step.destBiome;
+            biome = step.biome;
+            destAsteroid = step.destAsteroid;
+            destVessel = step.destVessel;
+            trackedVessel = step.trackedVessel;
+            vesselGuid = step.vesselGuid;
+
+            vabCategory = step.vabCategory;
+
+            requiresLanding = step.requiresLanding;
+            requiresDocking = step.requiresDocking;
+            hasDocked = step.hasDocked;
+
+            flagCnt = step.flagCnt;
+            crewCount = step.crewCount;
+
+            engineQty = step.engineQty;
+            engineType = step.engineType;
+            engineGimbaled = step.engineGimbaled;
+            rcsType = step.rcsType;
+
+            controlSourceQty = step.controlSourceQty;
+            dockingPortQty = step.dockingPortQty;
+            drillQty = step.drillQty;
+            deltaV = step.deltaV;
+            TWR = step.TWR;
+
+            // Part selection
+            partName = step.partName;
+            partTitle = step.partTitle;
+            partOnlyAvailable = step.partOnlyAvailable;
         }
 
         public bool CheckCrew(out int crew)
@@ -108,16 +208,16 @@ namespace MissionPlanner
             return PartLookupUtils.ShipHasPartByInternalName(partName);
         }
 
-        public void CheckResource(string resourceName, out double amt, out double capacity)
+        public void CheckResource(string resourceName, bool locked, out double amt, out double capacity, bool onlyLocked = false)
         {
 
             if (HighLogic.LoadedSceneIsEditor)
             {
-                VesselResourceQuery.TryGet(EditorLogic.fetch.ship, resourceName, out amt, out capacity);
+                VesselResourceQuery.TryGet(EditorLogic.fetch.ship, resourceName, out amt, out capacity, locked, onlyLocked);
             }
             else
             {
-                VesselResourceQuery.TryGet(FlightGlobals.ActiveVessel, resourceName, out amt, out capacity);
+                VesselResourceQuery.TryGet(FlightGlobals.ActiveVessel, resourceName, out amt, out capacity, locked, onlyLocked);
             }
         }
 
@@ -131,6 +231,7 @@ namespace MissionPlanner
             n.AddValue("completed", completed);
             n.AddValue("locked", locked);
             n.AddValue("stepType", stepType.ToString());
+            n.AddValue("maneuver", maneuver.ToString());
 
             n.AddValue("toggle", toggle);
             n.AddValue("initialToggleValue", initialToggleValue);
@@ -147,6 +248,7 @@ namespace MissionPlanner
                     node.AddValue("resourceName", r.resourceName);
                     node.AddValue("resourceAmount", r.resourceAmount);
                     node.AddValue("resourceCapacity", r.resourceCapacity);
+                    node.AddValue("locked", r.locked);
                     n.AddNode(node);
                 }
             }
@@ -158,6 +260,7 @@ namespace MissionPlanner
                     node.AddValue("resourceName", r.resourceName);
                     node.AddValue("resourceAmount", r.resourceAmount);
                     node.AddValue("resourceCapacity", r.resourceCapacity);
+                    node.AddValue("locked", r.locked);
                     n.AddNode(node);
                 }
             }
@@ -169,6 +272,7 @@ namespace MissionPlanner
                     node.AddValue("resourceName", r.resourceName);
                     node.AddValue("resourceAmount", r.resourceAmount);
                     node.AddValue("resourceCapacity", r.resourceCapacity);
+                    node.AddValue("locked", r.locked);
                     n.AddNode(node);
                 }
             }
@@ -187,7 +291,7 @@ namespace MissionPlanner
             n.AddValue("reactionWheels", reactionWheels);
             n.AddValue("torquePitchRollYawEqual", torquePitchRollYawEqual);
 
-            
+
             n.AddValue("torquePitch", torquePitch);
             n.AddValue("torqueYaw", torqueYaw);
             n.AddValue("torqueRoll", torqueRoll);
@@ -217,6 +321,11 @@ namespace MissionPlanner
 
             n.AddValue("rcsType", rcsType);
 
+            n.AddValue("controlSourceQty", controlSourceQty);
+            n.AddValue("dockingPortQty", dockingPortQty);
+            n.AddValue("drillQty", drillQty);
+            n.AddValue("deltaV", deltaV);
+            n.AddValue("TWR", TWR);
 
             n.AddValue("partName", partName ?? "");
             n.AddValue("partTitle", partTitle ?? "");
@@ -235,6 +344,8 @@ namespace MissionPlanner
             CriterionType t;
             if (Enum.TryParse(n.GetValue("stepType"), out t)) s.stepType = t;
 
+            Maneuver m;
+            if (Enum.TryParse(n.GetValue("maneuver"), out m)) s.maneuver= m;
             s.toggle = n.SafeLoad("toggle", false);
             s.initialToggleValue = n.SafeLoad("initialToggleValue", false);
             s.minFloatRange = n.SafeLoad("minFloatRange", 0f);
@@ -249,6 +360,7 @@ namespace MissionPlanner
                 ri.resourceName = node.SafeLoad("resourceName", "");
                 ri.resourceAmount = node.SafeLoad("resourceAmount", 0f);
                 ri.resourceCapacity = node.SafeLoad("resourceCapacity", 0f);
+                ri.locked = node.SafeLoad("locked", ri.locked);
                 s.resourceList.Add(ri);
             }
             nodes = n.GetNodes("ENGINE_RESOURCE_LIST");
@@ -258,6 +370,7 @@ namespace MissionPlanner
                 ri.resourceName = node.SafeLoad("resourceName", "");
                 ri.resourceAmount = node.SafeLoad("resourceAmount", 0f);
                 ri.resourceCapacity = node.SafeLoad("resourceCapacity", 0f);
+                ri.locked = node.SafeLoad("locked", ri.locked); 
                 s.engineResourceList.Add(ri);
             }
             nodes = n.GetNodes("RCS_RESOURCE_LIST");
@@ -267,6 +380,7 @@ namespace MissionPlanner
                 ri.resourceName = node.SafeLoad("resourceName", "");
                 ri.resourceAmount = node.SafeLoad("resourceAmount", 0f);
                 ri.resourceCapacity = node.SafeLoad("resourceCapacity", 0f);
+                ri.locked = node.SafeLoad("locked", ri.locked);
                 s.rcsResourceList.Add(ri);
             }
 
@@ -286,7 +400,7 @@ namespace MissionPlanner
             s.parachutes = n.SafeLoad("parachutes", 0);
             s.reactionWheels = n.SafeLoad("reactionWheels", 0);
             s.torquePitchRollYawEqual = n.SafeLoad("torquePitchRollYawEqual", true);
-            
+
             s.torquePitch = n.SafeLoad("torquePitch", 0);
             s.torqueYaw = n.SafeLoad("torqueYaw", 0);
             s.torqueRoll = n.SafeLoad("torqueRoll", 0);
@@ -315,6 +429,12 @@ namespace MissionPlanner
             s.engineGimbaled = n.SafeLoad("engineGimbaled", false);
             s.rcsType = n.SafeLoad("rcsType", "");
 
+            s.controlSourceQty = n.SafeLoad("controlSourceQty", 0);
+            s.dockingPortQty = n.SafeLoad("dockingPortQty", 0);
+            s.drillQty = n.SafeLoad("drillQty", 0);
+            s.deltaV = n.SafeLoad("deltaV", 0d);
+            s.TWR = n.SafeLoad("TWR", 0f);
+
             s.partName = n.SafeLoad("partName", "");
             s.partTitle = n.SafeLoad("partTitle", "");
             s.partOnlyAvailable = n.SafeLoad("partOnlyAvailable", false);
@@ -327,14 +447,28 @@ namespace MissionPlanner
     public class StepNode
     {
         private static int _nextId = 1;
+
         public readonly int Id;
         public Step data = new Step();
         public bool Expanded = true;
         public StepNode Parent = null;
         public bool requireAll = true;
-        public readonly List<StepNode> Children = new List<StepNode>();
+        public  List<StepNode> Children = new List<StepNode>();
 
         public StepNode() { Id = _nextId++; }
+
+        public StepNode(StepNode node, StepNode parent = null)
+        {
+            Id = _nextId++;
+            data = new Step(node.data);
+            Expanded = node.Expanded;
+            Parent = parent == null ? node.Parent : parent;
+            requireAll = node.requireAll;
+            foreach (var c in node.Children)
+            {
+                Children.Add(new StepNode(c, this));
+            }
+        }
 
         public StepNode AddChild(Step childStep = null)
         {

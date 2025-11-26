@@ -50,19 +50,29 @@ public static class PartLookupUtils
         return parts.Any(p => p?.partInfo != null && string.Equals(p.partInfo.title, partTitle, StringComparison.Ordinal));
     }
 
-    /// <summary>
-    /// Check whether any part implements a given PartModule type (robust across variants).
-    /// Example: ShipHasModule<ModuleCommand>()
-    /// Works in Flight and Editor.
-    /// </summary>
-    public static bool ShipHasModule<T>(Vessel vessel = null) where T : PartModule
+    public static int ShipModulesCount<T>(Vessel vessel = null) where T : PartModule
     {
         var parts = GetCurrentParts(vessel);
-        if (parts == null) return false;
+        if (parts == null) return 0;
 
-        // FindModuleImplementing<T>() is fast and avoids reflection.
-        return parts.Any(p => p != null && p.FindModuleImplementing<T>() != null);
+        return vessel.FindPartModulesImplementing<T>().Count;
     }
+
+    public static int ShipModulesCount<T>(ShipConstruct vessel = null) where T : PartModule
+    {
+        var parts = vessel.parts;
+        if (parts == null) return 0;
+        int cnt = 0;
+        for (int i = 0; i < parts.Count; i++)
+        {
+            cnt += parts[i].FindModulesImplementing<T>().Count;
+        }
+        return cnt;
+    }
+
+
+
+
 
     /// <summary>
     /// For UNLOADED vessels (e.g., from a save or when a vessel is packed), check the ProtoVessel.

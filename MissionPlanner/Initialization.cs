@@ -62,6 +62,15 @@ namespace MissionPlanner
                 {
                     criterionTypeStrings[i] = StringFormatter.BeautifyName(criterionTypeStrings[i]);
                 }
+
+                HierarchicalStepsWindow.maneuverStrings = Enum.GetNames(typeof(Maneuver));
+                for (int i = 0; i < maneuverStrings.Length; i++)
+                {
+                    maneuverStrings[i] = StringFormatter.BeautifyName(maneuverStrings[i]);
+                }
+
+
+
                 ResourceStrings = GetAllResourcesStrings().ToArray();
 
                 // *******************************************************************

@@ -32,6 +32,7 @@ namespace MissionPlanner
 
         private void DrawModulePickerWindow(int id)
         {
+            BringWindowForward(id, true);
             if (_moduleTargetNode == null) { _showModuleDialog = false; GUI.DragWindow(new Rect(0, 0, 10000, 10000)); return; }
             GUILayout.Space(6);
 
