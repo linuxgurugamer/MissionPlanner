@@ -81,6 +81,7 @@ namespace MissionPlanner
         private const string SAVE_LIST_NODE = "ROOTS";
         internal const string SAVE_MOD_FOLDER = "MissionPlanner/PluginData";
         internal const string MISSION_FOLDER = SAVE_MOD_FOLDER + "/Missions";
+        internal const string DEFAULT_MISSION_FOLDER = SAVE_MOD_FOLDER + "/DefaultMissions";
 
         private const string SAVE_FILE_EXT = ".cfg";
 
@@ -257,7 +258,8 @@ namespace MissionPlanner
 
         public void OnDestroy()
         {
-            TrySaveToDisk_Internal(true);
+            if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().autosave)
+                TrySaveToDisk_Internal(true);
             SaveUISettings();
 
             GameEvents.onHideUI.Remove(onHideUI);
@@ -758,6 +760,7 @@ namespace MissionPlanner
                     _selectedNode = newRoot;
                     OpenDetail(newRoot);
                 }
+                GUILayout.Space(40);
                 if (GUILayout.Button("Expand All", ScaledGUILayoutWidth(110))) SetAllExpanded(true);
                 if (GUILayout.Button("Collapse All", ScaledGUILayoutWidth(110))) SetAllExpanded(false);
 
@@ -1114,7 +1117,13 @@ namespace MissionPlanner
 
                     switch (node.data.maneuver)
                     {
+                        case Maneuver.Launch:
+                        case Maneuver.Orbit:
+                            criteria += $": Target Orbit: Ap: {node.data.ap} km   Pe: {node.data.pe} km";
+                            break;
+
                         case Maneuver.ImpactAsteroid:
+                        case Maneuver.InterceptAsteroid:
                             criteria += ": " + node.data.destAsteroid;
                             break;
 
@@ -1125,16 +1134,26 @@ namespace MissionPlanner
                             criteria += ": " + node.data.destVessel;
                             break;
 
+                        case Maneuver.Reentry:
                         case Maneuver.Landing:
                         case Maneuver.Splashdown:
                         case Maneuver.TransferToAnotherPlanet:
                             criteria += ": " + node.data.destBody;
                             break;
 
+                        case Maneuver.ResourceTransfer:
+                            criteria += ": ";
+                            for (int i = 0; i < node.data.resourceList.Count; i++)
+                            {
+                                ResInfo resinfo = node.data.resourceList[i];
+                                if (i > 0)
+                                    criteria += ", ";
+                                criteria += resinfo.resourceName;
+                            }
+                            break;
+
                         default: break;
                     }
-
-
                     break;
 
                 case CriterionType.Module:
@@ -1539,7 +1558,10 @@ namespace MissionPlanner
 
         private void OpenMoveDialog(StepNode node)
         {
-            if (_detailNode != null && _detailNode != node) TrySaveToDisk_Internal(true);
+            if (_detailNode != null &&
+                _detailNode != node &&
+                HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().autosave)
+                TrySaveToDisk_Internal(true);
 
             _moveNode = node;
             newWindow = true;
@@ -1636,7 +1658,9 @@ namespace MissionPlanner
 
         private void OpenDetail(StepNode node)
         {
-            if (_detailNode != null && _detailNode != node)
+            if (_detailNode != null &&
+                _detailNode != node &&
+                HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().autosave)
                 TrySaveToDisk_Internal(true);
 
             _detailNode = node;
@@ -1761,7 +1785,8 @@ namespace MissionPlanner
                         {
                             _missionName = proposed;
                             _showSaveAs = false;
-                            TrySaveToDisk_Internal(true);
+                            if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().autosave)
+                                TrySaveToDisk_Internal(true);
                         }
                     }
                 }
@@ -1792,12 +1817,13 @@ namespace MissionPlanner
 
         private void ReparentAll() { foreach (var r in _roots) { r.Parent = null; ReparentRecursive(r); } }
         private void ReparentRecursive(StepNode n) { foreach (var c in n.Children) { c.Parent = n; ReparentRecursive(c); } }
-        private struct MissionFileInfo
+        private class MissionFileInfo
         {
             public string FullPath;
             public string SaveName;
             public string MissionName;
-            public DateTime LastWriteUtc;
+
+            public bool stock = false;
         }
 
         void onVesselSwitching(Vessel from, Vessel to)

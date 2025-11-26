@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Linq;
 using UnityEngine;
-using static MissionPlanner.RegisterToolbar;
 
 namespace MissionPlanner
 {
@@ -62,7 +61,8 @@ namespace MissionPlanner
                                     s.flagBody = b.bodyName;
                                     _showBodyAsteroidVesselDialog = false;
                                     _bodyAsteroidTargetNode = null;
-                                    TrySaveToDisk_Internal(true);
+                                    if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().autosave)
+                                        TrySaveToDisk_Internal(true);
                                 }
                                 GUILayout.FlexibleSpace();
                             }
@@ -83,7 +83,8 @@ namespace MissionPlanner
                                     s.destAsteroid = v;
                                     _showBodyAsteroidVesselDialog = false;
                                     _bodyAsteroidTargetNode = null;
-                                    TrySaveToDisk_Internal(true);
+                                    if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().autosave)
+                                        TrySaveToDisk_Internal(true);
                                 }
                                 GUILayout.FlexibleSpace();
                             }
@@ -109,7 +110,8 @@ namespace MissionPlanner
                                     s.vesselGuid = v.id;
                                     _showBodyAsteroidVesselDialog = false;
                                     _bodyAsteroidTargetNode = null;
-                                    TrySaveToDisk_Internal(true);
+                                    if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().autosave)
+                                        TrySaveToDisk_Internal(true);
                                 }
                                 GUILayout.FlexibleSpace();
                             }
@@ -141,7 +143,8 @@ namespace MissionPlanner
                                     s.vesselGuid = v.id;
                                     _showBodyAsteroidVesselDialog = false;
                                     _bodyAsteroidTargetNode = null;
-                                    TrySaveToDisk_Internal(true);
+                                    if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().autosave)
+                                        TrySaveToDisk_Internal(true);
                                 }
                             }
                         }

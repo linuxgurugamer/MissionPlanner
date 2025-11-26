@@ -69,7 +69,8 @@ namespace MissionPlanner
                             s.moduleName = pm;
                             _showModuleDialog = false;
                             _moduleTargetNode = null;
-                            TrySaveToDisk_Internal(true);
+                            if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().autosave)
+                                TrySaveToDisk_Internal(true);
                         }
                         GUILayout.FlexibleSpace();
                     }

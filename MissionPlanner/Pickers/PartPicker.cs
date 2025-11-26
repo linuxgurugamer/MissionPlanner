@@ -66,7 +66,8 @@ namespace MissionPlanner
                             s.partOnlyAvailable = _partAvailableOnly;
                             _showPartDialog = false;
                             _partTargetNode = null;
-                            TrySaveToDisk_Internal(true);
+                           if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().autosave)
+                                TrySaveToDisk_Internal(true);
                         }
                         GUILayout.FlexibleSpace();
                     }

@@ -27,7 +27,9 @@ namespace MissionPlanner
         }
 
         private string GetSaveDirectoryAbsolute() { return Path.Combine(KSPUtil.ApplicationRootPath, "GameData", SAVE_MOD_FOLDER); }
+
         private string GetMissionDirectoryAbsolute() { return Path.Combine(KSPUtil.ApplicationRootPath, "GameData", MISSION_FOLDER); }
+        private string GetDefaultMissionDirectoryAbsolute() { return Path.Combine(KSPUtil.ApplicationRootPath, "GameData", DEFAULT_MISSION_FOLDER); }
 
         private string GetCombinedFileName(string save, string mission) { return SanitizeForFile(save) + "__" + SanitizeForFile(mission) + SAVE_FILE_EXT; }
         private string GetSaveFileAbsolute(string save, string mission) { return Path.Combine(GetMissionDirectoryAbsolute(), GetCombinedFileName(save, mission)); }
@@ -117,18 +119,14 @@ namespace MissionPlanner
                 _simpleChecklist = root.SafeLoad("SimpleChecklist", false);
                 int i = root.SafeLoad("currentView", 0);
 
-                //_missionName = root.GetValue("MissionName") ?? _missionName;
-                //_missionSummary = root.GetValue("MissionSummary") ?? "";
-                //_simpleChecklist = bool.Parse(root.GetValue("SimpleChecklist") ?? "false");
-                //int.TryParse(root.GetValue("currentView"), out int i);
-
                 currentView = (View)i;
 
                 var list = root.GetNode(SAVE_LIST_NODE);
                 var newRoots = new List<StepNode>();
                 foreach (var n in list.GetNodes("NODE"))
                 {
-                    var node = StepNode.FromConfigNodeRecursive(n);
+                    StepNode node = StepNode.FromConfigNodeRecursive(n);
+
                     node.Parent = null;
                     newRoots.Add(node);
                 }
@@ -154,7 +152,7 @@ namespace MissionPlanner
         {
             //return false;
             string save = GetCurrentSaveName();
-            var list = GetAllMissionFiles();
+            var list = GetAllMissionFiles(false);
             MissionFileInfo best = default(MissionFileInfo);
             bool found = false;
 
@@ -162,7 +160,7 @@ namespace MissionPlanner
             {
                 if (mf.SaveName.Equals(save, StringComparison.OrdinalIgnoreCase))
                 {
-                    if (!found || mf.LastWriteUtc > best.LastWriteUtc)
+                    if (!found)
                     {
                         best = mf;
                         found = true;

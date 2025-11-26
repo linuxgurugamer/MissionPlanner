@@ -65,7 +65,8 @@ namespace MissionPlanner
                         s.vabCategory = cats[i];
                         _showCategoryDialog = false;
                         _CategoryTargetNode = null;
-                        TrySaveToDisk_Internal(true);
+                        if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().autosave)
+                            TrySaveToDisk_Internal(true);
                     }
                     GUILayout.FlexibleSpace();
                 }

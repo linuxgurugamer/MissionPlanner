@@ -12,7 +12,7 @@ be marked at fulfilled or not based on the toggle.
 
 Some items will have a status shown, red means that the criteria for that line has not been met.
 
-The following is the list of entries that can be specified:
+The following is the list of entries that can be specified  Most of them have active checks, meaning that checks are done during flight to verify each entry against the current vessel :
 
 
 	Batteries				Updates status based on whether  specified capacity is available
@@ -26,6 +26,21 @@ The following is the list of entries that can be specified:
 	Engines					Has specific checks for TWR, dV and resources used by the engine
 	Flags					Updates if one or more flags have been planted on the selected body.
 	Lights					Checks for the required number of spotlights on the vessel
+	Maneuver				Manual checklist item for various maneuvers.  Some of the maneuvers have additional fields:
+							The following two maneuvers have orbital parameters and have active check for the Ap and Pe:
+								Launch		
+								Orbit
+							The following maneuvers have fields to record the target of the maneuver.  These are not
+							active checks (ie:  no flight checks are done):
+								ImpactAsteroid
+								InterceptAsteroid
+								FineTuneClosestApproachToVessel
+								InterceptVessel
+								MatchPlanesWithVessel
+								MatchVelocitiesWithVessel
+								Landing
+								Splashdown
+								TransferToAnotherPlanet
 	Module					Checks for a specified part module on the vessel
 	Number					A checklist item, given it's own name due to a desire to have explicit step for this
 	Part					Checks for a specified part on the vessel
@@ -96,26 +111,29 @@ Load dialog with delete, show-all toggle
 
 Toolbar button; hides on pause; drag from anywhere (DragWindow at end)
 
-
-Note:  The contents of the file ComboBox2.cs are a derivitive of the combobox from Mechjeb.
-		The license for this file is the GPLv3
-
-
-		The Mechanical Jeb - Pod version 2.0 from MechJeb is ignored, as it's not used anymore
+The Mechanical Jeb - Pod version 2.0 from MechJeb is ignored, as it's not used anymore
 
 Note regarding docking ports:
 	Most known docking ports are recognized.  Specifically, the following part modules are recognized as being docking ports:
 
-            // Stock							ModuleDockingNode,
+			Mod								Part Modules
+            Stock							ModuleDockingNode
+            USI Konstruction				ModuleWeldablePort
+            KAS								ModuleKASPort, ModuleKASJointDock
+            SSTU							SSTUDockingPort, SSTUAnimateControlledDockingNode
+            Tundra Exploration				ModuleGimbalDockingPort
+            B9-style						ModuleDockingNodeHinge
+            Kerbal Reusability Expansion	ModuleKREDockingPort
 
-            // USI Konstruction					ModuleWeldablePort,
+Note regarding Autosaving:
+	There is an option to autosave after every edit, it defaults to on, but you can disable that in the settings so it only saves when you click the Save buttons
 
-            // KAS								ModuleKASPort, ModuleKASJointDock,
+Several sample mission plans have been provided for your use and to provide some guidance how to use the mod:
 
-            // SSTU								SSTUDockingPort, SSTUAnimateControlledDockingNode,
+	Create Orbital Fueling Station	This is a checklist used to design and build an orbital fueling station.  
+									It includes sections for building the station, building the launch vehicle, 
+									launching and resupply
 
-            // Tundra Exploration				ModuleGimbalDockingPort,
 
-            // B9-style							ModuleDockingNodeHinge,
-
-            // Kerbal Reusability Expansion		ModuleKREDockingPort,
+Note:  The contents of the file ComboBox2.cs are a derivitive of the combobox from Mechjeb.
+		The license for this file is the GPLv3

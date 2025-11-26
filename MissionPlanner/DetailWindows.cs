@@ -130,7 +130,8 @@ namespace MissionPlanner
                 GUILayout.FlexibleSpace();
                 if (GUILayout.Button("Close", ScaledGUILayoutWidth(100)))
                 {
-                    TrySaveToDisk_Internal(true);
+                    if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().autosave)
+                        TrySaveToDisk_Internal(true);
                     _detailNode = null;
                 }
                 GUILayout.FlexibleSpace();
@@ -138,6 +139,7 @@ namespace MissionPlanner
 
             GUI.DragWindow(new Rect(0, 0, 10000, 10000));
         }
+
 
         private void DoCriteria(Step s, ref string ErrorMessage, ref string StatusMessage) //, ChecklistItem checkListItem)
         {
@@ -153,8 +155,50 @@ namespace MissionPlanner
                         }
                         switch (s.maneuver)
                         {
+                            case Maneuver.Launch:
+                            case Maneuver.Orbit:
+                                GUILayout.Space(30);
+                                using (new GUILayout.HorizontalScope())
+                                {
+                                    GUILayout.Label("Target Orbit:");
+                                    GUILayout.Space(40);
+                                    DoubleField("Ap: ", ref s.ap, s.locked, " km", 60);
+                                    GUILayout.Space(40);
+                                    if (s.peMatchesAp)
+                                        s.pe = s.ap;
+                                    DoubleField("Pe: ", ref s.pe, s.locked, " km", 60);
+                                    GUILayout.FlexibleSpace();
+                                    s.peMatchesAp = GUILayout.Toggle(s.peMatchesAp, "");
+                                    GUILayout.Label("Pe == Ap");
+                                    GUILayout.Space(20);
+                                }
+                                FloatField("Margin of Error: ", ref s.marginOfError, 1, s.locked, " %", 50);
+                                if (HighLogic.LoadedSceneIsFlight)
+                                {
+                                    ApPeFromOrbit.ApPe aPpE = ApPeFromOrbit.ComputeApPe(FlightGlobals.ActiveVessel.orbitDriver.orbit,
+                                                                                        FlightGlobals.ActiveVessel.mainBody);
+                                    if (FlightChecks.IsWithinPercent(aPpE.ApAltitude * 0.001f, s.ap, s.marginOfError))
+                                        StatusMessage = "Ap is within the margin of error";
+                                    else
+                                        ErrorMessage = "Ap outside margin of error";
+
+                                    if (FlightChecks.IsWithinPercent(aPpE.PeAltitude * 0.001f, s.pe, s.marginOfError))
+                                    {
+                                        StatusMessage += (StatusMessage.Length > 0) ? ", " : "";
+                                        StatusMessage += "Pe is within the margin of error";
+                                    }
+                                    else
+                                    {
+                                        ErrorMessage += (ErrorMessage.Length > 0) ? ", " : "";
+                                        ErrorMessage += "Pe outside margin of error";
+                                    }
+
+                                }
+                                break;
+
                             case Maneuver.ImpactAsteroid:
                                 {
+                                    GUILayout.Space(30);
                                     using (new GUILayout.HorizontalScope())
                                     {
                                         GUILayout.Label("Destination Asteroid: ");
@@ -180,6 +224,11 @@ namespace MissionPlanner
                                 }
                                 break;
 
+                            case Maneuver.InterceptAsteroid:
+                                GUILayout.Space(30);
+                                SelectVessel(s.locked, ref s.destAsteroid, BodyAsteroidVessel.asteroid);
+                                break;
+
                             case Maneuver.FineTuneClosestApproachToVessel:
                             case Maneuver.InterceptVessel:
                             case Maneuver.MatchPlanesWithVessel:
@@ -189,6 +238,7 @@ namespace MissionPlanner
                                 SelectVessel(s.locked, ref s.destVessel, BodyAsteroidVessel.vessel);
                                 break;
 
+                            case Maneuver.Reentry:
                             case Maneuver.Landing:
                             case Maneuver.Splashdown:
                             case Maneuver.TransferToAnotherPlanet:
@@ -218,6 +268,73 @@ namespace MissionPlanner
                                         }
                                     }
                                 }
+                                break;
+
+                            case Maneuver.ResourceTransfer:
+                                if (s.resourceList.Count == 0)
+                                {
+                                    s.resourceList.Add(new ResInfo());
+                                }
+                                using (new GUILayout.HorizontalScope())
+                                {
+                                    GUILayout.Space(20);
+                                    GUILayout.Label("Resource", ScaledGUILayoutWidth(150));
+                                    GUILayout.Space(10);
+                                    GUILayout.Label("Start Amt", ScaledGUILayoutWidth(90));
+                                    GUILayout.Space(20);
+                                    GUILayout.Label("End Amt", ScaledGUILayoutWidth(80));
+                                    GUILayout.FlexibleSpace();
+                                }
+                                resScroll = GUILayout.BeginScrollView(resScroll, HighLogic.Skin.textArea, GUILayout.Height(200));
+                                StatusMessage = "";
+                                for (int i = 0; i < s.resourceList.Count; i++)
+                                {
+                                    ResInfo resinfo = s.resourceList[i];
+                                    using (new GUILayout.HorizontalScope())
+                                    {
+                                        int resId = GetResourceId(resinfo.resourceName);
+                                        resId = ComboBox.Box(RESOURCE_COMBO + i, resId, ResourceStrings, this, 150);
+                                        resinfo.resourceName = ResourceStrings[resId];
+                                        GUILayout.Space(10);
+
+                                        resinfo.startingAmount = FloatField("", resinfo.startingAmount, 0, s.locked, width: 100, flex: false);
+
+                                        GUILayout.Space(10);
+                                        resinfo.endingAmount = FloatField("", resinfo.endingAmount, 0, s.locked, width: 100, flex: false);
+
+                                        if (resinfo.startingAmount > resinfo.endingAmount)
+                                            resinfo.direction = Direction.StartToEnd;
+                                        else
+                                            resinfo.direction = Direction.EndToStart;
+
+                                        GUILayout.Space(10);
+                                        GUILayout.Label(StringFormatter.BeautifyName(resinfo.direction.ToString()));
+                                        GUILayout.FlexibleSpace();
+                                        if (GUILayout.Button("<B>+</B>", GUILayout.Width(20)))
+                                            s.resourceList.Add(new ResInfo());
+                                        if (s.resourceList.Count > 1)
+                                        {
+                                            if (GUILayout.Button("<B>-</B>", GUILayout.Width(20)))
+                                                s.resourceList.Remove(s.resourceList[i]);
+                                        }
+                                    }
+                                }
+                                GUILayout.EndScrollView();
+                                using (new GUILayout.HorizontalScope())
+                                {
+                                    GUILayout.FlexibleSpace();
+                                    if (GUILayout.Button("Clear", ScaledGUILayoutWidth(70)))
+                                    {
+                                        s.resourceList.Clear();
+                                    }
+                                    GUILayout.FlexibleSpace();
+                                    if (GUILayout.Button("Sort"))
+                                    {
+                                        s.resourceList = s.resourceList.OrderBy(r => r.resourceName, StringComparer.OrdinalIgnoreCase).ToList();
+                                    }
+                                    GUILayout.FlexibleSpace();
+                                }
+
                                 break;
 
                             default: break;
@@ -1973,6 +2090,26 @@ namespace MissionPlanner
             }
         }
 
+        private float FloatField(string label, float value, int places, bool locked, string suffix = "", float width = 120, bool flex = true)
+        {
+            using (new GUILayout.HorizontalScope())
+            {
+                GUILayout.Label(label); //, ScaledGUILayoutWidth(120));
+                string buf = "";
+                if (places == 0)
+                    buf = GUILayout.TextField(value.ToString("F0"), ScaledGUILayoutWidth(width));
+                else
+                    buf = GUILayout.TextField(value.ToString($"F{places}"), ScaledGUILayoutWidth(width));
+
+                if (!locked && float.TryParse(buf, out float parsed))
+                    value = parsed;
+                GUILayout.Label(suffix);
+                if (flex)
+                    GUILayout.FlexibleSpace();
+            }
+            return value;
+        }
+
         private void FloatField(string label, ref float value, int places, bool locked, string suffix = "", float width = 120, bool flex = true)
         {
             using (new GUILayout.HorizontalScope())
@@ -1980,7 +2117,7 @@ namespace MissionPlanner
                 GUILayout.Label(label); //, ScaledGUILayoutWidth(120));
                 string buf = "";
                 if (places == 0)
-                    buf = GUILayout.TextField(value.ToString("G"), ScaledGUILayoutWidth(width));
+                    buf = GUILayout.TextField(value.ToString("F0"), ScaledGUILayoutWidth(width));
                 else
                     buf = GUILayout.TextField(value.ToString($"F{places}"), ScaledGUILayoutWidth(width));
 

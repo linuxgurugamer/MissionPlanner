@@ -7,14 +7,14 @@ using static RadiatorUtils;
 using static ReactionWheelUtils;
 using static SolarUtils;
 
+using static MissionPlanner.RegisterToolbar;
+
 namespace MissionPlanner.Utils
 {
     internal class FlightChecks
     {
         public static int crew;
         static public bool powerMet;
-        //static public float chargeRate;
-        //static public float coolingRate;
         static public int flagCount;
 
         public static bool CheckCrew(Step s, out int crew)
@@ -42,6 +42,22 @@ namespace MissionPlanner.Utils
             return false;
         }
 
+        public static bool IsWithinPercent(double a, double b, double percent)
+        {
+            if (percent < 0)
+                percent = -percent;  // ensure positive percentage
+
+            if (b == 0)
+                return a == 0;
+
+            double factor = percent / 100.0;
+            double lower = b * (1.0 - factor);
+            double upper = b * (1.0 + factor);
+
+            return a >= lower && a <= upper;
+        }
+
+
         public static bool CheckStatus(Step s)
         {
             if ((!HighLogic.LoadedSceneIsFlight || FlightGlobals.ActiveVessel == null) &&
@@ -68,11 +84,46 @@ namespace MissionPlanner.Utils
                     (HighLogic.LoadedSceneIsEditor && DockingPortUtils.GetDockingParts(EditorLogic.fetch.ship).Count >= s.dockingPortQty);
 
                 case CriterionType.ControlSource:
-                    return (HighLogic.LoadedSceneIsFlight && PartLookupUtils.ShipModulesCount<ModuleCommand>(FlightGlobals.ActiveVessel)  >= s.controlSourceQty)||
+                    return (HighLogic.LoadedSceneIsFlight && PartLookupUtils.ShipModulesCount<ModuleCommand>(FlightGlobals.ActiveVessel) >= s.controlSourceQty) ||
                         (HighLogic.LoadedSceneIsEditor && PartLookupUtils.ShipModulesCount<ModuleCommand>(EditorLogic.fetch.ship) >= s.controlSourceQty);
 
                 case CriterionType.Part:
                     return s.CheckPart();
+
+                case CriterionType.Maneuver:
+
+                    switch (s.maneuver)
+                    {
+                        case Maneuver.Launch:
+                        case Maneuver.Orbit:
+                            ApPeFromOrbit.ApPe aPpE = ApPeFromOrbit.ComputeApPe(FlightGlobals.ActiveVessel.orbitDriver.orbit,
+                                                                                FlightGlobals.ActiveVessel.mainBody);
+                            return FlightChecks.IsWithinPercent(aPpE.ApAltitude, s.ap * 1000f, s.marginOfError) &&
+                                    FlightChecks.IsWithinPercent(aPpE.PeAltitude, s.pe * 1000f, s.marginOfError);
+
+                        case Maneuver.ResourceTransfer:
+                            for (int i = 0; i < s.resourceList.Count; i++)
+                            {
+                                var resinfo = s.resourceList[i];
+
+                                s.CheckResource(resinfo.resourceName, resinfo.locked, out double amt, out double capacity, resinfo.locked);
+
+                                if (resinfo.direction == Direction.StartToEnd)
+                                {
+                                    if (resinfo.endingAmount <= amt)
+                                        return false;
+                                }
+                                else
+                                {
+                                    if (resinfo.startingAmount >=amt)
+                                        return false;
+                                }
+                            }
+                            return true;
+
+                        default:
+                            return true;
+                    }
 
                 case CriterionType.Module:
                     {
@@ -163,9 +214,9 @@ namespace MissionPlanner.Utils
                                 return false;
                         }
 
-                        bool rc =  EngineTypeMatcher.PartsHaveEngineType(partsList, s.engineType);
+                        bool rc = EngineTypeMatcher.PartsHaveEngineType(partsList, s.engineType);
                         var info = DeltaVUtils.GetActiveStageInfo_Vac(useLaunchpadFirstStageIfPrelaunch: true);
-                        rc &=  info.deltaV >= s.deltaV & info.TWR >= s.TWR;
+                        rc &= info.deltaV >= s.deltaV & info.TWR >= s.TWR;
 
 
                         return rc;

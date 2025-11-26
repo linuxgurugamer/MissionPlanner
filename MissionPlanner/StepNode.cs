@@ -6,6 +6,7 @@ using static MissionPlanner.RegisterToolbar;
 namespace MissionPlanner
 {
 
+    public enum Direction { StartToEnd, EndToStart};
     public class ResInfo
     {
         public string resourceName = "";
@@ -13,6 +14,9 @@ namespace MissionPlanner
         public float resourceCapacity = 0f;
         public bool locked = false;
 
+        public float startingAmount { get { return resourceAmount; } set { resourceAmount = value; } }
+        public float endingAmount { get { return resourceCapacity;  } set { resourceCapacity = value; } }
+        public Direction direction = Direction.StartToEnd;
         public ResInfo() { }
         public ResInfo(string resourceName) { this.resourceName = resourceName; }
         public ResInfo(ResInfo r)
@@ -21,6 +25,7 @@ namespace MissionPlanner
             this.resourceAmount = r.resourceAmount;
             this.resourceCapacity = r.resourceCapacity;
             this.locked = r.locked;
+            this.direction = r.direction;
         }
     }
 
@@ -66,6 +71,11 @@ namespace MissionPlanner
         public double torquePitch = 0;
         public double torqueYaw = 0;
         public double torqueRoll = 0;
+
+        public double ap = 0;
+        public double pe = 0;
+        public float marginOfError = 10f; // percentage
+        public bool peMatchesAp = true;
 
         public string moduleName = "";
         public int minSASLevel = 0;
@@ -159,6 +169,12 @@ namespace MissionPlanner
             torqueYaw = step.torqueYaw;
             torqueRoll = step.torqueRoll;
 
+            ap = step.ap;
+            pe = step.pe;
+            marginOfError = step.marginOfError;
+            peMatchesAp = step.peMatchesAp;
+
+
             moduleName = step.moduleName;
             minSASLevel = step.minSASLevel;
 
@@ -249,6 +265,7 @@ namespace MissionPlanner
                     node.AddValue("resourceAmount", r.resourceAmount);
                     node.AddValue("resourceCapacity", r.resourceCapacity);
                     node.AddValue("locked", r.locked);
+                    node.AddValue("direction", r.direction.ToString());
                     n.AddNode(node);
                 }
             }
@@ -261,6 +278,7 @@ namespace MissionPlanner
                     node.AddValue("resourceAmount", r.resourceAmount);
                     node.AddValue("resourceCapacity", r.resourceCapacity);
                     node.AddValue("locked", r.locked);
+                    node.AddValue("direction", r.direction.ToString());
                     n.AddNode(node);
                 }
             }
@@ -273,6 +291,7 @@ namespace MissionPlanner
                     node.AddValue("resourceAmount", r.resourceAmount);
                     node.AddValue("resourceCapacity", r.resourceCapacity);
                     node.AddValue("locked", r.locked);
+                    node.AddValue("direction", r.direction.ToString());
                     n.AddNode(node);
                 }
             }
@@ -295,6 +314,11 @@ namespace MissionPlanner
             n.AddValue("torquePitch", torquePitch);
             n.AddValue("torqueYaw", torqueYaw);
             n.AddValue("torqueRoll", torqueRoll);
+
+            n.AddValue("ap", ap);
+            n.AddValue("pe", pe);
+            n.AddValue("marginOfError", marginOfError);
+            n.AddValue("peMatchesAp", peMatchesAp);
 
             n.AddValue("moduleName", moduleName);
             n.AddValue("minSASLevel", minSASLevel);
@@ -339,105 +363,117 @@ namespace MissionPlanner
             var s = new Step();
             s.title = n.SafeLoad("title", s.title);
             s.descr = n.SafeLoad("descr", s.descr);
-            s.completed = n.SafeLoad("completed", false);
-            s.locked = n.SafeLoad("locked", false);
+            s.completed = n.SafeLoad("completed", s.completed);
+            s.locked = n.SafeLoad("locked", s.locked);
             CriterionType t;
             if (Enum.TryParse(n.GetValue("stepType"), out t)) s.stepType = t;
 
             Maneuver m;
             if (Enum.TryParse(n.GetValue("maneuver"), out m)) s.maneuver= m;
-            s.toggle = n.SafeLoad("toggle", false);
-            s.initialToggleValue = n.SafeLoad("initialToggleValue", false);
-            s.minFloatRange = n.SafeLoad("minFloatRange", 0f);
-            s.maxFloatRange = n.SafeLoad("maxFloatRange", 0f);
-            s.number = n.SafeLoad("number", 0f);
-            s.traitName = n.SafeLoad("traitName", "");
+            s.toggle = n.SafeLoad("toggle", s.toggle);
+            s.initialToggleValue = n.SafeLoad("initialToggleValue", s.initialToggleValue);
+            s.minFloatRange = n.SafeLoad("minFloatRange", s.minFloatRange);
+            s.maxFloatRange = n.SafeLoad("maxFloatRange", s.maxFloatRange);
+            s.number = n.SafeLoad("number", s.number);
+            s.traitName = n.SafeLoad("traitName", s.traitName);
 
+            Direction d;
             var nodes = n.GetNodes("RESOURCE_LIST");
             foreach (var node in nodes)
             {
                 ResInfo ri = new ResInfo();
-                ri.resourceName = node.SafeLoad("resourceName", "");
-                ri.resourceAmount = node.SafeLoad("resourceAmount", 0f);
-                ri.resourceCapacity = node.SafeLoad("resourceCapacity", 0f);
+                ri.resourceName = node.SafeLoad("resourceName", ri.resourceName);
+                ri.resourceAmount = node.SafeLoad("resourceAmount", ri.resourceAmount);
+                ri.resourceCapacity = node.SafeLoad("resourceCapacity", ri.resourceCapacity);
                 ri.locked = node.SafeLoad("locked", ri.locked);
+                if (Enum.TryParse(n.GetValue("direction"), out d)) ri.direction = d;
+
                 s.resourceList.Add(ri);
             }
             nodes = n.GetNodes("ENGINE_RESOURCE_LIST");
             foreach (var node in nodes)
             {
                 ResInfo ri = new ResInfo();
-                ri.resourceName = node.SafeLoad("resourceName", "");
-                ri.resourceAmount = node.SafeLoad("resourceAmount", 0f);
-                ri.resourceCapacity = node.SafeLoad("resourceCapacity", 0f);
-                ri.locked = node.SafeLoad("locked", ri.locked); 
+                ri.resourceName = node.SafeLoad("resourceName", ri.resourceName);
+                ri.resourceAmount = node.SafeLoad("resourceAmount", ri.resourceAmount);
+                ri.resourceCapacity = node.SafeLoad("resourceCapacity", ri.resourceCapacity);
+                ri.locked = node.SafeLoad("locked", ri.locked);
+                if (Enum.TryParse(n.GetValue("direction"), out d)) ri.direction = d;
+
                 s.engineResourceList.Add(ri);
             }
             nodes = n.GetNodes("RCS_RESOURCE_LIST");
             foreach (var node in nodes)
             {
                 ResInfo ri = new ResInfo();
-                ri.resourceName = node.SafeLoad("resourceName", "");
-                ri.resourceAmount = node.SafeLoad("resourceAmount", 0f);
-                ri.resourceCapacity = node.SafeLoad("resourceCapacity", 0f);
+                ri.resourceName = node.SafeLoad("resourceName", ri.resourceName);
+                ri.resourceAmount = node.SafeLoad("resourceAmount", ri.resourceAmount);
+                ri.resourceCapacity = node.SafeLoad("resourceCapacity", ri.resourceCapacity);
                 ri.locked = node.SafeLoad("locked", ri.locked);
+                if (Enum.TryParse(n.GetValue("direction"), out d)) ri.direction = d;
+
                 s.rcsResourceList.Add(ri);
             }
 
-            s.batteryCapacity = n.SafeLoad("batteryCapacity", 0f);
-            s.chargeRateTotal = n.SafeLoad("chargeRateTotal", 0f);
+            s.batteryCapacity = n.SafeLoad("batteryCapacity", s.batteryCapacity);
+            s.chargeRateTotal = n.SafeLoad("chargeRateTotal", s.chargeRateTotal);
 
-            s.antennaPower = n.SafeLoad("antennaPower", 0f);
-            s.solarChargeRate = n.SafeLoad("solarChargeRate", 0f);
+            s.antennaPower = n.SafeLoad("antennaPower", s.antennaPower);
+            s.solarChargeRate = n.SafeLoad("solarChargeRate", s.solarChargeRate);
             string str = n.SafeLoad("solarPaneltracking", "both");
             s.solarPaneltracking = (SolarUtils.Tracking)Enum.Parse(typeof(SolarUtils.Tracking), str, true);
 
-            s.fuelCellChargeRate = n.SafeLoad("fuelCellChargeRate", 0f);
-            s.generatorChargeRate = n.SafeLoad("generatorChargeRate", 0f);
-            s.radiatorCoolingRate = n.SafeLoad("radiatorCoolingRate", 0);
+            s.fuelCellChargeRate = n.SafeLoad("fuelCellChargeRate", s.fuelCellChargeRate);
+            s.generatorChargeRate = n.SafeLoad("generatorChargeRate", s.generatorChargeRate);
+            s.radiatorCoolingRate = n.SafeLoad("radiatorCoolingRate", s.radiatorCoolingRate);
 
-            s.spotlights = n.SafeLoad("spotlights", 0);
-            s.parachutes = n.SafeLoad("parachutes", 0);
-            s.reactionWheels = n.SafeLoad("reactionWheels", 0);
+            s.spotlights = n.SafeLoad("spotlights", s.spotlights);
+            s.parachutes = n.SafeLoad("parachutes", s.parachutes);
+            s.reactionWheels = n.SafeLoad("reactionWheels", s.reactionWheels);
             s.torquePitchRollYawEqual = n.SafeLoad("torquePitchRollYawEqual", true);
 
-            s.torquePitch = n.SafeLoad("torquePitch", 0);
-            s.torqueYaw = n.SafeLoad("torqueYaw", 0);
-            s.torqueRoll = n.SafeLoad("torqueRoll", 0);
+            s.torquePitch = n.SafeLoad("torquePitch", s.torquePitch);
+            s.torqueYaw = n.SafeLoad("torqueYaw", s.torqueYaw);
+            s.torqueRoll = n.SafeLoad("torqueRoll", s.torqueRoll);
 
-            s.moduleName = n.SafeLoad("moduleName", "");
-            s.minSASLevel = n.SafeLoad("minSASLevel", 0);
+            s.ap = n.SafeLoad("ap", s.ap);
+            s.pe = n.SafeLoad("pe", s.pe);
+            s.marginOfError = n.SafeLoad("marginOfError", s.marginOfError);
+            s.peMatchesAp = n.SafeLoad("peMatchesAp", s.peMatchesAp);
 
-            s.flagBody = n.SafeLoad("flagBody", "");
-            s.destBody = n.SafeLoad("destBody", "");
-            s.destBiome = n.SafeLoad("destBiome", "");
-            s.biome = n.SafeLoad("biome", "");
-            s.destAsteroid = n.SafeLoad("destAsteroid", "");
+            s.moduleName = n.SafeLoad("moduleName", s.moduleName);
+            s.minSASLevel = n.SafeLoad("minSASLevel", s.minSASLevel);
 
-            s.destVessel = n.SafeLoad("destVessel", "");
-            s.trackedVessel = n.SafeLoad("trackedVessel", "");
+            s.flagBody = n.SafeLoad("flagBody", s.flagBody);
+            s.destBody = n.SafeLoad("destBody", s.destBody);
+            s.destBiome = n.SafeLoad("destBiome", s.destBiome);
+            s.biome = n.SafeLoad("biome", s.biome);
+            s.destAsteroid = n.SafeLoad("destAsteroid", s.destAsteroid);
+
+            s.destVessel = n.SafeLoad("destVessel", s.destVessel);
+            s.trackedVessel = n.SafeLoad("trackedVessel", s.trackedVessel);
             s.vesselGuid = n.SafeLoad("vesselGuid", Guid.Empty);
-            s.vabCategory = n.SafeLoad("vabCategory", "");
-            s.requiresLanding = n.SafeLoad("requiresLanding", false);
+            s.vabCategory = n.SafeLoad("vabCategory", s.vabCategory);
+            s.requiresLanding = n.SafeLoad("requiresLanding", s.requiresLanding);
 
-            s.requiresDocking = n.SafeLoad("requiresDocking", false);
-            s.hasDocked = n.SafeLoad("hasDocked", false);
-            s.flagCnt = n.SafeLoad("flagCnt", 0);
-            s.crewCount = n.SafeLoad("crewCount", 0);
-            s.engineQty = n.SafeLoad("engineQty", 0);
-            s.engineType = n.SafeLoad("engineType", "");
-            s.engineGimbaled = n.SafeLoad("engineGimbaled", false);
-            s.rcsType = n.SafeLoad("rcsType", "");
+            s.requiresDocking = n.SafeLoad("requiresDocking", s.requiresDocking);
+            s.hasDocked = n.SafeLoad("hasDocked", s.hasDocked);
+            s.flagCnt = n.SafeLoad("flagCnt", s.flagCnt);
+            s.crewCount = n.SafeLoad("crewCount", s.crewCount);
+            s.engineQty = n.SafeLoad("engineQty", s.engineQty);
+            s.engineType = n.SafeLoad("engineType", s.engineType);
+            s.engineGimbaled = n.SafeLoad("engineGimbaled", s.engineGimbaled);
+            s.rcsType = n.SafeLoad("rcsType", s.rcsType);
 
-            s.controlSourceQty = n.SafeLoad("controlSourceQty", 0);
-            s.dockingPortQty = n.SafeLoad("dockingPortQty", 0);
-            s.drillQty = n.SafeLoad("drillQty", 0);
-            s.deltaV = n.SafeLoad("deltaV", 0d);
-            s.TWR = n.SafeLoad("TWR", 0f);
+            s.controlSourceQty = n.SafeLoad("controlSourceQty", s.controlSourceQty);
+            s.dockingPortQty = n.SafeLoad("dockingPortQty", s.dockingPortQty);
+            s.drillQty = n.SafeLoad("drillQty", s.drillQty);
+            s.deltaV = n.SafeLoad("deltaV", s.deltaV);
+            s.TWR = n.SafeLoad("TWR", s.TWR);
 
-            s.partName = n.SafeLoad("partName", "");
-            s.partTitle = n.SafeLoad("partTitle", "");
-            s.partOnlyAvailable = n.SafeLoad("partOnlyAvailable", false);
+            s.partName = n.SafeLoad("partName", s.partName);
+            s.partTitle = n.SafeLoad("partTitle", s.partTitle);
+            s.partOnlyAvailable = n.SafeLoad("partOnlyAvailable", s.partOnlyAvailable);
 
             return s;
         }
@@ -485,7 +521,7 @@ namespace MissionPlanner
         public ConfigNode ToConfigNodeRecursive()
         {
             var n = new ConfigNode("NODE");
-            n.AddValue("title", data.title ?? "");
+            n.AddValue("title", data.title );
             n.AddValue("Expanded", Expanded);
             n.AddValue("requireAll", requireAll);
             n.AddNode(data.ToConfigNode());
@@ -496,10 +532,11 @@ namespace MissionPlanner
         public static StepNode FromConfigNodeRecursive(ConfigNode n)
         {
             var node = new StepNode();
-            node.data.title = n.GetValue("title") ?? node.data.title;
-            bool ex;
-            if (bool.TryParse(n.GetValue("Expanded"), out ex)) node.Expanded = ex;
-            if (bool.TryParse(n.GetValue("requireAll"), out ex)) node.requireAll = ex;
+
+            node.Expanded = n.SafeLoad("Expanded", false);
+            node.requireAll = n.SafeLoad("requireAll", false);
+            
+            node.data.title = n.SafeLoad("title", "noTitle");
 
             var stepNode = n.GetNode("STEP");
             if (stepNode != null) node.data = Step.FromConfigNode(stepNode);

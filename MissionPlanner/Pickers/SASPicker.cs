@@ -54,7 +54,8 @@ namespace MissionPlanner
                     s.minSASLevel = i;
                     _showSASDialog = false;
                     _SASTargetNode = null;
-                    TrySaveToDisk_Internal(true);
+                    if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().autosave)
+                        TrySaveToDisk_Internal(true);
                 }
                 GUILayout.EndHorizontal();
             }

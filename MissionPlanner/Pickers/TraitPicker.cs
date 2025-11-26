@@ -68,7 +68,8 @@ namespace MissionPlanner
                             s.traitName = trait;
                             _showTraitDialog = false;
                             _traitTargetNode = null;
-                            TrySaveToDisk_Internal(true);
+                            if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().autosave)
+                                TrySaveToDisk_Internal(true);
                         }
                         GUILayout.FlexibleSpace();
                     }

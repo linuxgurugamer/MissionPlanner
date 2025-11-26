@@ -4,44 +4,65 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
+using static MissionPlanner.RegisterToolbar;
+
 namespace MissionPlanner
 {
     public partial class HierarchicalStepsWindow : MonoBehaviour
     {
-        private List<MissionFileInfo> GetAllMissionFiles()
+        private List<MissionFileInfo> GetAllMissionFiles(bool showStock = true)
         {
             var results = new List<MissionFileInfo>();
             try
             {
-                string dir = GetMissionDirectoryAbsolute();
-                if (!Directory.Exists(dir)) return results;
-                foreach (var file in Directory.GetFiles(dir, "*", SearchOption.TopDirectoryOnly))
+                for (int i = 0; i < 2; i++)
                 {
-                    var name = Path.GetFileNameWithoutExtension(file);
-                    string save = "", mission = "";
-                    int idx = name.IndexOf("__", StringComparison.Ordinal);
-                    if (idx > 0 && idx < name.Length - 2)
-                    {
-                        save = name.Substring(0, idx);
-                        mission = name.Substring(idx + 2);
-                    }
+                    string dir;
+                    if (i == 0)
+                        dir = GetMissionDirectoryAbsolute();
                     else
-                    {
-                        var cn = ConfigNode.Load(file);
-                        save = cn.SafeLoad("SaveName", "UnknownSave");
-                        mission = cn.SafeLoad("MissionName", name);
-                        //save = cn?.GetValue("SaveName") ?? "UnknownSave";
-                        //mission = cn?.GetValue("MissionName") ?? name;
-                    }
+                        dir = GetDefaultMissionDirectoryAbsolute();
 
-                    results.Add(new MissionFileInfo
+                    if (!Directory.Exists(dir))
                     {
-                        FullPath = file,
-                        SaveName = save,
-                        MissionName = mission,
-                        LastWriteUtc = File.GetLastWriteTimeUtc(file)
-                    });
+                        Log.Info("directory doesn't exist");
+                        continue;
+                    }
+                    foreach (var file in Directory.GetFiles(dir, "*.cfg", SearchOption.TopDirectoryOnly))
+                    {
+                        var name = Path.GetFileNameWithoutExtension(file);
+                        string save = "", mission = "";
+                        int idx = name.IndexOf("__", StringComparison.Ordinal);
+                        if (i == 0)
+                        {
+                            if (idx > 0 && idx < name.Length - 2)
+                            {
+                                save = name.Substring(0, idx);
+                                mission = name.Substring(idx + 2);
+                            }
+                            else
+                            {
+                                var cn = ConfigNode.Load(file);
+                                save = cn.SafeLoad("SaveName", "");
+                                mission = cn.SafeLoad("MissionName", name);
+                            }
+                        }
+                        else
+                        {
+                            var cn = ConfigNode.Load(file);
+                            save = cn.SafeLoad("SaveName", "");
+                            mission = cn.SafeLoad("MissionName", name);
+                        }
+                        results.Add(new MissionFileInfo
+                        {
+                            FullPath = file,
+                            SaveName = save,
+                            MissionName = mission,
+                            stock = (i == 1)
+                        });
+                    }
                 }
+                return results;
             }
             catch (Exception ex)
             {
@@ -90,7 +111,7 @@ namespace MissionPlanner
             _loadScroll = GUILayout.BeginScrollView(_loadScroll, HighLogic.Skin.textArea, GUILayout.ExpandHeight(true));
             foreach (var mf in _loadList)
             {
-                if (!_loadShowAllSaves && !mf.SaveName.Equals(curSave, StringComparison.OrdinalIgnoreCase))
+                if (!_loadShowAllSaves && !mf.SaveName.Equals(curSave, StringComparison.OrdinalIgnoreCase) && !mf.stock)
                     continue;
 
 
@@ -98,8 +119,7 @@ namespace MissionPlanner
                 {
                     if (_loadShowAllSaves)
                         GUILayout.Label(mf.SaveName, ScaledGUILayoutWidth(180));
-                    GUILayout.Label(mf.MissionName, GUILayout.ExpandWidth(true));
-                    //GUILayout.Label(mf.LastWriteUtc.ToLocalTime().ToString("g"), ScaledGUILayoutWidth(140));
+                    GUILayout.Label(mf.MissionName + (mf.stock ? " (Stock)" : ""), GUILayout.ExpandWidth(true));
 
                     if (GUILayout.Button("Open", ScaledGUILayoutWidth(70)))
                     {
@@ -180,7 +200,7 @@ namespace MissionPlanner
                     finally
                     {
                         _showDeleteConfirm = false;
-                        _loadList = GetAllMissionFiles();
+                        _loadList = GetAllMissionFiles(false);
                     }
                 }
                 GUILayout.FlexibleSpace();

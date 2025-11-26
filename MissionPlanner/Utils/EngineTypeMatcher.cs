@@ -37,7 +37,6 @@ public static class EngineTypeMatcher
 
                 string key = GetEngineTypeKey(me);
                 if (string.IsNullOrEmpty(key)) continue;
-                Log.Info($"target: {target}   key: {key}");
                 if (NormalizeKey(key) == target)
                     return true;
             }
@@ -45,9 +44,6 @@ public static class EngineTypeMatcher
 
         return false;
     }
-
-
-
 
     /// <summary>
     /// Build engineType key:

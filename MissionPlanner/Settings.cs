@@ -11,6 +11,7 @@ using KSP.IO;
 
 namespace MissionPlanner
 {
+    // HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().
     public class MissionPlannerSettings : GameParameters.CustomParameterNode
     {
         //Thanks to https://forum.kerbalspaceprogram.com/index.php?/topic/147576-modders-notes-for-ksp-12/#comment-2754813
@@ -24,6 +25,10 @@ namespace MissionPlanner
 
         [GameParameters.CustomParameterUI("Show tooltips")]
         public bool showTooltips = true;
+
+        [GameParameters.CustomParameterUI("Autosave", toolTip ="Automatically saves the mission after every edit")]
+        public bool autosave = true;
+
 
         [GameParameters.CustomParameterUI("Show Save Indicator")]
         public bool showSaveIndicator = true;

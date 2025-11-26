@@ -51,7 +51,8 @@ namespace MissionPlanner
                         s.resourceName = ResourceStrings[i];
                         _showResourceDialog = false;
                         _resourceTargetNode = null;
-                        TrySaveToDisk_Internal(true);
+                        if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().autosave)
+                            TrySaveToDisk_Internal(true);
                         GUILayout.FlexibleSpace();
                     }
                 }

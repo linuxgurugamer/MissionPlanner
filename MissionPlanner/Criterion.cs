@@ -38,21 +38,24 @@
     public enum Maneuver
     {
         None,
-        Launch,
+        Launch,     // ap/pe
+        Orbit,      // ap/pe
         Reentry,
-        Landing,                    // planet
-        Splashdown,                 // planet
-        ImpactAsteroid,                     // asteroid or planet
-        TransferToAnotherPlanet,    // planet
+        Landing,   
+        ResourceTransfer,
+        Splashdown,                 
+        ImpactAsteroid,                     
+        TransferToAnotherPlanet,    
         ChangeApoapsis,
         ChangeBothPeAndAp,
         ChangeInclination,
         ChangePeriapsis,
         ChangeSemiMajorAxis,
-        FineTuneClosestApproachToVessel,    // vessel
-        InterceptVessel,                  // vessel
-        MatchPlanesWithVessel,                // vessel
-        MatchVelocitiesWithVessel,            // vessel
+        FineTuneClosestApproachToVessel,    
+        InterceptAsteroid,                 
+        InterceptVessel,                 
+        MatchPlanesWithVessel,                
+        MatchVelocitiesWithVessel,           
         ReturnFromAMoon
     }
 }
