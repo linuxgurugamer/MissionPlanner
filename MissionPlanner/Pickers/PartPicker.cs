@@ -122,8 +122,5 @@ namespace MissionPlanner
             }
             catch { return true; }
         }
-
-
-
     }
 }

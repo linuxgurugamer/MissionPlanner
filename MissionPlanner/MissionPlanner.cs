@@ -30,7 +30,8 @@ namespace MissionPlanner
         internal const string MODID = "Mission Planner";
         internal const string MODNAME = "Mission Planner";
         static ToolbarControl toolbarControl = null;
-
+        
+        public static bool openDeltaVEditor = false;
 
         // ---- Windows ----
         private Rect _treeRect = new Rect(220, 120, 840, 620);
@@ -40,7 +41,7 @@ namespace MissionPlanner
         private Rect _overwriteRect = new Rect(760, 180, 520, 220);
         private Rect _deleteRect = new Rect(760, 160, 520, 180);
         private Rect _partRect = new Rect(680, 140, 350, 580);
-        private Rect _resourceRect = new Rect(680, 140, 350, 580);
+        private Rect _deltaVRect = new Rect(680, 140, 1000, 580);
         private Rect _moduleRect = new Rect(680, 140, 350, 580);
         private Rect _SASRect = new Rect(680, 140, 350, 400); // 580
         private Rect _CategoryRect = new Rect(680, 140, 300, 580);
@@ -82,6 +83,7 @@ namespace MissionPlanner
         internal const string SAVE_MOD_FOLDER = "MissionPlanner/PluginData";
         internal const string MISSION_FOLDER = SAVE_MOD_FOLDER + "/Missions";
         internal const string DEFAULT_MISSION_FOLDER = SAVE_MOD_FOLDER + "/DefaultMissions";
+        internal const string DELTA_V_FOLDER = SAVE_MOD_FOLDER + "/DeltaVTables";
 
         private const string SAVE_FILE_EXT = ".cfg";
 
@@ -128,9 +130,9 @@ namespace MissionPlanner
 
         // Resource picker dialog
         //private bool _showResourceDialog = false;
-        //private StepNode _resourceTargetNode = null;
-        //private Vector2 _resourceScroll;
-        //private string _resourceFilter = "";
+        private StepNode _deltaVTargetNode = null;
+        private Vector2 _deltaVScroll;
+        private string _deltaVFilter = "";
 
         // Save As / New
         private bool _showSaveAs = false;
@@ -195,6 +197,10 @@ namespace MissionPlanner
         public static GUILayoutOption ScaledGUILayoutWidth(float width)
         {
             return GUILayout.Width(width * GameSettings.UI_SCALE);
+        }
+        public static GUILayoutOption ScaledGUIFontLayoutWidth(float width)
+        {
+            return GUILayout.Width(width * HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().fontSize / 12f);
         }
 
         public void Awake()
@@ -394,6 +400,16 @@ namespace MissionPlanner
                 );
             }
 #endif
+
+                if (_showDeltaVDialog)
+                {
+                    _deltaVRect = ClickThruBlocker.GUILayoutWindow(
+                        _resourceWinId, _deltaVRect, DrawDeltaVPickerWindow,
+                        "Select Suggested DeltaV",
+                         GUILayout.MinHeight(400)
+                    );
+                }
+
                 if (_showTraitDialog)
                 {
                     _traitRect = ClickThruBlocker.GUILayoutWindow(
@@ -549,10 +565,12 @@ namespace MissionPlanner
         int smallLabelFontSize;
         int tinyLabelFontSize;
 
+        int lastFontSize;
         void SetUpSkins()
         {
-            forceRecalcStyles = (lastUseKSPSkin != _useKspSkin);
+            forceRecalcStyles = (lastUseKSPSkin != _useKspSkin || lastFontSize != HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().fontSize);
             lastUseKSPSkin = _useKspSkin;
+            lastFontSize = HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().fontSize;
 
             if (originalGuiSkin == null)
             {
@@ -728,7 +746,7 @@ namespace MissionPlanner
             using (new GUILayout.HorizontalScope())
             {
                 GUILayout.Label("Mission:", ScaledGUILayoutWidth(60));
-                _missionName = GUILayout.TextField(_missionName ?? "", _titleEdit, GUILayout.MinWidth(160), GUILayout.ExpandWidth(true));
+                _missionName = GUILayout.TextField(_missionName ?? "", _titleEdit, ScaledGUIFontLayoutWidth(450), GUILayout.ExpandWidth(false));
                 showSummary = GUILayout.Toggle(showSummary, "");
 
                 if (showSummary)
@@ -892,10 +910,16 @@ namespace MissionPlanner
                     _creatingNewMission = false;
                     OpenSaveAsDialog();
                 }
+                GUILayout.FlexibleSpace();
+                if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().deltaVEditorActive)
+                {
+                    if (GUILayout.Button("DeltaV Editor"))
+                        openDeltaVEditor = true;
 
+                    GUILayout.FlexibleSpace();
+                }
                 if (GUILayout.Button("Load/Import…", ScaledGUILayoutWidth(120)))
                     OpenLoadDialog();
-
                 GUILayout.FlexibleSpace();
 
                 if (Time.realtimeSinceStartup <= _lastSaveShownUntil && !String.IsNullOrEmpty(_lastSaveInfo))
@@ -911,6 +935,7 @@ namespace MissionPlanner
                 {
                     _visible = false;
                     SyncToolbarState();
+                    toolbarControl.SetFalse(true);
                 }
                 GUILayout.Space(20);
             }
@@ -1699,7 +1724,6 @@ namespace MissionPlanner
             using (new GUILayout.HorizontalScope())
             {
                 GUILayout.Label(_creatingNewMission ? "New mission name:" : "Save as name:", ScaledGUILayoutWidth(140));
-                GUI.SetNextControlName("SaveAsNameField");
                 _saveAsName = GUILayout.TextField(_saveAsName ?? "", GUILayout.MinWidth(180), GUILayout.ExpandWidth(true));
             }
 
@@ -1723,9 +1747,6 @@ namespace MissionPlanner
                 GUILayout.Label("Mission summary (optional):");
                 _saveAsSummaryText = GUILayout.TextArea(_saveAsSummaryText ?? "", HighLogic.Skin.textArea, GUILayout.MinHeight(80));
             }
-
-            if (Event.current.type == EventType.Repaint && GUI.GetNameOfFocusedControl() != "SaveAsNameField")
-                GUI.FocusControl("SaveAsNameField");
 
             GUILayout.Space(10);
             using (new GUILayout.HorizontalScope())

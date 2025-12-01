@@ -55,6 +55,7 @@
   <ItemGroup>
     <Compile Include="Pickers\BodyAsteroidVesselPicker.cs" />
     <Compile Include="Pickers\CategoryPicker.cs" />
+    <Compile Include="Pickers\DeltaVPicker.cs" />
     <Compile Include="Pickers\ResourcePicker.cs" />
     <Compile Include="Pickers\SASPicker.cs" />
     <Compile Include="Settings.cs" />
@@ -72,6 +73,7 @@
     <Compile Include="MissionPlanner.cs" />
     <Compile Include="InstallChecker.cs" />
     <Compile Include="Pickers\ModulePicker.cs" />
+    <Compile Include="Utils\CelestialBodyUtils.cs" />
     <Compile Include="Utils\DeltaVUtils.cs" />
     <Compile Include="Utils\DockingPortUtils.cs" />
     <Compile Include="Utils\DrillUtils.cs" />
@@ -91,6 +93,7 @@
     <Compile Include="Scenarios\MissionVisitTracker.cs" />
     <Compile Include="Utils\ParachuteUtils.cs" />
     <Compile Include="Utils\BiomeUtils.cs" />
+    <Compile Include="Utils\PlanetPackHeuristics.cs" />
     <Compile Include="Utils\RadiatorUtils.cs" />
     <Compile Include="Utils\RCSUtils.cs" />
     <Compile Include="RegisterToolbar.cs" />
@@ -103,6 +106,7 @@
     <Compile Include="Utils\SolarUtils.cs" />
     <Compile Include="StepNode.cs" />
     <Compile Include="Utils\StringFormatter.cs" />
+    <Compile Include="Utils\StringUtils.cs" />
     <Compile Include="Utils\SystemHeatConfigUtils.cs" />
     <Compile Include="Utils\TraitUtil.cs" />
     <Compile Include="Pickers\TraitPicker.cs" />

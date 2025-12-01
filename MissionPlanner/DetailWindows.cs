@@ -1692,7 +1692,15 @@ namespace MissionPlanner
                             s.engineGimbaled = GUILayout.Toggle(s.engineGimbaled, "");
                             GUILayout.Label("Gimbaled");
                             GUILayout.FlexibleSpace();
-                            GUILayout.Label("Delta V: ");
+                            if (deltaVTableAvailable)
+                            {
+                                if (GUILayout.Button("  Delta V: "))
+                                {
+                                    OpenDeltaVPicker(_detailNode);
+                                }
+                            }
+                            else
+                                GUILayout.Label("Delta V: ");
                             DoubleField("", ref s.deltaV, s.locked, "dV");
                             GUILayout.FlexibleSpace();
                             GUILayout.Label("TWR: ");

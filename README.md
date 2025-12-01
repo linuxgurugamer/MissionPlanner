@@ -111,7 +111,6 @@ Load dialog with delete, show-all toggle
 
 Toolbar button; hides on pause; drag from anywhere (DragWindow at end)
 
-The Mechanical Jeb - Pod version 2.0 from MechJeb is ignored, as it's not used anymore
 
 Note regarding docking ports:
 	Most known docking ports are recognized.  Specifically, the following part modules are recognized as being docking ports:
@@ -134,6 +133,39 @@ Several sample mission plans have been provided for your use and to provide some
 									It includes sections for building the station, building the launch vehicle, 
 									launching and resupply
 
+	Land on the Mun					This checklist details everything needed to land on the Mun
+
+	Grand Tour						This checklist will help  you do a grand tour of the system
 
 Note:  The contents of the file ComboBox2.cs are a derivitive of the combobox from Mechjeb.
 		The license for this file is the GPLv3
+
+Note:  The Mechanical Jeb - Pod version 2.0 from MechJeb is ignored, as it's not used anymore
+
+
+Delta V & Planet Packs
+	The following planet packs are recognized and have delta V tables :
+
+		Stock
+		JNSQ
+		GPP
+
+		Promised Worlds is idential to Stock, so if Promised Worlds is detected, it will use Stock instead
+
+	Additional tables are welcome, can be made using the provided editor
+
+	The supplied DeltaV charts are using values from the available Delta-V graphs, showing the 
+	needed delta-V from Kerbal to all bodies.  Bodies which are moons of other bodies (ie:  Bop is
+	a moon of Jool) show the info starting from the point of being captured in the parent body's 
+	SOI
+
+	The editor has the ability to generate initial line entries for whatever planet-pack is loaded.  
+	There are three options:
+		Homeworld to all	Generate initial lines for each body in the system, starting at the 
+							homeworld.  They will be filled with default values of -1, just fill 
+							in the values that you ant		
+		All to all			Generate initial lines going from each body to every other body
+		All to Homeworld	Generate initial  lines for each body in the system going to the homeworld,
+							starting at the body.
+
+		These options are additive, but will only add a line if the corresponding line isn't there

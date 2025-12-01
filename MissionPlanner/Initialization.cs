@@ -54,7 +54,7 @@ namespace MissionPlanner
 
                 initialized = true;
 
-
+                HierarchicalStepsWindow.deltaVTableAvailable = HierarchicalStepsWindow.DeltaVTableAvailable();
                 systemHeat = SpaceTuxUtility.HasMod.hasMod("SystemHeat");
                 vabOrganizer = SpaceTuxUtility.HasMod.hasMod("VABOrganizer");
                 HierarchicalStepsWindow.criterionTypeStrings = Enum.GetNames(typeof(CriterionType));
