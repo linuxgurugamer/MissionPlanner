@@ -154,13 +154,20 @@ Delta V & Planet Packs
 
 	Additional tables are welcome, can be made using the provided editor
 
+Delta-V Editor
 	The supplied DeltaV charts are using values from the available Delta-V graphs, showing the 
 	needed delta-V from Kerbal to all bodies.  Bodies which are moons of other bodies (ie:  Bop is
 	a moon of Jool) show the info starting from the point of being captured in the parent body's 
 	SOI
 
+	After entering the editor, you will be able to load any existing delta-v tables.
+
+	There is a toggle called "Use Loaded Planet Pack", which if selected will use the currently loaded bodies
+	to set the isMoon and parent values.
+
 	The editor has the ability to generate initial line entries for whatever planet-pack is loaded.  
 	There are three options:
+
 		Homeworld to all	Generate initial lines for each body in the system, starting at the 
 							homeworld.  They will be filled with default values of -1, just fill 
 							in the values that you ant		
@@ -168,4 +175,37 @@ Delta V & Planet Packs
 		All to Homeworld	Generate initial  lines for each body in the system going to the homeworld,
 							starting at the body.
 
-		These options are additive, but will only add a line if the corresponding line isn't there
+	These options are additive, but will only add a line if the corresponding line isn't there.
+
+	Each lines has entry fields for the following:
+
+		Origin						Starting body
+		Destination					Destination body
+		dV_to_low_orbit				Delta V to low orbit
+		injection_dV				Delta V for injection maneuver from low orbit 
+		capture_dV					Dv needed to capture in SOI of destination
+		transfer_to_low_orbit_dV	Dv needed to transfer to low orbit
+		total_capture_dV			This is a total of the capture_dV and transfer_to_low_orbit_dV
+		dV_low_orbit_to_surface		Dv needed to land on the planet.  For planets with an atmosphere, 
+									will be what's needed to low down for reentry
+		ascent_dV					Dv needed to launch from the planet to low orbit
+		plane_change_dV				Max Dv needed for any plane change needed
+		isMoon						Is this body a moon of another body
+		parent						If a moon, the parent of the body
+
+	When using the Populate buttons to fill the initial data, the Origin, Destination, isMoon and 
+	parent fields are populated, all the other fields will be initialized with values of -1.
+
+	The editor can be enabled by going into the stock settings and enabling the editor option
+	in the Mission Planner pane
+
+	There will be the following controls on each line in the editor:  
+	
+		Del							Delete the line
+		Dup							Duplicate the line
+
+	The following columns can be sorted by clicking on the button at the top of the column:
+
+		Origin
+		Destination
+		Parent
