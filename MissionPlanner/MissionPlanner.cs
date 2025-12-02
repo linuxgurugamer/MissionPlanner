@@ -264,8 +264,11 @@ namespace MissionPlanner
 
         public void OnDestroy()
         {
-            if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().autosave)
-                TrySaveToDisk_Internal(true);
+            if (HighLogic.CurrentGame != null)
+            {
+                if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().autosave)
+                    TrySaveToDisk_Internal(true);
+            }
             SaveUISettings();
 
             GameEvents.onHideUI.Remove(onHideUI);
