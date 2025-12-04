@@ -8,6 +8,12 @@ namespace MissionPlanner.Utils
 
         static public Dictionary<int, StageInfo> stageInfo = new Dictionary<int, StageInfo>();
 
+        static public int StageCount {  get {
+                if (HighLogic.LoadedSceneIsEditor || HighLogic.LoadedSceneIsFlight)
+                    return stageInfo.Count;
+                else return int.MaxValue;
+            }}
+
         DeltaVStageInfo dvStageInfo;
 
         public static float TWRActual(int stage)

@@ -751,6 +751,7 @@ namespace MissionPlanner
 
         bool showSummary = false;
         bool showDetail = false;
+        bool showVesselSpecific = false;
 
         private void DrawTreeWindow(int id)
         {
@@ -852,6 +853,16 @@ namespace MissionPlanner
                             GUILayout.Label("Done|Lock|All | Double-click a title to edit in a separate window. Use ▲ ▼ ⤴ ⤵ Move… Dup + ✖ to manage hierarchy.", _titleLabel);
                             break;
                     }
+                }
+                {
+                    GUIStyle style = GUI.skin.label;
+
+                    var content = new GUIContent("", "Show items which might need adjustments for different vessels  ");
+                    Vector2 size = style.CalcSize(content);
+                    showVesselSpecific = GUILayout.Toggle(showVesselSpecific, content);
+                    content = new GUIContent("Vessel Specific", "Show items which might need adjustments for different vessels  ");
+                    size = style.CalcSize(content);
+                    GUILayout.Label(content, GUILayout.Width(size.x));
                 }
             }
             GUILayout.Space(4);
@@ -958,10 +969,6 @@ namespace MissionPlanner
             GUI.DragWindow(new Rect(0, 0, 10000, 10000));
         }
 
-        void ToggleDeltaVEditor()
-        {
-
-        }
 
         private ResizeHandle resizeHandle = null;
 
@@ -1279,9 +1286,10 @@ namespace MissionPlanner
             }
             return ": " + criteria;
         }
+
         private void DrawNodeRow(StepNode node, int depth)
         {
-            Rect titleRect;
+            Rect titleRect = new Rect();
             bool up, down, promote, demote, moveTo, dup, add, del;
             float indent = 0;
             string criteria = "";
@@ -1289,59 +1297,65 @@ namespace MissionPlanner
             {
                 using (new GUILayout.HorizontalScope())
                 {
-                    if (!_useKspSkin)
-                        GUILayout.Space(15);
-                    node.data.completed = GUILayout.Toggle(node.data.completed, new GUIContent("", "Mark this line as completed"));
-                    if (_simpleChecklist)
+                    // The following "if" is formatted this way to make it easier to add additional criteria types to be associated
+                    // with a specific stage
+                    if (!showVesselSpecific ||
+                        (node.data.stepType == CriterionType.Engines))
                     {
 
-                    }
-                    else
-                    {
-                        if (_useKspSkin)
-                            GUILayout.Space(10);
-                        else
+                        if (!_useKspSkin)
                             GUILayout.Space(15);
+                        node.data.completed = GUILayout.Toggle(node.data.completed, new GUIContent("", "Mark this line as completed"));
+                        if (_simpleChecklist)
+                        {
 
-                        node.data.locked = GUILayout.Toggle(node.data.locked, new GUIContent("", "Lock this line"));
-                        if (_useKspSkin)
-                            GUILayout.Space(1);
+                        }
                         else
-                            GUILayout.Space(5);
+                        {
+                            if (_useKspSkin)
+                                GUILayout.Space(10);
+                            else
+                                GUILayout.Space(15);
 
-                        bool b = GUILayout.Toggle(node.requireAll, new GUIContent("", "Require all children to be fulfilled for this to be fulfilled"));
-                        if (!node.data.locked)
-                            node.requireAll = b;
-                    }
-                    indent = 12f + _indentPerLevel * depth;
-                    GUILayout.Space(indent);
+                            node.data.locked = GUILayout.Toggle(node.data.locked, new GUIContent("", "Lock this line"));
+                            if (_useKspSkin)
+                                GUILayout.Space(1);
+                            else
+                                GUILayout.Space(5);
 
-                    if (node.Children.Count == 0)
-                    {
-                        GUILayout.Label(" ", ScaledGUILayoutWidth(_foldColWidth));
-                    }
-                    else
-                    {
-                        string sign = node.Expanded ? "-" : "+";
-                        if (GUILayout.Button("<B>" + sign + "</B>", _titleLabel, ScaledGUILayoutWidth(_foldColWidth))) node.Expanded = !node.Expanded;
-                    }
+                            bool b = GUILayout.Toggle(node.requireAll, new GUIContent("", "Require all children to be fulfilled for this to be fulfilled"));
+                            if (!node.data.locked)
+                                node.requireAll = b;
+                        }
+                        indent = 12f + _indentPerLevel * depth;
+                        GUILayout.Space(indent);
 
-                    const float controlsBase = 100f;
-                    float controlsWidth = controlsBase + _controlsPad;
-                    float available = Mathf.Max(120f, _treeRect.width - indent - _foldColWidth - controlsWidth - 12f);
-                    float titleWidth = Mathf.Clamp(available * _titleWidthPct, MAX_TITLE_WIDTH, available);
+                        if (node.Children.Count == 0)
+                        {
+                            GUILayout.Label(" ", ScaledGUILayoutWidth(_foldColWidth));
+                        }
+                        else
+                        {
+                            string sign = node.Expanded ? "-" : "+";
+                            if (GUILayout.Button("<B>" + sign + "</B>", _titleLabel, ScaledGUILayoutWidth(_foldColWidth))) node.Expanded = !node.Expanded;
+                        }
 
-                    var style = (_selectedNode == node) ? _selectedTitleLabel : _titleLabel;
+                        const float controlsBase = 100f;
+                        float controlsWidth = controlsBase + _controlsPad;
+                        float available = Mathf.Max(120f, _treeRect.width - indent - _foldColWidth - controlsWidth - 12f);
+                        float titleWidth = Mathf.Clamp(available * _titleWidthPct, MAX_TITLE_WIDTH, available);
 
-                    bool fulfilled = FlightChecks.CheckChildStatus(node);
-                    if (!fulfilled)
-                    {
-                        style = (_selectedNode == node) ? _selectedUnfilledTitleLabel : _unfilledTitleLabel;
-                    }
+                        var style = (_selectedNode == node) ? _selectedTitleLabel : _titleLabel;
 
-                    if (showDetail)
-                    {
-                        criteria = OneLineSummary(node, ref style);
+                        bool fulfilled = FlightChecks.CheckChildStatus(node);
+                        if (!fulfilled)
+                        {
+                            style = (_selectedNode == node) ? _selectedUnfilledTitleLabel : _unfilledTitleLabel;
+                        }
+
+                        if (showDetail)
+                        {
+                            criteria = OneLineSummary(node, ref style);
 #if false
                         switch (node.data.stepType)
                         {
@@ -1424,57 +1438,59 @@ namespace MissionPlanner
                         }
 
 #endif
-                    }
+                        }
 
-                    GUILayout.Label(node.data.title, style, ScaledGUILayoutWidth(titleWidth));
-                    titleRect = GUILayoutUtility.GetLastRect();
-                    up = down = promote = demote = moveTo = dup = add = del = false;
+                        GUILayout.Label(node.data.title, style, ScaledGUILayoutWidth(titleWidth));
+                        titleRect = GUILayoutUtility.GetLastRect();
+                        up = down = promote = demote = moveTo = dup = add = del = false;
 
-                    GUILayout.FlexibleSpace();
-                    if (currentView == View.Full)
-                    {
-                        up = GUILayout.Button("▲", _smallBtn);
-                        down = GUILayout.Button("▼", _smallBtn);
-                        promote = GUILayout.Button("⤴", _smallBtn);
-                        demote = GUILayout.Button("⤵", _smallBtn);
-                        moveTo = GUILayout.Button("Move…", ScaledGUILayoutWidth(60f /* 54f */));
-                        dup = GUILayout.Button("Dup", ScaledGUILayoutWidth(40f));
-                        GUILayout.Space(20);
-                        add = GUILayout.Button("<B>+</B>", _smallBtn /* "⊕" */, ScaledGUILayoutWidth(28));
-                        del = GUILayout.Button("✖", _smallBtn);
-                        GUILayout.Space(5);
-                    }
-                }
+                        GUILayout.FlexibleSpace();
+                        if (currentView == View.Full)
+                        {
+                            up = GUILayout.Button("▲", _smallBtn);
+                            down = GUILayout.Button("▼", _smallBtn);
+                            promote = GUILayout.Button("⤴", _smallBtn);
+                            demote = GUILayout.Button("⤵", _smallBtn);
+                            moveTo = GUILayout.Button("Move…", ScaledGUILayoutWidth(60f /* 54f */));
+                            dup = GUILayout.Button("Dup", ScaledGUILayoutWidth(40f));
+                            GUILayout.Space(20);
+                            add = GUILayout.Button("<B>+</B>", _smallBtn /* "⊕" */, ScaledGUILayoutWidth(28));
+                            del = GUILayout.Button("✖", _smallBtn);
+                            GUILayout.Space(5);
+                        }
 
-                if (currentView != View.Tiny)
-                    HandleTitleClicks(node, titleRect);
 
-                if (currentView == View.Full)
-                {
-                    if (up) MoveUp(node);
-                    if (down) MoveDown(node);
-                    if (promote) Promote(node);
-                    if (demote) Demote(node);
-                    if (moveTo) OpenMoveDialog(node);
-                    if (dup) Duplicate(node);
-                    if (add)
-                    {
-                        var child = node.AddChild();
-                        node.Expanded = true;
-                        _selectedNode = child;
-                        OpenDetail(child);
-                    }
-                    if (del) Delete(node);
-                }
-                if (showDetail)
-                {
-                    using (new GUILayout.HorizontalScope())
-                    {
-                        GUILayout.Space(140 + indent);
-                        if (criteria != "")
-                            GUILayout.Label("(" + StringFormatter.BeautifyName(node.data.stepType.ToString()) + " " + criteria + ")", _smallLabel);
-                        else
-                            GUILayout.Label("(" + StringFormatter.BeautifyName(node.data.stepType.ToString()) + ")", _smallLabel);
+                        if (currentView != View.Tiny)
+                            HandleTitleClicks(node, titleRect);
+
+                        if (currentView == View.Full)
+                        {
+                            if (up) MoveUp(node);
+                            if (down) MoveDown(node);
+                            if (promote) Promote(node);
+                            if (demote) Demote(node);
+                            if (moveTo) OpenMoveDialog(node);
+                            if (dup) Duplicate(node);
+                            if (add)
+                            {
+                                var child = node.AddChild();
+                                node.Expanded = true;
+                                _selectedNode = child;
+                                OpenDetail(child);
+                            }
+                            if (del) Delete(node);
+                        }
+                        if (showDetail)
+                        {
+                            using (new GUILayout.HorizontalScope())
+                            {
+                                GUILayout.Space(140 + indent);
+                                if (criteria != "")
+                                    GUILayout.Label("(" + StringFormatter.BeautifyName(node.data.stepType.ToString()) + " " + criteria + ")", _smallLabel);
+                                else
+                                    GUILayout.Label("(" + StringFormatter.BeautifyName(node.data.stepType.ToString()) + ")", _smallLabel);
+                            }
+                        }
                     }
                 }
                 if (node.Expanded && node.Children.Count > 0)
@@ -1489,20 +1505,7 @@ namespace MissionPlanner
                 }
             }
 
-            // Optionally display the tooltip near the mouse cursor
-            if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().showTooltips)
-            {
-                if (!string.IsNullOrEmpty(GUI.tooltip))
-                {
-                    Vector2 mouse = Event.current.mousePosition;
-                    GUIStyle style = GUI.skin.box;
-                    Vector2 size = style.CalcSize(new GUIContent(GUI.tooltip));
-
-                    // Small offset so it doesn’t overlap the cursor
-                    Rect tipRect = new Rect(mouse.x + 16f, mouse.y + 16f, size.x + 8f, size.y + 4f);
-                    GUI.Box(tipRect, GUI.tooltip);
-                }
-            }
+            ToolTips.ShowToolTip(_treeRect);
         }
 
 

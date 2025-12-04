@@ -1,10 +1,4 @@
-﻿using MissionPlanner.MissionPlanner;
-using MissionPlanner.Utils;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using UnityEngine;
-using static MissionPlanner.RegisterToolbar;
+﻿using UnityEngine;
 
 namespace MissionPlanner
 {
@@ -20,6 +14,10 @@ namespace MissionPlanner
 
         private void IntField(string label, ref int value, bool locked, float width = 120, float labelWidth = 90)
         {
+            IntField(new GUIContent(label), ref value, locked, width, labelWidth);
+        }
+        private void IntField(GUIContent label, ref int value, bool locked, float width = 120, float labelWidth = 90)
+        {
             using (new GUILayout.HorizontalScope())
             {
                 GUILayout.Label(label, ScaledGUILayoutWidth(labelWidth));
@@ -31,7 +29,6 @@ namespace MissionPlanner
                 GUILayout.FlexibleSpace();
             }
         }
-
         private float FloatField(string label, float value, int places, bool locked, string suffix = "", float width = 120, bool flex = true)
         {
             using (new GUILayout.HorizontalScope())

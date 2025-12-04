@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using static MissionPlanner.RegisterToolbar;
 using static MissionPlanner.Utils.FuelCellUtils;
 using static ParachuteUtils;
 using static RadiatorUtils;
@@ -66,7 +67,7 @@ namespace MissionPlanner
                 {
                     GUILayout.Label("Criterion Type");
 
-                    s.stepType = (CriterionType)ComboBox.Box(CRITERIUM_COMBO, (int)s.stepType, criterionTypeStrings, this, 250);
+                    s.stepType = (CriterionType)ComboBox.Box(CRITERIUM_COMBO, (int)s.stepType, criterionTypeStrings, this, 200);
 
                     if (!s.locked)
                     {
@@ -136,7 +137,7 @@ namespace MissionPlanner
                 }
                 GUILayout.FlexibleSpace();
             }
-
+            ToolTips.ShowToolTip(_detailRect);
             GUI.DragWindow(new Rect(0, 0, 10000, 10000));
         }
 
@@ -1658,6 +1659,7 @@ namespace MissionPlanner
                 case CriterionType.Engines:
                     {
                         EngineTypeInfo eti = null;
+                        bool firstStage = s.stage >= StageInfo.StageCount;
                         using (new GUILayout.HorizontalScope())
                         {
                             GUILayout.Label("Engine: ");
@@ -1686,6 +1688,22 @@ namespace MissionPlanner
                                 foreach (var p in eti.Propellants)
                                     s.engineResourceList.Add(new ResInfo(p));
                             }
+
+                            GUILayout.FlexibleSpace();
+                            int realStage = (s.stage <= StageInfo.StageCount - 1) ? s.stage : StageInfo.StageCount - 1;
+
+                            bool f = GUILayout.Toggle(firstStage, "");
+                            GUILayout.Label("First Stage");
+                            if (f && !firstStage)
+                            {
+                                firstStage = true;
+                                s.stage = int.MaxValue;
+                            }
+                            if (firstStage && !f)
+                            {
+                                firstStage = false;
+                                s.stage = 0;
+                            }
                         }
                         using (new GUILayout.HorizontalScope())
                         {
@@ -1706,10 +1724,17 @@ namespace MissionPlanner
 
                             FloatField("TWR:", ref s.TWR, 2, s.locked, width: 50);
 
-                            IntField("Stage:", ref s.stage, s.locked, 30, 50);
-                            GUILayout.FlexibleSpace();
-                            s.asl = GUILayout.Toggle(s.asl, "");
-                            GUILayout.Label("ASL");
+                            if (!firstStage)
+                            {
+                                IntField(new GUIContent("Stage:"), ref s.stage, s.locked, 50, 50);
+                            } else
+                            {
+                                GUILayout.Label("Stage:", GUILayout.Width(50));
+                                GUILayout.Label("First Stage");
+                            }
+                                GUILayout.FlexibleSpace();
+                            s.asl = GUILayout.Toggle(s.asl,new GUIContent("", "Enable for Sea Level values"));
+                            GUILayout.Label(new GUIContent("ASL","Enable for Sea Level values"));
                         }
 
                         using (new GUILayout.HorizontalScope())
@@ -1794,18 +1819,18 @@ namespace MissionPlanner
 
                         if (HighLogic.LoadedSceneIsEditor || HighLogic.LoadedSceneIsFlight)
                         {
-
+                            int realStage = (s.stage <= StageInfo.StageCount - 1) ? s.stage : StageInfo.StageCount - 1;
                             float dV = 0;
                             float twr = 0;
                             if (!s.asl)
                             {
-                                dV = StageInfo.DeltaVinVac(s.stage);
-                                twr = StageInfo.TWRVac(s.stage);
+                                dV = StageInfo.DeltaVinVac(realStage);
+                                twr = StageInfo.TWRVac(realStage);
                             }
                             else
                             {
-                                dV = StageInfo.DeltaVatASL(s.stage);
-                                twr = StageInfo.TWRASL(s.stage);
+                                dV = StageInfo.DeltaVatASL(realStage);
+                                twr = StageInfo.TWRASL(realStage);
                             }
 
                             GUILayout.Label("Calculated Delta V: ", ScaledGUILayoutWidth(150));
@@ -1826,7 +1851,7 @@ namespace MissionPlanner
                                 ErrorMessage += "Not sufficient Delta V available";
                             }
 
-                            if (StageInfo.TWRASL(s.stage) >= s.TWR)
+                            if (StageInfo.TWRASL(realStage) >= s.TWR)
                             {
                                 if (StatusMessage.Length > 0)
                                     StatusMessage += ":";

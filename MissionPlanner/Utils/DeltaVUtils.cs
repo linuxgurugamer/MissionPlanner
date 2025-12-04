@@ -2,6 +2,7 @@
 // KSP1 – compute delta-v + TWR for:
 // - Flight: current stage, or (optionally) first stage when on the launchpad
 // - Editor: first stage (bottom stage / highest inverseStage)
+#if false
 
 using System;
 using System.Collections.Generic;
@@ -256,3 +257,4 @@ public static class DeltaVUtils
         return maxStage;
     }
 }
+#endif

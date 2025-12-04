@@ -12,6 +12,8 @@ be marked at fulfilled or not based on the toggle.
 
 Some items will have a status shown, red means that the criteria for that line has not been met.
 
+The main window is resizable by click/dragging the double-slash icon in the lower right corner
+
 The following is the list of entries that can be specified  Most of them have active checks, meaning that checks are done during flight to verify each entry against the current vessel :
 
 
@@ -23,7 +25,10 @@ The following is the list of entries that can be specified  Most of them have ac
 							on the vessel.  Supports USI and Civilian Population traits
 	Crew Count				Checks for minimum crew
 	Docking Ports			Checks for docking ports
-	Engines					Has specific checks for TWR, dV and resources used by the engine
+	Engines					Has specific checks for TWR, dV and resources used by the engine.  Delta V and TWR are tied 
+							to a specified stage or the first stage.  The plan will need to be adjusted if any engine 
+							entries are tied to a specific stage (see Vessel Specific toggle).
+							There is a toggle to indicate that the criteria should apply to the first stage
 	Flags					Updates if one or more flags have been planted on the selected body.
 	Lights					Checks for the required number of spotlights on the vessel
 	Maneuver				Manual checklist item for various maneuvers.  Some of the maneuvers have additional fields:
@@ -89,6 +94,7 @@ Controls available on the main window
 	Show Summary (toggle)			Shows the mission summary
 	Show Detail (toggle)			Shows an additional line with the criterion type and optional parameters
 	Use KSP Skin (toggle)
+	Vessel Specific (toggle)		Shows those criteria steps which may need to be adjusted for different vessels
 
 	New (button)					Creates a new mission
 	Clear All (button)				Clears all the steps, but keeps the mission info

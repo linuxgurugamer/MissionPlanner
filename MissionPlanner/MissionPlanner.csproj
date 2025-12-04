@@ -110,6 +110,7 @@
     <Compile Include="Utils\StringFormatter.cs" />
     <Compile Include="Utils\StringUtils.cs" />
     <Compile Include="Utils\SystemHeatConfigUtils.cs" />
+    <Compile Include="Utils\ToolTips.cs" />
     <Compile Include="Utils\TraitUtil.cs" />
     <Compile Include="Pickers\TraitPicker.cs" />
     <Compile Include="Resources\VesselResourceQuery.cs" />

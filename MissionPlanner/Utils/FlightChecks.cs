@@ -215,8 +215,26 @@ namespace MissionPlanner.Utils
                         }
 
                         bool rc = EngineTypeMatcher.PartsHaveEngineType(partsList, s.engineType);
-                        var info = DeltaVUtils.GetActiveStageInfo_Vac(useLaunchpadFirstStageIfPrelaunch: true);
-                        rc &= info.deltaV >= s.deltaV & info.TWR >= s.TWR;
+                        //var info = DeltaVUtils.GetActiveStageInfo_Vac(useLaunchpadFirstStageIfPrelaunch: true);
+
+                        int realStage = (s.stage <= StageInfo.StageCount - 1) ? s.stage : StageInfo.StageCount - 1;
+                        float dV = 0;
+                        float twr = 0;
+                        if (!s.asl)
+                        {
+                            dV = StageInfo.DeltaVinVac(realStage);
+                            twr = StageInfo.TWRVac(realStage);
+                        }
+                        else
+                        {
+                            dV = StageInfo.DeltaVatASL(realStage);
+                            twr = StageInfo.TWRASL(realStage);
+                        }
+
+
+
+
+                        rc &= dV >= s.deltaV & twr >= s.TWR;
 
 
                         return rc;
