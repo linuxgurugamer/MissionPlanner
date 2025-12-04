@@ -110,6 +110,7 @@ namespace MissionPlanner
         public double deltaV = 0d;
         public float TWR = 0f;
         public int stage = 0;
+        public bool includeDockingPort = false;
         public bool asl = true; // at sea level
 
         // Part selection
@@ -209,6 +210,7 @@ namespace MissionPlanner
             deltaV = step.deltaV;
             TWR = step.TWR;
             stage = step.stage;
+            includeDockingPort = step.includeDockingPort;
             asl = step.asl;
 
             // Part selection
@@ -355,6 +357,7 @@ namespace MissionPlanner
             n.AddValue("deltaV", deltaV);
             n.AddValue("TWR", TWR);
             n.AddValue("stage", stage);
+            n.AddValue("includeDockingPort", includeDockingPort);
             n.AddValue("asl", asl);
 
             n.AddValue("partName", partName ?? "");
@@ -477,6 +480,7 @@ namespace MissionPlanner
             s.deltaV = n.SafeLoad("deltaV", s.deltaV);
             s.TWR = n.SafeLoad("TWR", s.TWR);
             s.stage = n.SafeLoad("stage", s.stage);
+            s.includeDockingPort = n.SafeLoad("includeDockingPort", s.includeDockingPort);
             s.asl = n.SafeLoad("asl", s.asl);
 
             s.partName = n.SafeLoad("partName", s.partName);

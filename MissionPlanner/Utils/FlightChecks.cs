@@ -7,8 +7,6 @@ using static RadiatorUtils;
 using static ReactionWheelUtils;
 using static SolarUtils;
 
-using static MissionPlanner.RegisterToolbar;
-
 namespace MissionPlanner.Utils
 {
     internal class FlightChecks
@@ -115,7 +113,7 @@ namespace MissionPlanner.Utils
                                 }
                                 else
                                 {
-                                    if (resinfo.startingAmount >=amt)
+                                    if (resinfo.startingAmount >= amt)
                                         return false;
                                 }
                             }
@@ -152,16 +150,27 @@ namespace MissionPlanner.Utils
                     }
                     return true;
 
+                case CriterionType.Staging:
+                    {
+                        return StageUtility.StageHasDecouplerOrSeparator(s.stage, s.includeDockingPort);
+                    }
+
                 case CriterionType.VABOrganizerCategory:
                     {
-                        for (int i = 0; i < partsList.Count; i++)
+                        if (HierarchicalStepsWindow.vabOrganizer)
                         {
-                            var rc = VABOrganizerUtils.IsPartInCategory(s.vabCategory, partsList[i].partInfo.name);
-                            if (rc)
-                                return true;
+                            for (int i = 0; i < partsList.Count; i++)
+                            {
+                                var rc = VABOrganizerUtils.IsPartInCategory(s.vabCategory, partsList[i].partInfo.name);
+                                if (rc)
+                                    return true;
+                            }
                         }
+                        else
+                            return true;
+                        return false;
                     }
-                    return false;
+
 
                 case CriterionType.CrewMemberTrait:
                     if (HighLogic.LoadedSceneIsEditor)

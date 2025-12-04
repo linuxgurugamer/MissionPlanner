@@ -5,7 +5,6 @@ namespace MissionPlanner.Utils
 {
     public class StageInfo
     {
-
         static public Dictionary<int, StageInfo> stageInfo = new Dictionary<int, StageInfo>();
 
         static public int StageCount {  get {

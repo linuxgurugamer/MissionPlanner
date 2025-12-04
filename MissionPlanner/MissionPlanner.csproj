@@ -107,6 +107,7 @@
     <Compile Include="Utils\SolarUtils.cs" />
     <Compile Include="StepNode.cs" />
     <Compile Include="Utils\StageInfo.cs" />
+    <Compile Include="Utils\StageUtils.cs" />
     <Compile Include="Utils\StringFormatter.cs" />
     <Compile Include="Utils\StringUtils.cs" />
     <Compile Include="Utils\SystemHeatConfigUtils.cs" />

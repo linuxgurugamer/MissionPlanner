@@ -1272,6 +1272,13 @@ namespace MissionPlanner
                         criteria = $"Charge rate: {chargeRate} EC/sec";
                         break;
                     }
+                case CriterionType.Staging:
+                    {
+                        criteria = "Decoupler/Separator" +
+                            (StageUtility.StageHasDecouplerOrSeparator(node.data.stage, node.data.includeDockingPort) ? " Available" : " Not available");
+                        break;
+                    }
+
                 case CriterionType.TrackedVessel:
                     criteria = StringFormatter.BeautifyName(node.data.stepType.ToString()) + $": {node.data.trackedVessel})";
                     break;

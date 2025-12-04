@@ -56,9 +56,10 @@ The following is the list of entries that can be specified  Most of them have ac
 	ReactionWheels			Checks that the specified number of reaction wheels are available
 	Resource				Checks that both a minimum capacity and minimum amount is on the vessel
 	SAS						Checks that the requested SAS mode is available, this takes into account crew abilities
+	Staging					Checks that the specified stage has staging.  Can optionally include docking ports
 	TrackedVessel			Tracks a vessel.  See below for details
 	VABOrganizer Category	Supports the VABOrganizer mod.  If installed, will check to see if a part from that 
-							category is on the vessel
+							category is on the vessel.  See below for notes regarding this mod
 
 		The following three criteria each specify a destination.  The asteroid and body destinations has an 
 		optional landing, the vessel destination has an optional docking.
@@ -202,3 +203,7 @@ Note 1: The contents of the file ComboBox2.cs are a derivitive of the combobox f
 		The license for this file is the GPLv3
 
 Note 2: The Mechanical Jeb - Pod version 2.0 from MechJeb is ignored, as it's not used anymore
+
+Note 3: If the VABOrganizer mod is installed, this option will show all the categories which that 
+		mod provides and will perform checks on them.  If it is NOT installed, the criteria will 
+		be shown, but not be active, and not changable since the categories won't be available.

@@ -30,6 +30,7 @@
         ReactionWheels,
         Resource,
         SAS,
+        Staging,
         SolarPanels,
         TrackedVessel,
         VABOrganizerCategory

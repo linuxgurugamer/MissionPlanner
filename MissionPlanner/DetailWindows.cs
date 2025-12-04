@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using static MissionPlanner.RegisterToolbar;
 using static MissionPlanner.Utils.FuelCellUtils;
 using static ParachuteUtils;
 using static RadiatorUtils;
@@ -411,19 +410,22 @@ namespace MissionPlanner
                             GUILayout.FlexibleSpace();
 
                             // Need to make new picker for this
-                            if (GUILayout.Button("Select…", ScaledGUILayoutWidth(90)))
-                                OpenCategoryPicker(_detailNode);
-
-                            if (!String.IsNullOrEmpty(s.vabCategory))
+                            if (vabOrganizer)
                             {
-                                if (GUILayout.Button("Clear", ScaledGUILayoutWidth(70)))
+                                if (GUILayout.Button("Select…", ScaledGUILayoutWidth(90)))
+                                    OpenCategoryPicker(_detailNode);
+
+                                if (!String.IsNullOrEmpty(s.vabCategory))
                                 {
-                                    s.vabCategory = "";
+                                    if (GUILayout.Button("Clear", ScaledGUILayoutWidth(70)))
+                                    {
+                                        s.vabCategory = "";
+                                    }
                                 }
                             }
                         }
                     }
-                    if (HighLogic.LoadedSceneIsFlight && FlightGlobals.ActiveVessel != null)
+                    if (HighLogic.LoadedSceneIsFlight && FlightGlobals.ActiveVessel != null && vabOrganizer)
                     {
                         bool rc = false;
                         using (new GUILayout.HorizontalScope())
@@ -450,7 +452,7 @@ namespace MissionPlanner
                         }
 
                     }
-                    if (HighLogic.LoadedSceneIsEditor)
+                    if (HighLogic.LoadedSceneIsEditor && vabOrganizer)
                     {
                         if (s.vabCategory == "")
                         {
@@ -1656,6 +1658,19 @@ namespace MissionPlanner
                     }
                     break;
 
+                case CriterionType.Staging:
+                    using (new GUILayout.HorizontalScope())
+                    {
+                        IntField(new GUIContent("Stage:"), ref s.stage, s.locked, 50, 50);
+                        s.includeDockingPort = GUILayout.Toggle(s.includeDockingPort, "");
+                        GUILayout.Label("Include Docking Port");
+                        GUILayout.FlexibleSpace();
+                        if (StageUtility.StageHasDecouplerOrSeparator(s.stage, s.includeDockingPort))
+                            StatusMessage = "Staging is available";
+                        else
+                            ErrorMessage = "Staging not available";
+                        break;
+                    }
                 case CriterionType.Engines:
                     {
                         EngineTypeInfo eti = null;
@@ -1727,14 +1742,15 @@ namespace MissionPlanner
                             if (!firstStage)
                             {
                                 IntField(new GUIContent("Stage:"), ref s.stage, s.locked, 50, 50);
-                            } else
+                            }
+                            else
                             {
                                 GUILayout.Label("Stage:", GUILayout.Width(50));
                                 GUILayout.Label("First Stage");
                             }
-                                GUILayout.FlexibleSpace();
-                            s.asl = GUILayout.Toggle(s.asl,new GUIContent("", "Enable for Sea Level values"));
-                            GUILayout.Label(new GUIContent("ASL","Enable for Sea Level values"));
+                            GUILayout.FlexibleSpace();
+                            s.asl = GUILayout.Toggle(s.asl, new GUIContent("", "Enable for Sea Level values"));
+                            GUILayout.Label(new GUIContent("ASL", "Enable for Sea Level values"));
                         }
 
                         using (new GUILayout.HorizontalScope())
