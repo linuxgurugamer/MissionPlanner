@@ -51,7 +51,7 @@
         ChangeInclination,
         ChangePeriapsis,
         ChangeSemiMajorAxis,
-        FineTuneClosestApproachToVessel,    
+        FineTuneClosestApproach,    
         InterceptAsteroid,                 
         InterceptVessel,                 
         MatchPlanesWithVessel,                

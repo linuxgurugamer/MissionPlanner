@@ -10,25 +10,23 @@ using static MissionPlanner.RegisterToolbar;
 
 namespace DeltaVEditor
 {
+    // The editor is started this way so that the MissionPlanner doesn't have a dependency on the editor
+    // so that the DLL can be removed if desired
+
+    [KSPAddon(KSPAddon.Startup.AllGameScenes, false)]
     public class DeltaVEditorController : MonoBehaviour
     {
 
         static internal string packName = "";
         static internal bool usePack = false;
 
-        private void Update()
+        private void FixedUpdate()
         {
             if (MissionPlanner.HierarchicalStepsWindow.openDeltaVEditor)
             {
                 DeltaVEditorWindow.Toggle();
                 MissionPlanner.HierarchicalStepsWindow.openDeltaVEditor = false;
             }
-
-            // e.g. press Alt+D to toggle
-            //if (Input.GetKey(KeyCode.LeftAlt) && Input.GetKeyDown(KeyCode.D))
-            //{
-            //    DeltaVEditorWindow.Toggle();
-            //}
         }
 
         private void Start()
@@ -41,12 +39,8 @@ namespace DeltaVEditor
             else
                 packName = packInfo.Kind.ToString();
 
-            Log.Info("DeltaV Planet Pack: " + packName);
+            Log.Info("Final DeltaV Planet Pack: " + packName);
 
         }
     }
-
-    [KSPAddon(KSPAddon.Startup.SpaceCentre, false)]
-    public class DeltaVEditorAddon : DeltaVEditorController { }
-
 }

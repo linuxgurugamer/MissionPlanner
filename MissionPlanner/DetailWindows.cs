@@ -162,11 +162,11 @@ namespace MissionPlanner
                                 {
                                     GUILayout.Label("Target Orbit:");
                                     GUILayout.Space(40);
-                                    DoubleField("Ap: ", ref s.ap, s.locked, " km", 60);
+                                    DoubleField("Ap: ", ref s.ap, s.locked, " km", 90);
                                     GUILayout.Space(40);
                                     if (s.peMatchesAp)
                                         s.pe = s.ap;
-                                    DoubleField("Pe: ", ref s.pe, s.locked, " km", 60);
+                                    DoubleField("Pe: ", ref s.pe, s.locked, " km", 90);
                                     GUILayout.FlexibleSpace();
                                     s.peMatchesAp = GUILayout.Toggle(s.peMatchesAp, "");
                                     GUILayout.Label("Pe == Ap");
@@ -229,7 +229,7 @@ namespace MissionPlanner
                                 SelectVessel(s.locked, ref s.destAsteroid, BodyAsteroidVessel.asteroid);
                                 break;
 
-                            case Maneuver.FineTuneClosestApproachToVessel:
+                            case Maneuver.FineTuneClosestApproach:
                             case Maneuver.InterceptVessel:
                             case Maneuver.MatchPlanesWithVessel:
                             case Maneuver.MatchVelocitiesWithVessel:
@@ -1694,17 +1694,22 @@ namespace MissionPlanner
                             GUILayout.FlexibleSpace();
                             if (deltaVTableAvailable)
                             {
-                                if (GUILayout.Button("  Delta V: "))
+                                if (GUILayout.Button("  Delta V:"))
                                 {
                                     OpenDeltaVPicker(_detailNode);
                                 }
                             }
                             else
-                                GUILayout.Label("Delta V: ");
-                            DoubleField("", ref s.deltaV, s.locked, "dV");
+                                GUILayout.Label("Delta V:");
+                            DoubleField("", ref s.deltaV, s.locked, "");
                             GUILayout.FlexibleSpace();
-                            GUILayout.Label("TWR: ");
-                            FloatField("", ref s.TWR, 2, s.locked);
+
+                            FloatField("TWR:", ref s.TWR, 2, s.locked, width: 50);
+
+                            IntField("Stage:", ref s.stage, s.locked, 30, 50);
+                            GUILayout.FlexibleSpace();
+                            s.asl = GUILayout.Toggle(s.asl, "");
+                            GUILayout.Label("ASL");
                         }
 
                         using (new GUILayout.HorizontalScope())
@@ -1789,11 +1794,25 @@ namespace MissionPlanner
 
                         if (HighLogic.LoadedSceneIsEditor || HighLogic.LoadedSceneIsFlight)
                         {
-                            var info = DeltaVUtils.GetActiveStageInfo_Vac(useLaunchpadFirstStageIfPrelaunch: true);
-                            double dV = info.deltaV;
 
-                            GUILayout.Label("Calculated Delta V in current stage: " + dV.ToString("F0"));
-                            GUILayout.Label("Calculated TWR in current stage: " + info.TWR.ToString("F2"));
+                            float dV = 0;
+                            float twr = 0;
+                            if (!s.asl)
+                            {
+                                dV = StageInfo.DeltaVinVac(s.stage);
+                                twr = StageInfo.TWRVac(s.stage);
+                            }
+                            else
+                            {
+                                dV = StageInfo.DeltaVatASL(s.stage);
+                                twr = StageInfo.TWRASL(s.stage);
+                            }
+
+                            GUILayout.Label("Calculated Delta V: ", ScaledGUILayoutWidth(150));
+                            GUILayout.Label(dV.ToString("F0"));
+                            GUILayout.Label("Calculated TWR: ", ScaledGUILayoutWidth(150));
+                            GUILayout.Label(twr.ToString("F2"));
+
                             if (dV >= s.deltaV)
                             {
                                 if (StatusMessage.Length > 0)
@@ -1807,7 +1826,7 @@ namespace MissionPlanner
                                 ErrorMessage += "Not sufficient Delta V available";
                             }
 
-                            if (info.TWR >= s.TWR)
+                            if (StageInfo.TWRASL(s.stage) >= s.TWR)
                             {
                                 if (StatusMessage.Length > 0)
                                     StatusMessage += ":";
@@ -2085,167 +2104,5 @@ namespace MissionPlanner
                 }
             }
         }
-
-        private void IntField(string label, ref int value, bool locked, float width = 120)
-        {
-            using (new GUILayout.HorizontalScope())
-            {
-                GUILayout.Label(label, ScaledGUILayoutWidth(90));
-                string buf = GUILayout.TextField(value.ToString(), ScaledGUILayoutWidth(width));
-
-                if (!locked && int.TryParse(buf, out int parsed)) value = parsed;
-                GUILayout.FlexibleSpace();
-            }
-        }
-
-        private float FloatField(string label, float value, int places, bool locked, string suffix = "", float width = 120, bool flex = true)
-        {
-            using (new GUILayout.HorizontalScope())
-            {
-                GUILayout.Label(label); //, ScaledGUILayoutWidth(120));
-                string buf = "";
-                if (places == 0)
-                    buf = GUILayout.TextField(value.ToString("F0"), ScaledGUILayoutWidth(width));
-                else
-                    buf = GUILayout.TextField(value.ToString($"F{places}"), ScaledGUILayoutWidth(width));
-
-                if (!locked && float.TryParse(buf, out float parsed))
-                    value = parsed;
-                GUILayout.Label(suffix);
-                if (flex)
-                    GUILayout.FlexibleSpace();
-            }
-            return value;
-        }
-
-        private void FloatField(string label, ref float value, int places, bool locked, string suffix = "", float width = 120, bool flex = true)
-        {
-            using (new GUILayout.HorizontalScope())
-            {
-                GUILayout.Label(label); //, ScaledGUILayoutWidth(120));
-                string buf = "";
-                if (places == 0)
-                    buf = GUILayout.TextField(value.ToString("F0"), ScaledGUILayoutWidth(width));
-                else
-                    buf = GUILayout.TextField(value.ToString($"F{places}"), ScaledGUILayoutWidth(width));
-
-                if (!locked && float.TryParse(buf, out float parsed))
-                    value = parsed;
-                GUILayout.Label(suffix);
-                if (flex)
-                    GUILayout.FlexibleSpace();
-            }
-        }
-
-        private void DoubleField(string label, ref double value, bool locked, string suffix = "", float width = 120)
-        {
-            using (new GUILayout.HorizontalScope())
-            {
-                GUILayout.Label(label); //, ScaledGUILayoutWidth(90));
-
-                string buf = GUILayout.TextField(Utils.AntennaUtils.FormatPower(value), ScaledGUILayoutWidth(width));
-
-                if (!locked)
-                {
-                    if (TryParseWithSuffix(buf, out double parsed))
-                    {
-                        value = parsed;
-                    }
-                }
-                GUILayout.Label(suffix);
-                GUILayout.FlexibleSpace();
-            }
-        }
-
-        /// <summary>
-        /// Parses a string that may contain a suffix (k, M, G) and converts it to a float.
-        /// Examples:
-        ///   "500"  -> 500
-        ///   "1.5k" -> 1500
-        ///   "2M"   -> 2000000
-        ///   "3G"   -> 3000000000
-        /// </summary>
-        private bool TryParseWithSuffix(string input, out double result)
-        {
-            result = 0f;
-            if (string.IsNullOrWhiteSpace(input)) return false;
-
-            input = input.Trim();
-            char suffix = char.ToUpperInvariant(input[input.Length - 1]);
-
-            float multiplier = 1f;
-            string numericPart = input;
-
-            switch (suffix)
-            {
-                case 'K':
-                    multiplier = 1_000f;
-                    numericPart = input.Substring(0, input.Length - 1);
-                    break;
-                case 'M':
-                    multiplier = 1_000_000f;
-                    numericPart = input.Substring(0, input.Length - 1);
-                    break;
-                case 'G':
-                    multiplier = 1_000_000_000f;
-                    numericPart = input.Substring(0, input.Length - 1);
-                    break;
-            }
-
-            if (float.TryParse(numericPart, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float baseValue))
-            {
-                result = baseValue * multiplier;
-                return true;
-            }
-
-            return false;
-        }
-
-
-#if false
-        private void IntRangeFields(ref int min, ref int max, bool locked)
-        {
-            using (new GUILayout.HorizontalScope())
-            {
-            GUILayout.Label("Min (int)", ScaledGUILayoutWidth(90));
-            string minBuf = GUILayout.TextField(min.ToString(), ScaledGUILayoutWidth(120));
-            GUILayout.Space(12);
-            GUILayout.Label("Max (int)", ScaledGUILayoutWidth(90));
-            string maxBuf = GUILayout.TextField(max.ToString(), ScaledGUILayoutWidth(120));
-            GUILayout.FlexibleSpace();
-            }
-
-            if (!locked)
-            {
-                int pmin, pmax;
-                if (int.TryParse(minBuf, out pmin)) min = pmin;
-                if (int.TryParse(maxBuf, out pmax)) max = pmax;
-            }
-        }
-#endif
-
-        private void FloatRangeFields(ref float min, ref float max, bool locked)
-        {
-            string minBuf, maxBuf;
-            using (new GUILayout.HorizontalScope())
-            {
-                GUILayout.Label("Min (float)", ScaledGUILayoutWidth(90));
-                minBuf = GUILayout.TextField(min.ToString("G"), ScaledGUILayoutWidth(120));
-                GUILayout.Space(12);
-                GUILayout.Label("Max (float)", ScaledGUILayoutWidth(90));
-                maxBuf = GUILayout.TextField(max.ToString("G"), ScaledGUILayoutWidth(120));
-                GUILayout.FlexibleSpace();
-            }
-
-            if (!locked)
-            {
-                float pmin, pmax;
-                if (float.TryParse(minBuf, out pmin)) min = pmin;
-                if (float.TryParse(maxBuf, out pmax)) max = pmax;
-            }
-        }
-
-
-
     }
 }

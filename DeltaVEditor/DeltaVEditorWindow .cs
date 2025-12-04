@@ -42,6 +42,7 @@ namespace DeltaVEditor
         private string _pickerDirRelative = "";   // e.g. "GameData/MyMod/Data"
 
         CelestialBody homeWorld;
+
         private void Awake()
         {
             if (Instance != null && Instance != this)
@@ -50,6 +51,7 @@ namespace DeltaVEditor
                 return;
             }
 
+            Log.Info("DeltaVEditorWindow.Awake");
             Instance = this;
             DontDestroyOnLoad(gameObject);
             _windowId = GetHashCode();
@@ -60,6 +62,7 @@ namespace DeltaVEditor
 
         private void OnGUI()
         {
+            Log.Info("DeltaVEditorWindow.OnGUI");
             GUI.skin = HighLogic.Skin;
             if (!_visible)
                 return;
@@ -574,6 +577,7 @@ namespace DeltaVEditor
                 Instance = go.AddComponent<DeltaVEditorWindow>();
             }
 
+            Log.Info("DeltaVEditorWindow.Toggle");
             Instance._visible = !Instance._visible;
         }
 

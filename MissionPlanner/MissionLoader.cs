@@ -163,10 +163,12 @@ namespace MissionPlanner
                 }
             }
             GUILayout.EndScrollView();
-
+            
             GUILayout.FlexibleSpace();
+
             using (new GUILayout.HorizontalScope())
             {
+                GUILayout.FlexibleSpace();
                 if (GUILayout.Button("Close", ScaledGUILayoutWidth(100))) _showLoadDialog = false;
                 GUILayout.FlexibleSpace();
             }

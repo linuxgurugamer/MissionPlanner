@@ -93,24 +93,10 @@ Controls available on the main window
 	New (button)					Creates a new mission
 	Clear All (button)				Clears all the steps, but keeps the mission info
 	Save (button)					Save to existing file
-	Save As... (button)				Save to new file
+	Save As... (button)				Save to new file, prompts for a new mission name; overwrite/auto-increment 
+									lives behind Save As (plain Save overwrites silently)
 	Load/Import... (button)			Load or import a mission.  Imports get added to the end
 	Close (button)
-
-Save As… prompts for a new mission name; overwrite/auto-increment lives behind Save As (plain Save overwrites silently)
-
-Crew-count validator button in Details (when in flight)
-
-Fixed-width Title field in Details; tighter Type selector arrows
-
-Column width tuning sliders + persist UI (positions, skin, tuning)
-
-Auto-save on details close/switch + save indicator (red on error)
-
-Load dialog with delete, show-all toggle
-
-Toolbar button; hides on pause; drag from anywhere (DragWindow at end)
-
 
 Note regarding docking ports:
 	Most known docking ports are recognized.  Specifically, the following part modules are recognized as being docking ports:
@@ -136,11 +122,6 @@ Several sample mission plans have been provided for your use and to provide some
 	Land on the Mun					This checklist details everything needed to land on the Mun
 
 	Grand Tour						This checklist will help  you do a grand tour of the system
-
-Note:  The contents of the file ComboBox2.cs are a derivitive of the combobox from Mechjeb.
-		The license for this file is the GPLv3
-
-Note:  The Mechanical Jeb - Pod version 2.0 from MechJeb is ignored, as it's not used anymore
 
 
 Delta V & Planet Packs
@@ -209,3 +190,9 @@ Delta-V Editor
 		Origin
 		Destination
 		Parent
+
+
+Note 1: The contents of the file ComboBox2.cs are a derivitive of the combobox from Mechjeb.
+		The license for this file is the GPLv3
+
+Note 2: The Mechanical Jeb - Pod version 2.0 from MechJeb is ignored, as it's not used anymore

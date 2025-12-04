@@ -13,7 +13,6 @@ public static class DeltaVUtils
 
     public struct StageInfo
     {
-        public int stageIndex;  // KSP stage index (inverseStage)
         public double deltaV;   // m/s
         public double TWR;      // dimensionless, at start of burn
     }
@@ -42,7 +41,6 @@ public static class DeltaVUtils
     {
         StageInfo info = new StageInfo
         {
-            stageIndex = -1,
             deltaV = 0.0,
             TWR = 0.0
         };
@@ -109,7 +107,6 @@ public static class DeltaVUtils
     {
         StageInfo info = new StageInfo
         {
-            stageIndex = stage,
             deltaV = 0.0,
             TWR = 0.0
         };

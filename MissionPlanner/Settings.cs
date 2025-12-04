@@ -45,10 +45,6 @@ namespace MissionPlanner
             toolTip = "The selected Delta V will be increased by this percentage")]
         public int defaultPadding = 15;
 
-        [GameParameters.CustomParameterUI("Enable DeltaV Editor")]
-        public bool deltaVEditorActive = false;
-
-
         [GameParameters.CustomIntParameterUI("Font size", minValue = 8, maxValue = 20)]
         public int fontSize = 12;
 
@@ -60,15 +56,47 @@ namespace MissionPlanner
         public override bool Interactible(MemberInfo member, GameParameters parameters)
         {
             return true;
-            return HighLogic.CurrentGame.startScene == GameScenes.SPACECENTER;
         }
-
-        //public override IList ValidValues(MemberInfo member)
-        //{
-        //    return null;
-        //}
 
         public override void SetDifficultyPreset(GameParameters.Preset preset) { }
 
     }
+
+    // HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings2>().
+    public class MissionPlannerSettings2 : GameParameters.CustomParameterNode
+    {
+        //Thanks to https://forum.kerbalspaceprogram.com/index.php?/topic/147576-modders-notes-for-ksp-12/#comment-2754813
+
+        public override string Title { get { return "Misc Options"; } }
+        public override GameParameters.GameMode GameMode { get { return GameParameters.GameMode.ANY; } }
+        public override string Section { get { return "Mission Planner"; } }
+        public override string DisplaySection { get { return "Mission Planner"; } }
+        public override int SectionOrder { get { return 2; } }
+        public override bool HasPresets { get { return false; } }
+
+
+        [GameParameters.CustomParameterUI("Use KSP Skin")]
+        public bool useKspSkin = true;
+
+        [GameParameters.CustomParameterUI("Hide on Pause")]
+        public bool hideOnPause = false;
+
+        [GameParameters.CustomParameterUI("Enable DeltaV Editor")]
+        public bool deltaVEditorActive = false;
+
+
+        public override bool Enabled(MemberInfo member, GameParameters parameters)
+        {
+            return true;
+        }
+
+        public override bool Interactible(MemberInfo member, GameParameters parameters)
+        {
+            return true;
+        }
+
+        public override void SetDifficultyPreset(GameParameters.Preset preset) { }
+
+    }
+
 }

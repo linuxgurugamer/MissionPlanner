@@ -83,8 +83,6 @@ namespace MissionPlanner
 
             // 2) Look at body / homeworld names from FlightGlobals/Planetarium
             var bodyHints = DetectHintsFromBodies(out CelestialBody homeBody);
-            foreach (var s in bodyHints)
-                Log.Info("DetectHintsFromBodies: " + s);
 
             // 3) Try to reconcile everything into a single PlanetPackInfo
             var info = CombineSignals(cacheCandidates, bodyHints, homeBody);

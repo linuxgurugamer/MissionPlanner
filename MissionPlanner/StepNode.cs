@@ -109,6 +109,8 @@ namespace MissionPlanner
         public int drillQty = 0;
         public double deltaV = 0d;
         public float TWR = 0f;
+        public int stage = 0;
+        public bool asl = true; // at sea level
 
         // Part selection
         public string partName = "";        // internal name (AvailablePart.name)
@@ -206,6 +208,8 @@ namespace MissionPlanner
             drillQty = step.drillQty;
             deltaV = step.deltaV;
             TWR = step.TWR;
+            stage = step.stage;
+            asl = step.asl;
 
             // Part selection
             partName = step.partName;
@@ -350,6 +354,8 @@ namespace MissionPlanner
             n.AddValue("drillQty", drillQty);
             n.AddValue("deltaV", deltaV);
             n.AddValue("TWR", TWR);
+            n.AddValue("stage", stage);
+            n.AddValue("asl", asl);
 
             n.AddValue("partName", partName ?? "");
             n.AddValue("partTitle", partTitle ?? "");
@@ -470,6 +476,8 @@ namespace MissionPlanner
             s.drillQty = n.SafeLoad("drillQty", s.drillQty);
             s.deltaV = n.SafeLoad("deltaV", s.deltaV);
             s.TWR = n.SafeLoad("TWR", s.TWR);
+            s.stage = n.SafeLoad("stage", s.stage);
+            s.asl = n.SafeLoad("asl", s.asl);
 
             s.partName = n.SafeLoad("partName", s.partName);
             s.partTitle = n.SafeLoad("partTitle", s.partTitle);

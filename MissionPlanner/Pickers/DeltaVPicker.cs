@@ -152,9 +152,9 @@ namespace MissionPlanner
             try
             {
                 return float.Parse(
-                s.Trim(),
-                NumberStyles.Float | NumberStyles.AllowThousands,
-                CultureInfo.InvariantCulture);
+                    s.Trim(),
+                    NumberStyles.Float | NumberStyles.AllowThousands,
+                    CultureInfo.InvariantCulture);
             }
             catch (Exception ex)
             {

@@ -78,6 +78,7 @@
     <Compile Include="Utils\DockingPortUtils.cs" />
     <Compile Include="Utils\DrillUtils.cs" />
     <Compile Include="Utils\EngineTypeMatcher.cs" />
+    <Compile Include="Utils\EntryFieldUtils.cs" />
     <Compile Include="Utils\GeneratorUtils.cs" />
     <Compile Include="Utils\ApPeFromOrbit.cs" />
     <Compile Include="Utils\PartLookupUtils.cs" />
@@ -105,6 +106,7 @@
     <Compile Include="SaveLoad.cs" />
     <Compile Include="Utils\SolarUtils.cs" />
     <Compile Include="StepNode.cs" />
+    <Compile Include="Utils\StageInfo.cs" />
     <Compile Include="Utils\StringFormatter.cs" />
     <Compile Include="Utils\StringUtils.cs" />
     <Compile Include="Utils\SystemHeatConfigUtils.cs" />

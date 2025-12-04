@@ -6,6 +6,7 @@ using KSP.UI.Screens;
 using MissionPlanner.Utils;
 using SpaceTuxUtility;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -30,7 +31,7 @@ namespace MissionPlanner
         internal const string MODID = "Mission Planner";
         internal const string MODNAME = "Mission Planner";
         static ToolbarControl toolbarControl = null;
-        
+
         public static bool openDeltaVEditor = false;
 
         // ---- Windows ----
@@ -234,6 +235,11 @@ namespace MissionPlanner
             //GameEvents.onGameUnpause.Add(OnGameUnpaused);
 
             GameEvents.onVesselSwitching.Add(onVesselSwitching);
+            GameEvents.onVesselChange.Add(onVesselChange);
+            GameEvents.onEditorShipModified.Add(onEditorShipModified);
+            GameEvents.onEditorLoad.Add(onEditorLoad);
+            GameEvents.onEditorStarted.Add(onEditorStarted);
+
             GameEvents.onLevelWasLoadedGUIReady.Add(onLevelWasLoadedGUIReady);
             GameEvents.onGameSceneSwitchRequested.Add(onGameSceneSwitchRequested);
 
@@ -278,6 +284,9 @@ namespace MissionPlanner
             //GameEvents.onGameUnpause.Remove(OnGameUnpaused);
 
             GameEvents.onVesselSwitching.Remove(onVesselSwitching);
+            GameEvents.onVesselChange.Remove(onVesselChange);
+            GameEvents.onEditorShipModified.Remove(onEditorShipModified);
+
             GameEvents.onLevelWasLoadedGUIReady.Remove(onLevelWasLoadedGUIReady);
 
             GameEvents.onGameSceneSwitchRequested.Remove(onGameSceneSwitchRequested);
@@ -317,16 +326,18 @@ namespace MissionPlanner
 
         public void OnGUI()
         {
-            if ( /* (PauseMenu.exists && PauseMenu.isOpen) || */ Hidden)
+            if ((HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings2>().hideOnPause && PauseMenu.exists && PauseMenu.isOpen) ||
+                Hidden)
                 return;
-            //if (_useKspSkin) GUI.skin = HighLogic.Skin;
+
+            _useKspSkin = HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings2>().useKspSkin;
             SetUpSkins();
             GUI.skin = adjustableSkin;
             EnsureStyles();
 
             int oldDepth = GUI.depth;
             GUI.depth = 10;
-
+            currentEntryFieldId = 0;
             ComboBox.DrawGUI();
             if (_visible)
             {
@@ -760,7 +771,7 @@ namespace MissionPlanner
                 GUILayout.FlexibleSpace();
                 GUILayout.Label(" ");
                 GUILayout.FlexibleSpace();
-                _useKspSkin = GUILayout.Toggle(_useKspSkin, "Use KSP Skin", ScaledGUILayoutWidth(120));
+                // _useKspSkin = GUILayout.Toggle(_useKspSkin, "Use KSP Skin", ScaledGUILayoutWidth(120));
             }
 
             GUILayout.Space(4);
@@ -913,25 +924,24 @@ namespace MissionPlanner
                     _creatingNewMission = false;
                     OpenSaveAsDialog();
                 }
+                if (GUILayout.Button("Load/Import…", ScaledGUILayoutWidth(120)))
+                    OpenLoadDialog();
                 GUILayout.FlexibleSpace();
-                if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().deltaVEditorActive)
+                if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings2>().deltaVEditorActive)
                 {
                     if (GUILayout.Button("DeltaV Editor"))
                         openDeltaVEditor = true;
 
                     GUILayout.FlexibleSpace();
                 }
-                if (GUILayout.Button("Load/Import…", ScaledGUILayoutWidth(120)))
-                    OpenLoadDialog();
-                GUILayout.FlexibleSpace();
 
                 if (Time.realtimeSinceStartup <= _lastSaveShownUntil && !String.IsNullOrEmpty(_lastSaveInfo))
                 {
                     var style = _lastSaveWasSuccess ? _badge : _badgeError;
                     GUILayout.Label(_lastSaveInfo, style);
+                    GUILayout.FlexibleSpace();
                 }
 
-                GUILayout.FlexibleSpace();
                 if (currentView != View.Tiny)
                     GUILayout.Label(string.Format("Count: {0}", CountAll()), _badge);
                 if (GUILayout.Button("Close", ScaledGUILayoutWidth(70)))
@@ -947,6 +957,12 @@ namespace MissionPlanner
 
             GUI.DragWindow(new Rect(0, 0, 10000, 10000));
         }
+
+        void ToggleDeltaVEditor()
+        {
+
+        }
+
         private ResizeHandle resizeHandle = null;
 
         private void DrawNewConfirmWindow(int id)
@@ -1155,7 +1171,7 @@ namespace MissionPlanner
                             criteria += ": " + node.data.destAsteroid;
                             break;
 
-                        case Maneuver.FineTuneClosestApproachToVessel:
+                        case Maneuver.FineTuneClosestApproach:
                         case Maneuver.InterceptVessel:
                         case Maneuver.MatchPlanesWithVessel:
                         case Maneuver.MatchVelocitiesWithVessel:
@@ -1274,7 +1290,7 @@ namespace MissionPlanner
                 using (new GUILayout.HorizontalScope())
                 {
                     if (!_useKspSkin)
-                        GUILayout.Space(10);
+                        GUILayout.Space(15);
                     node.data.completed = GUILayout.Toggle(node.data.completed, new GUIContent("", "Mark this line as completed"));
                     if (_simpleChecklist)
                     {
@@ -1282,12 +1298,16 @@ namespace MissionPlanner
                     }
                     else
                     {
-                        if (!_useKspSkin)
+                        if (_useKspSkin)
+                            GUILayout.Space(10);
+                        else
                             GUILayout.Space(15);
 
                         node.data.locked = GUILayout.Toggle(node.data.locked, new GUIContent("", "Lock this line"));
-                        if (!_useKspSkin)
-                            GUILayout.Space(10);
+                        if (_useKspSkin)
+                            GUILayout.Space(1);
+                        else
+                            GUILayout.Space(5);
 
                         bool b = GUILayout.Toggle(node.requireAll, new GUIContent("", "Require all children to be fulfilled for this to be fulfilled"));
                         if (!node.data.locked)
@@ -1850,6 +1870,39 @@ namespace MissionPlanner
             public bool stock = false;
         }
 
+        IEnumerator WaitForEditor()
+        {
+            while (EditorLogic.fetch == null || EditorLogic.fetch.ship == null)
+                yield return null;
+            while (EditorLogic.fetch.ship.parts.Count == 0)
+                yield return new WaitForEndOfFrame();
+            while (EditorLogic.fetch.ship.vesselDeltaV == null || EditorLogic.fetch.ship.vesselDeltaV.OperatingStageInfo == null)
+                yield return new WaitForEndOfFrame();
+            for (int i = 0; i < 20; i++)
+                yield return new WaitForEndOfFrame();
+
+            StageInfo.Init();
+        }
+
+        void onEditorStarted()
+        {
+            Log.Info("onEditorStarted");
+            StartCoroutine(WaitForEditor());
+        }
+        void onEditorLoad(ShipConstruct sc, CraftBrowserDialog.LoadType lt)
+        {
+            Log.Info("onEditorLoad");
+            StartCoroutine(WaitForEditor());
+        }
+        void onEditorShipModified(ShipConstruct sc)
+        {
+            Log.Info("onEditorShipModified");
+            StartCoroutine(WaitForEditor());
+        }
+        void onVesselChange(Vessel v)
+        {
+            StageInfo.Init();
+        }
         void onVesselSwitching(Vessel from, Vessel to)
         {
             LoadTrackedVesselMission(to.id);
@@ -1870,6 +1923,7 @@ namespace MissionPlanner
                     CheckChildren(r);
                 }
             }
+            StageInfo.Init();
         }
 
         // Need to be able to revert this
