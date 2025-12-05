@@ -8,6 +8,11 @@ public static class StageUtility
     /// </summary>
     public static bool StageHasDecouplerOrSeparator(int stage, bool includeDockingPorts = false)
     {
+        return StageHasDecouplerOrSeparator(stage,out string moduletype, includeDockingPorts);
+    }
+
+    public static bool StageHasDecouplerOrSeparator(int stage, out string moduleType, bool includeDockingPorts = false)
+    {
         List<Part> parts = null;
 
         if (HighLogic.LoadedSceneIsEditor)
@@ -15,6 +20,7 @@ public static class StageUtility
         if (HighLogic.LoadedSceneIsFlight)
             parts = FlightGlobals.ActiveVessel.Parts;
 
+        moduleType = "";
         if (parts == null)
             return false;
 
@@ -26,13 +32,20 @@ public static class StageUtility
 
             // Stock decouplers
             if (p.Modules.GetModules<ModuleDecouple>().Count > 0)
+            {
+                moduleType = "Decoupler";
                 return true;
-
+            }
             if (p.Modules.GetModules<ModuleAnchoredDecoupler>().Count > 0)
+            {
+                moduleType = "Radial Decoupler";
                 return true;
-
+            }
             if (includeDockingPorts && p.Modules.GetModules<ModuleDockingNode>().Count > 0)
+            {
+                moduleType = "Docking Port";
                 return true;
+            }
         }
 
         return false;

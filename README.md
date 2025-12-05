@@ -1,18 +1,40 @@
 Mission Planner/Checklist
 
 This mod is a tool to help in planning missions, and then use that plan as a checklist when actually doing the mission.
-The planner is presented as an indented list, with three toggle buttons at the left.
+The planner is presented as an indented list, each line has three toggle buttons at the left, a title and a 8 controls at the right..
 
-A second mode is a simple checklist.  When creating a new mission, there will be a toggle where you can specify a simple checklist, if you select that, then the display will be abbreviated to a simple checklist without any of the extra detail.
+There are two modes, one is a full planner, and the second is a simple checklist.  When creating a new mission, there will be a toggle where you can specify a simple checklist, if you select that, then the display will be abbreviated to a simple checklist without any of the extra detail.
 
-The three toggle buttons on each line do the following (labeled at top of list), and have tooltips on each as a reference:
+Some entries will have a status shown, red means that the criteria for that line has not been met.
+Each entry is shown in a list, with the following controls:
 
-First one is for the user's use.  Let's this be used as a simple checklist.  If it doesn't have any children, the line will 
-be marked at fulfilled or not based on the toggle.  
+Most of the controls on each line have a tooltip associated with it
 
-Some items will have a status shown, red means that the criteria for that line has not been met.
+In order, from left to right, the controls on each line are:
+
+	First toggle is for the user's use.  It let this be used as a simple checklist.  If it doesn't have any children, the line will 
+	be marked at fulfilled or not based on the toggle.  
+
+	Second toggle is to lock the line.  It can still be displayed, but data cannot be changed.
+
+	Third toggle is used to require that all children to be completed/fulfilled for the status for this line to be shown as completed/fulfilled.  
+
+	Double-click the title to open the edit window
+
+	Up triangle will move the line up
+	Downn triangle will move the line down
+	Promote icon will "promote" the line, moving it left one level
+	Demote icon will "demote" the line, moving it right one level, essentially making it a child of the line above it
+	Move icon will let you move the line to be a child of any other item
+	Duplicate icon will duplicate the line
+	+  will add a new child of the line
+	X  will delete the line
 
 The main window is resizable by click/dragging the double-slash icon in the lower right corner
+
+
+
+
 
 The following is the list of entries that can be specified  Most of them have active checks, meaning that checks are done during flight to verify each entry against the current vessel :
 

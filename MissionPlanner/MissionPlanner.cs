@@ -68,14 +68,15 @@ namespace MissionPlanner
         private float _indentPerLevel = 30f;    // 10–40 px
         private float _foldColWidth = 24f;    // 16–48 px
 
-        // Toolbar
-        private ApplicationLauncherButton _appButton;
-        private Texture2D _iconOn, _iconOff;
-        private Texture2D _resizeBg, _resizeBgHover;
         private const string IconOnPath = "MissionPlanner/Icons/tree_on";
         private const string IconOffPath = "MissionPlanner/Icons/tree_off";
         private const string IconOnPath_24 = "MissionPlanner/Icons/tree_on-24";
         private const string IconOffPath_24 = "MissionPlanner/Icons/tree_off-24";
+
+        public static Texture2D moveIcon, duplicateIcon;
+        public const string MovePath = "MissionPlanner/Icons/move";
+        public const string DuplicatePath = "MissionPlanner/Icons/duplicate";
+
 
         // Missions I/O
         private const string SAVE_ROOT_NODE = "MISSION_PLANNER";
@@ -222,7 +223,7 @@ namespace MissionPlanner
             _clearConfirmWinId = WindowHelper.NextWindowId("clearConfirmWin");
             _summaryWinId = WindowHelper.NextWindowId("summaryWin");
 
-            LoadIconsOrFallback();
+            //LoadIconsOrFallback();
             LoadUISettings();
 
             StartCoroutine(Initialization.BackgroundInitialize());
@@ -291,11 +292,6 @@ namespace MissionPlanner
 
             GameEvents.onGameSceneSwitchRequested.Remove(onGameSceneSwitchRequested);
 
-            if (_appButton != null && ApplicationLauncher.Instance != null)
-            {
-                ApplicationLauncher.Instance.RemoveModApplication(_appButton);
-                _appButton = null;
-            }
         }
 
         void CloseAllDialogs()
@@ -741,12 +737,12 @@ namespace MissionPlanner
         {
             _visibleBeforePause = _visible;
             _visible = false;
-            SyncToolbarState();
+            //SyncToolbarState();
         }
         private void OnGameUnpaused()
         {
             _visible = _visibleBeforePause;
-            SyncToolbarState();
+            //SyncToolbarState();
         }
 
         bool showSummary = false;
@@ -958,7 +954,7 @@ namespace MissionPlanner
                 if (GUILayout.Button("Close", ScaledGUILayoutWidth(70)))
                 {
                     _visible = false;
-                    SyncToolbarState();
+                    //SyncToolbarState();
                     toolbarControl.SetFalse(true);
                 }
                 GUILayout.Space(20);
@@ -1129,6 +1125,7 @@ namespace MissionPlanner
                     criteria = node.data.drillQty.ToString() + " drills";
                     break;
 
+
                 case CriterionType.Engines:
                     for (int i = 0; i < Initialization.engineTypesAr.Length; i++)
                     {
@@ -1274,8 +1271,9 @@ namespace MissionPlanner
                     }
                 case CriterionType.Staging:
                     {
-                        criteria = "Decoupler/Separator" +
-                            (StageUtility.StageHasDecouplerOrSeparator(node.data.stage, node.data.includeDockingPort) ? " Available" : " Not available");
+                        bool rc = StageUtility.StageHasDecouplerOrSeparator(node.data.stage, out criteria, node.data.includeDockingPort);
+
+                        criteria = rc ? criteria : "(none)";
                         break;
                     }
 
@@ -1307,7 +1305,8 @@ namespace MissionPlanner
                     // The following "if" is formatted this way to make it easier to add additional criteria types to be associated
                     // with a specific stage
                     if (!showVesselSpecific ||
-                        (node.data.stepType == CriterionType.Engines))
+                        node.data.stepType == CriterionType.Engines ||
+                        node.data.stepType == CriterionType.Staging)
                     {
 
                         if (!_useKspSkin)
@@ -1447,22 +1446,34 @@ namespace MissionPlanner
 #endif
                         }
 
-                        GUILayout.Label(node.data.title, style, ScaledGUILayoutWidth(titleWidth));
+                        GUIContent titleContent = new GUIContent(node.data.title, "Double-click to open edit window");
+                        GUILayout.Label(titleContent, style, ScaledGUILayoutWidth(titleWidth));
                         titleRect = GUILayoutUtility.GetLastRect();
                         up = down = promote = demote = moveTo = dup = add = del = false;
 
                         GUILayout.FlexibleSpace();
                         if (currentView == View.Full)
                         {
-                            up = GUILayout.Button("▲", _smallBtn);
-                            down = GUILayout.Button("▼", _smallBtn);
-                            promote = GUILayout.Button("⤴", _smallBtn);
-                            demote = GUILayout.Button("⤵", _smallBtn);
-                            moveTo = GUILayout.Button("Move…", ScaledGUILayoutWidth(60f /* 54f */));
-                            dup = GUILayout.Button("Dup", ScaledGUILayoutWidth(40f));
+                            up = GUILayout.Button(RegisterToolbar.upContent, _smallBtn);
+                            down = GUILayout.Button(RegisterToolbar.downContent, _smallBtn);
+                            promote = GUILayout.Button(RegisterToolbar.promoteContent, _smallBtn);
+                            demote = GUILayout.Button(RegisterToolbar.demoteContent, _smallBtn);
+
+                            //moveTo = GUILayout.Button("Move…", ScaledGUILayoutWidth(60f /* 54f */));
+                            var iconButtonWidth = GUILayout.Width(20 * GameSettings.UI_SCALE);
+                            var iconButtonheight = GUILayout.Height(20 * GameSettings.UI_SCALE);
+
+                            moveTo = GUILayout.Button(moveContent, buttonIconStyle, iconButtonWidth, iconButtonheight);
+                            //ScaledGUILayoutWidth(40f /* 54f */));
                             GUILayout.Space(20);
-                            add = GUILayout.Button("<B>+</B>", _smallBtn /* "⊕" */, ScaledGUILayoutWidth(28));
-                            del = GUILayout.Button("✖", _smallBtn);
+
+                            //dup = GUILayout.Button("Dup", ScaledGUILayoutWidth(40f));
+                            dup = GUILayout.Button(duplicateContent, buttonIconStyle, iconButtonWidth, iconButtonheight);
+                            //ScaledGUILayoutWidth(40f));
+
+                            GUILayout.Space(20);
+                            add = GUILayout.Button(RegisterToolbar.addContent, _smallBtn); // /* "⊕" */, ScaledGUILayoutWidth(28));
+                            del = GUILayout.Button(RegisterToolbar.deleteContent, _smallBtn);
                             GUILayout.Space(5);
                         }
 
@@ -1971,40 +1982,6 @@ namespace MissionPlanner
             }
             toolbarControl.SetFalse(true);
 
-        }
-
-        private void SyncToolbarState()
-        {
-            if (_appButton == null) return;
-
-            if (_visible)
-            {
-                if (_appButton.toggleButton.CurrentState == KSP.UI.UIRadioButton.State.False)
-                    _appButton.SetTrue();
-                SetButtonIcon(_iconOn);
-            }
-            else
-            {
-                if (_appButton.toggleButton.CurrentState == KSP.UI.UIRadioButton.State.True)
-                    _appButton.SetFalse();
-                SetButtonIcon(_iconOff);
-            }
-        }
-
-        private void LoadIconsOrFallback()
-        {
-            _iconOn = GameDatabase.Instance?.GetTexture(IconOnPath, false);
-            _iconOff = GameDatabase.Instance?.GetTexture(IconOffPath, false);
-            if (_iconOn == null) _iconOn = MakeSolidTexture(38, 38, new Color(0.25f, 0.8f, 0.25f, 1f));
-            if (_iconOff == null) _iconOff = MakeSolidTexture(38, 38, new Color(0.7f, 0.7f, 0.7f, 1f));
-            if (_resizeBg == null) _resizeBg = MakeSolidTexture(8, 8, new Color(1f, 1f, 1f, 0.08f));
-            if (_resizeBgHover == null) _resizeBgHover = MakeSolidTexture(8, 8, new Color(1f, 1f, 1f, 0.18f));
-        }
-
-        private void SetButtonIcon(Texture2D tex)
-        {
-            if (_appButton != null && tex != null)
-                _appButton.SetTexture(tex);
         }
 
         private Texture2D MakeSolidTexture(int w, int h, Color c)
