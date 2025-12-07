@@ -25,7 +25,7 @@ In order, from left to right, the controls on each line are:
 	Downn triangle will move the line down
 	Promote icon will "promote" the line, moving it left one level
 	Demote icon will "demote" the line, moving it right one level, essentially making it a child of the line above it
-	Move icon will let you move the line to be a child of any other item
+	Move icon will let you move the line to be a child of any other item.  Note, you can't move a root step
 	Duplicate icon will duplicate the line
 	+  will add a new child of the line
 	X  will delete the line
@@ -33,10 +33,9 @@ In order, from left to right, the controls on each line are:
 The main window is resizable by click/dragging the double-slash icon in the lower right corner
 
 
+Criteria
 
-
-
-The following is the list of entries that can be specified  Most of them have active checks, meaning that checks are done during flight to verify each entry against the current vessel :
+The following is the list of different criteria that can be specified  Most of them have active checks, meaning that checks are done during flight to verify each entry against the current vessel :
 
 
 	Batteries				Updates status based on whether  specified capacity is available

@@ -10,6 +10,9 @@ using static RadiatorUtils;
 using static ReactionWheelUtils;
 using static SolarUtils;
 
+using static MissionPlanner.RegisterToolbar;
+
+
 namespace MissionPlanner
 {
     public partial class HierarchicalStepsWindow : MonoBehaviour
@@ -1665,8 +1668,9 @@ namespace MissionPlanner
                         s.includeDockingPort = GUILayout.Toggle(s.includeDockingPort, "");
                         GUILayout.Label("Include Docking Port");
                         GUILayout.FlexibleSpace();
-                        if (StageUtility.StageHasDecouplerOrSeparator(s.stage, s.includeDockingPort))
-                            StatusMessage = "Staging is available";
+                        if (StageUtility.StageHasDecouplerOrSeparator(s.stage, out string moduleType, s.includeDockingPort))
+                            StatusMessage = moduleType + " available for staging" +
+                                "+";
                         else
                             ErrorMessage = "Staging not available";
                         break;

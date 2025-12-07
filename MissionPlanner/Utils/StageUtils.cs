@@ -8,7 +8,7 @@ public static class StageUtility
     /// </summary>
     public static bool StageHasDecouplerOrSeparator(int stage, bool includeDockingPorts = false)
     {
-        return StageHasDecouplerOrSeparator(stage,out string moduletype, includeDockingPorts);
+        return StageHasDecouplerOrSeparator(stage, out string moduletype, includeDockingPorts);
     }
 
     public static bool StageHasDecouplerOrSeparator(int stage, out string moduleType, bool includeDockingPorts = false)
@@ -41,11 +41,11 @@ public static class StageUtility
                 moduleType = "Radial Decoupler";
                 return true;
             }
-            if (includeDockingPorts && p.Modules.GetModules<ModuleDockingNode>().Count > 0)
-            {
-                moduleType = "Docking Port";
-                return true;
-            }
+        }
+        if (includeDockingPorts && DockingPortUtils.StageHasDockingPort(stage))
+        {
+            moduleType = "Docking Port";
+            return true;
         }
 
         return false;
