@@ -79,8 +79,10 @@
     <Compile Include="Utils\DrillUtils.cs" />
     <Compile Include="Utils\EngineTypeMatcher.cs" />
     <Compile Include="Utils\EntryFieldUtils.cs" />
+    <Compile Include="Utils\ExpressionEvaluator.cs" />
     <Compile Include="Utils\GeneratorUtils.cs" />
     <Compile Include="Utils\ApPeFromOrbit.cs" />
+    <Compile Include="Utils\GetChildSums.cs" />
     <Compile Include="Utils\PartLookupUtils.cs" />
     <Compile Include="Pickers\PartPicker.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

@@ -1066,9 +1066,88 @@ namespace MissionPlanner
             string criteria = "";
             switch (node.data.stepType)
             {
-                case CriterionType.Batteries:
-                    criteria = node.data.batteryCapacity.ToString() + " EC";
+                case CriterionType.PartGroup:
+                    switch (node.data.partGroup)
+                    {
+                        case PartGroup.Batteries:
+                            criteria = node.data.batteryCapacity.ToString() + " EC";
+                            break;
+
+                        case PartGroup.Communication:
+                            criteria = node.data.antennaPower.ToString();  // may need a suffix added 
+                            break;
+
+                        case PartGroup.DockingPort:
+                            criteria = node.data.dockingPortQty.ToString() + " docking ports";
+                            break;
+
+                        case PartGroup.Drills:
+                            criteria = node.data.drillQty.ToString() + " drills";
+                            break;
+
+                        case PartGroup.Engines:
+                            for (int i = 0; i < Initialization.engineTypesAr.Length; i++)
+                            {
+                                if (Initialization.engineTypesAr[i] == node.data.engineType)
+                                {
+                                    criteria = Initialization.engineTypesDisplayAr[i];
+                                    break;
+                                }
+                            }
+                            break;
+
+                        case PartGroup.FuelCells:
+                            {
+                                float chargeRate = node.data.fuelCellChargeRate; //  Utils.FlightChecks.chargeRate;
+                                criteria = $"Charge rate: {chargeRate}";
+                                break;
+                            }
+                        case PartGroup.Generators:
+                            criteria = node.data.generatorChargeRate.ToString() + " EC/sec";
+                            break;
+                        case PartGroup.Lights:
+                            criteria = node.data.spotlights.ToString() + " spotlights";
+                            break;
+                        case PartGroup.Parachutes:
+                            criteria = node.data.parachutes.ToString() + " parachutes";
+                            break;
+                        
+                        case PartGroup.Radiators:
+                            {
+                                float coolingRate = node.data.radiatorCoolingRate;
+                                criteria = $"Cooling rate: {coolingRate} kW";
+                                break;
+                            }
+
+                        case PartGroup.RCS:
+                            for (int i = 0; i < Initialization.rcsTypesAr.Length; i++)
+                            {
+                                if (Initialization.rcsTypesAr[i] == node.data.rcsType)
+                                {
+                                    criteria = Initialization.rcsTypesDisplayAr[i];
+                                    break;
+                                }
+                            }
+                            break;
+
+                        case PartGroup.ReactionWheels:
+                            criteria = node.data.reactionWheels.ToString() + " reaction wheels";
+                            break;
+
+                        case PartGroup.SolarPanels:
+                            {
+                                float chargeRate = node.data.solarChargeRate; //  Utils.FlightChecks.chargeRate;
+                                criteria = $"Charge rate: {chargeRate} EC/sec";
+                            }
+                            break;
+
+                    }
+                    criteria = " " + node.data.partGroup.ToString() + ": " + criteria;
                     break;
+
+                //case CriterionType.Batteries:
+                //    criteria = node.data.batteryCapacity.ToString() + " EC";
+                //    break;
                 case CriterionType.ChargeRateTotal:
                     criteria = node.data.chargeRateTotal.ToString() + " EC/sec";
                     break;
@@ -1086,11 +1165,11 @@ namespace MissionPlanner
 
                     }
                     break;
-#endif
 
                 case CriterionType.Communication:
                     criteria = node.data.antennaPower.ToString();  // may need a suffix added 
                     break;
+#endif
 
 
                 case CriterionType.ControlSource:
@@ -1105,6 +1184,24 @@ namespace MissionPlanner
                     criteria = node.data.traitName;
                     break;
 
+
+                case CriterionType.Destination:
+                    switch (node.data.destType)
+                    {
+                        case DestinationType.Asteroid:
+                            criteria = node.data.destAsteroid;
+                            break;
+                        case DestinationType.Body:
+                            criteria = node.data.destBody;
+                            break;
+                        case DestinationType.Vessel:
+                            criteria = node.data.destVessel;
+                            break;
+
+                    }
+                    break;
+
+#if false
                 case CriterionType.Destination_asteroid:
                     criteria = node.data.destAsteroid;
                     break;
@@ -1136,6 +1233,7 @@ namespace MissionPlanner
                         }
                     }
                     break;
+#endif
 
 
                 case CriterionType.Flags:
@@ -1144,7 +1242,7 @@ namespace MissionPlanner
                         criteria = $"Need to plant {flagCount} flags";
                         break;
                     }
-
+#if false
                 case CriterionType.FuelCells:
                     {
                         float chargeRate = node.data.fuelCellChargeRate; //  Utils.FlightChecks.chargeRate;
@@ -1159,6 +1257,7 @@ namespace MissionPlanner
                 case CriterionType.Lights:
                     criteria = node.data.spotlights.ToString() + " spotlights";
                     break;
+#endif
 
                 case CriterionType.Maneuver:
                     criteria = StringFormatter.BeautifyName(node.data.maneuver.ToString());
@@ -1208,9 +1307,11 @@ namespace MissionPlanner
                     criteria = node.data.moduleName;
                     break;
 
+#if false
                 case CriterionType.Number:
                     criteria = $"{node.data.number}";
                     break;
+#endif
 
                 case CriterionType.Part:
                     if (node.data.partName != null)
@@ -1219,6 +1320,7 @@ namespace MissionPlanner
                         criteria = "Unnamed Part";
                     break;
 
+#if false
                 case CriterionType.Parachutes:
                     criteria = node.data.parachutes.ToString() + " parachutes";
                     break;
@@ -1229,10 +1331,14 @@ namespace MissionPlanner
                         criteria = $"Cooling rate: {coolingRate} kW";
                         break;
                     }
+#endif
+#if false
                 case CriterionType.Range:
                     criteria = $"{node.data.minFloatRange} - {node.data.maxFloatRange}";
                     break;
+#endif
 
+#if false
                 case CriterionType.RCS:
                     for (int i = 0; i < Initialization.rcsTypesAr.Length; i++)
                     {
@@ -1247,6 +1353,7 @@ namespace MissionPlanner
                 case CriterionType.ReactionWheels:
                     criteria = node.data.reactionWheels.ToString() + " reaction wheels";
                     break;
+#endif
 
                 case CriterionType.Resource:
                     for (int i = 0; i < node.data.resourceList.Count; i++)
@@ -1259,21 +1366,28 @@ namespace MissionPlanner
                     }
                     break;
 
+#if false
+                case CriterionType.Sum:
+                    break;
+#endif
+
                 case CriterionType.SAS:
                     criteria = SASUtils.SasLevelDescriptions[node.data.minSASLevel];
                     break;
 
+#if false
                 case CriterionType.SolarPanels:
                     {
                         float chargeRate = node.data.solarChargeRate; //  Utils.FlightChecks.chargeRate;
                         criteria = $"Charge rate: {chargeRate} EC/sec";
                         break;
                     }
+#endif
                 case CriterionType.Staging:
                     {
                         bool rc = StageUtility.StageHasDecouplerOrSeparator(node.data.stage, out criteria, node.data.includeDockingPort);
 
-                        criteria = rc ? criteria : "(none)";
+                        criteria = $"Stage {node.data.stage} staging via: " + (rc ? criteria : "(none)");
                         break;
                     }
 
@@ -1298,6 +1412,12 @@ namespace MissionPlanner
             bool up, down, promote, demote, moveTo, dup, add, del;
             float indent = 0;
             string criteria = "";
+
+#if false
+            if (node.data.stepType == CriterionType.Sum)
+                node.data.sumOfChildNumbers = GetChildSums.GetSums(node);
+#endif
+
             using (new GUILayout.VerticalScope())
             {
                 using (new GUILayout.HorizontalScope())
@@ -1305,7 +1425,7 @@ namespace MissionPlanner
                     // The following "if" is formatted this way to make it easier to add additional criteria types to be associated
                     // with a specific stage
                     if (!showVesselSpecific ||
-                        node.data.stepType == CriterionType.Engines ||
+                        (node.data.stepType ==  CriterionType.PartGroup &&  node.data.partGroup == PartGroup.Engines) ||
                         node.data.stepType == CriterionType.Staging)
                     {
 

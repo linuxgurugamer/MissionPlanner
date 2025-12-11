@@ -400,7 +400,7 @@ public class MissionVisitTracker : ScenarioModule
 
     private void CheckDocking(StepNode r, Guid guid1, Guid guid2)
     {
-        if (r.data.stepType == CriterionType.Destination_vessel)
+        if (r.data.stepType == CriterionType.Destination && r.data.destType == DestinationType.Vessel)
         {
             if (r.data.requiresDocking && r.data.vesselGuid == guid1 ||
                 r.data.requiresDocking && r.data.vesselGuid == guid2)

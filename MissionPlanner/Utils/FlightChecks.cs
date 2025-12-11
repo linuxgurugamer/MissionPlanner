@@ -67,12 +67,215 @@ namespace MissionPlanner.Utils
 
             switch (s.stepType)
             {
+                case CriterionType.PartGroup:
+                    switch (s.partGroup)
+                    {
+                        case PartGroup.Batteries:
+                            {
+                                if (HighLogic.LoadedSceneIsFlight)
+                                    return (Utils.BatteryUtils.GetTotalBatteryCapacityFlight(FlightGlobals.ActiveVessel) >= s.batteryCapacity);
+                                return BatteryUtils.GetTotalBatteryCapacityEditor(EditorLogic.fetch.ship) >= s.batteryCapacity;
+
+                            }
+                        case PartGroup.Communication:
+                            if (HighLogic.LoadedSceneIsFlight)
+                            {
+                                if (AntennaUtils.HasAntennaFlight(FlightGlobals.ActiveVessel))
+                                    return (Utils.AntennaUtils.GetTotalAntennaPowerFlight(FlightGlobals.ActiveVessel) >= s.antennaPower);
+                                else
+                                    return false;
+                            }
+                            else
+                            {
+                                if (AntennaUtils.HasAntennaEditor(EditorLogic.fetch.ship))
+                                    return Utils.AntennaUtils.GetTotalAntennaPowerEditor(EditorLogic.fetch.ship) >= s.antennaPower;
+                                else
+                                    return false;
+                            }
+                        case PartGroup.DockingPort:
+                            return (HighLogic.LoadedSceneIsFlight && DockingPortUtils.GetDockingParts(FlightGlobals.ActiveVessel).Count >= s.dockingPortQty) ||
+                                (HighLogic.LoadedSceneIsEditor && DockingPortUtils.GetDockingParts(EditorLogic.fetch.ship).Count >= s.dockingPortQty);
+                        case PartGroup.Drills:
+                            return (HighLogic.LoadedSceneIsFlight && DrillUtils.GetDrillParts(FlightGlobals.ActiveVessel).Count >= s.drillQty) ||
+                                (HighLogic.LoadedSceneIsEditor && DrillUtils.GetDrillParts(EditorLogic.fetch.ship).Count >= s.drillQty);
+                        case PartGroup.Engines:
+                            {
+                                for (int i = 0; i < s.engineResourceList.Count; i++)
+                                {
+                                    var resinfo = s.engineResourceList[i];
+                                    s.CheckResource(resinfo.resourceName, false, out double amt, out double capacity);
+                                    if (amt < resinfo.resourceAmount || capacity < resinfo.resourceCapacity)
+                                        return false;
+                                }
+
+                                bool rc = EngineTypeMatcher.PartsHaveEngineType(partsList, s.engineType);
+                                //var info = DeltaVUtils.GetActiveStageInfo_Vac(useLaunchpadFirstStageIfPrelaunch: true);
+
+                                int realStage = (s.stage <= StageInfo.StageCount - 1) ? s.stage : StageInfo.StageCount - 1;
+                                float dV = 0;
+                                float twr = 0;
+                                if (!s.asl)
+                                {
+                                    dV = StageInfo.DeltaVinVac(realStage);
+                                    twr = StageInfo.TWRVac(realStage);
+                                }
+                                else
+                                {
+                                    dV = StageInfo.DeltaVatASL(realStage);
+                                    twr = StageInfo.TWRASL(realStage);
+                                }
+
+                                rc &= dV >= s.deltaV & twr >= s.TWR;
+
+                                return rc;
+                            }
+                        case PartGroup.FuelCells:
+                            {
+                                if (HighLogic.LoadedSceneIsEditor)
+                                {
+                                    FuelCellGenerationSummary fcgs = Utils.FuelCellUtils.GetEstimatedECGenerationEditor(EditorLogic.fetch.ship);
+                                    if (fcgs.TotalFuelCellParts == 0)
+                                        return false;
+                                    if (EditorLogic.fetch.ship != null)
+                                        return (float)fcgs.TotalECps >= s.fuelCellChargeRate;
+                                    return false;
+                                }
+                                else
+                                {
+                                    FuelCellGenerationSummary fcgs = Utils.FuelCellUtils.GetEstimatedECGenerationFlight(FlightGlobals.ActiveVessel);
+                                    if (fcgs.TotalFuelCellParts == 0)
+                                        return false;
+
+                                    return (float)fcgs.TotalECps >= s.fuelCellChargeRate;
+                                }
+                            }
+                        case PartGroup.Generators:
+                            {
+                                if (HighLogic.LoadedSceneIsEditor)
+                                {
+                                    GeneratorUtils.GeneratorSummary ggs = GeneratorUtils.GetTotalECGeneratorsEditor(EditorLogic.fetch.ship);
+                                    if (ggs.generatorCnt == 0)
+                                        return false;
+                                    return (float)ggs.TotalECps >= s.generatorChargeRate;
+                                }
+                                else
+                                {
+
+                                    GeneratorUtils.GeneratorSummary ggs = GeneratorUtils.GetTotalECGeneratorsFlight(FlightGlobals.ActiveVessel);
+
+                                    if (ggs.generatorCnt == 0)
+                                        return false;
+                                    return ggs.TotalECps >= s.generatorChargeRate;
+
+                                }
+                            }
+                        case PartGroup.Lights:
+                            {
+                                if (HighLogic.LoadedSceneIsFlight)
+                                {
+                                    return Utils.LightUtils.CountSpotlightsFlight(FlightGlobals.ActiveVessel) >= s.spotlights;
+                                }
+                                else
+                                {
+                                    if (EditorLogic.fetch.ship != null)
+                                    {
+                                        return Utils.LightUtils.CountSpotlightsEditor(EditorLogic.fetch.ship) >= s.spotlights;
+                                    }
+                                    return false;
+                                }
+                            }
+                        case PartGroup.Parachutes:
+                            {
+                                if (HighLogic.LoadedSceneIsFlight)
+                                {
+                                    ParachuteStateCounts psc = ParachuteUtils.GetParachuteStateCountsFlight(FlightGlobals.ActiveVessel);
+                                    return psc.Total >= s.parachutes;
+                                }
+                                else
+                                {
+                                    ParachuteCapacitySummary psc = ParachuteUtils.GetParachuteCapacityEditor(EditorLogic.fetch.ship);
+
+                                    if (EditorLogic.fetch.ship != null)
+                                    {
+                                        return psc.Total >= s.parachutes;
+                                    }
+                                    return false;
+                                }
+                            }
+                        case PartGroup.Radiators:
+                            {
+                                RadiatorCoolingSummary rcs;
+
+                                if (HighLogic.LoadedSceneIsFlight)
+                                {
+                                    rcs = RadiatorUtils.GetEstimatedCoolingFlight(FlightGlobals.ActiveVessel);
+                                    return (float)rcs.TotalKW >= s.radiatorCoolingRate;
+                                }
+                                else
+                                {
+                                    rcs = RadiatorUtils.GetEstimatedCoolingEditor(EditorLogic.fetch.ship);
+
+                                    if (EditorLogic.fetch.ship != null)
+                                        return rcs.TotalKW >= s.radiatorCoolingRate;
+                                    return false;
+                                }
+                            }
+                        case PartGroup.RCS:
+                            {
+                                for (int i = 0; i < s.rcsResourceList.Count; i++)
+                                {
+                                    var resinfo = s.rcsResourceList[i];
+                                    s.CheckResource(resinfo.resourceName, false, out double amt, out double capacity);
+                                    if (amt < resinfo.resourceAmount || capacity < resinfo.resourceCapacity)
+                                        return false;
+                                }
+                                if (RCSUtils.PartsHaveRCSType(partsList, s.rcsType))
+                                    return true;
+                                else
+                                    return false;
+                            }
+                        case PartGroup.ReactionWheels:
+                            {
+                                TorqueSummary ts;
+                                if (HighLogic.LoadedSceneIsFlight)
+                                    ts = ReactionWheelUtils.GetEnabledTorqueFlight(FlightGlobals.ActiveVessel);
+                                else
+                                    ts = GetNominalTorqueEditor(EditorLogic.fetch.ship);
+
+                                return (ts.Total >= s.reactionWheels &&
+                                    ts.Roll >= s.torqueRoll && ts.Pitch >= s.torquePitch && ts.Yaw >= s.torqueYaw);
+                            }
+                        case PartGroup.SolarPanels:
+                            {
+                                if (HighLogic.LoadedSceneIsFlight)
+                                {
+                                    SolarGenerationSummary sgs = SolarUtils.GetEstimatedECGenerationFlight(FlightGlobals.ActiveVessel, s.solarPaneltracking);
+
+                                    if (sgs.TotalSolarParts == 0)
+                                        return false;
+
+                                    return (float)sgs.TotalECps >= s.solarChargeRate;
+                                }
+                                else
+                                {
+                                    SolarGenerationSummary sgs = SolarUtils.GetEstimatedECGenerationEditor(EditorLogic.fetch.ship);
+                                    if (sgs.TotalSolarParts == 0)
+                                        return false;
+                                    if (EditorLogic.fetch.ship != null)
+                                        return (float)sgs.TotalECps >= s.solarChargeRate;
+                                    return false;
+                                }
+                            }
+                            break;
+                    }
+                    break;
+
 #if false
                 case CriterionType.DeltaV:
                     var info = DeltaVUtils.GetActiveStageInfo_Vac(useLaunchpadFirstStageIfPrelaunch: true);
                     return info.deltaV >= s.deltaV;
 #endif
-
+#if false
                 case CriterionType.Drills:
                     return (HighLogic.LoadedSceneIsFlight && DrillUtils.GetDrillParts(FlightGlobals.ActiveVessel).Count >= s.drillQty) ||
                     (HighLogic.LoadedSceneIsEditor && DrillUtils.GetDrillParts(EditorLogic.fetch.ship).Count >= s.drillQty);
@@ -80,6 +283,7 @@ namespace MissionPlanner.Utils
                 case CriterionType.DockingPort:
                     return (HighLogic.LoadedSceneIsFlight && DockingPortUtils.GetDockingParts(FlightGlobals.ActiveVessel).Count >= s.dockingPortQty) ||
                     (HighLogic.LoadedSceneIsEditor && DockingPortUtils.GetDockingParts(EditorLogic.fetch.ship).Count >= s.dockingPortQty);
+#endif
 
                 case CriterionType.ControlSource:
                     return (HighLogic.LoadedSceneIsFlight && PartLookupUtils.ShipModulesCount<ModuleCommand>(FlightGlobals.ActiveVessel) >= s.controlSourceQty) ||
@@ -192,12 +396,18 @@ namespace MissionPlanner.Utils
                         return crew >= s.crewCount;
                     }
 
+#if false
+                case CriterionType.Sum:
+                    break;
+#endif
+
                 case CriterionType.SAS:
                     if (HighLogic.LoadedSceneIsEditor)
                         return true;
                     var sasInfo = SASUtils.GetAvailableSASModes(FlightGlobals.ActiveVessel);
                     return SASUtils.IsRequiredSASAvailable(s.minSASLevel, sasInfo);
 
+#if false
                 case CriterionType.RCS:
                     {
                         for (int i = 0; i < s.rcsResourceList.Count; i++)
@@ -212,7 +422,6 @@ namespace MissionPlanner.Utils
                         else
                             return false;
                     }
-
                 case CriterionType.Engines:
                     {
                         for (int i = 0; i < s.engineResourceList.Count; i++)
@@ -256,7 +465,6 @@ namespace MissionPlanner.Utils
                         return BatteryUtils.GetTotalBatteryCapacityEditor(EditorLogic.fetch.ship) >= s.batteryCapacity;
 
                     }
-
                 case CriterionType.Communication:
                     if (HighLogic.LoadedSceneIsFlight)
                     {
@@ -272,7 +480,6 @@ namespace MissionPlanner.Utils
                         else
                             return false;
                     }
-
                 case CriterionType.SolarPanels:
                     {
                         if (HighLogic.LoadedSceneIsFlight)
@@ -336,7 +543,7 @@ namespace MissionPlanner.Utils
 
                         }
                     }
-
+#endif
                 case CriterionType.ChargeRateTotal:
                     {
                         SolarGenerationSummary sgs;
@@ -358,6 +565,8 @@ namespace MissionPlanner.Utils
 
                         return (sgs.TotalECps + fcgs.TotalECps + ggs.TotalECps) >= s.chargeRateTotal;
                     }
+
+#if false
                 case CriterionType.Radiators:
                     {
                         RadiatorCoolingSummary rcs;
@@ -423,7 +632,7 @@ namespace MissionPlanner.Utils
                         return (ts.Total >= s.reactionWheels &&
                             ts.Roll >= s.torqueRoll && ts.Pitch >= s.torquePitch && ts.Yaw >= s.torqueYaw);
                     }
-
+#endif
                 case CriterionType.Flags:
                     {
                         if (HighLogic.LoadedSceneIsEditor)
@@ -435,6 +644,47 @@ namespace MissionPlanner.Utils
                         return s.flagCnt <= flagCount;
                     }
 
+                case CriterionType.Destination:
+                    switch (s.destType)
+                    {
+                        case DestinationType.Vessel:
+                            if (HighLogic.LoadedSceneIsEditor)
+                                return true;
+
+                            if (!string.IsNullOrEmpty(s.destVessel))
+                                return MissionVisitTracker.HasVisitedVessel(FlightGlobals.ActiveVessel, s.destVessel, countStartBody: true);
+                            break;
+
+                        case DestinationType.Asteroid:
+                            if (HighLogic.LoadedSceneIsEditor)
+                                return true;
+                            if (!string.IsNullOrEmpty(s.destAsteroid))
+                                return MissionVisitTracker.HasVisitedVessel(FlightGlobals.ActiveVessel, s.destAsteroid, countStartBody: true);
+                            break;
+
+                        case DestinationType.Body:
+                            if (HighLogic.LoadedSceneIsEditor)
+                                return true;
+                            if (!string.IsNullOrEmpty(s.destBody))
+                            {
+                                if (!s.requiresLanding)
+
+                                {
+                                    return MissionVisitTracker.HasVisitedBody(FlightGlobals.ActiveVessel, s.destBody, countStartBody: true);
+                                }
+                                else
+                                {
+                                    if (string.IsNullOrEmpty(s.destBiome) || s.destBiome == BiomeUtils.ANYBIOME)
+                                        return MissionVisitTracker.HasLandedOnBody(FlightGlobals.ActiveVessel, s.destBody, countStartBody: true);
+                                    else
+                                        return MissionVisitTracker.HasLandedOnBodyAtBiome(FlightGlobals.ActiveVessel, s.destBody, s.destBiome, countStartBody: true);
+                                }
+                            }
+                            break;
+                    }
+                    break;
+
+#if false
                 case CriterionType.Destination_vessel:
                     if (HighLogic.LoadedSceneIsEditor)
                         return true;
@@ -469,7 +719,7 @@ namespace MissionPlanner.Utils
                         }
                     }
                     break;
-
+#endif
                 default:
                     return true;
             }
@@ -480,8 +730,8 @@ namespace MissionPlanner.Utils
         {
             switch (s.stepType)
             {
-                case CriterionType.Destination_body:
-                    if (!string.IsNullOrEmpty(s.destBody))
+                case CriterionType.Destination:
+                    if (s.destType == DestinationType.Body && !string.IsNullOrEmpty(s.destBody))
                         return MissionVisitTracker.HasLandedOnBody(FlightGlobals.ActiveVessel, s.destBody, countStartBody: true);
 
                     break;

@@ -47,7 +47,10 @@ namespace MissionPlanner
                 string mission = IsNullOrWhiteSpace(_missionName) ? "Unnamed" : _missionName.Trim();
                 string full = GetSaveFileAbsolute(save, mission);
 
-
+                if (!Directory.Exists(GetMissionDirectoryAbsolute()))
+                {
+                    Directory.CreateDirectory(GetMissionDirectoryAbsolute());
+                }
                 if (File.Exists(full) && !overwriteOk) return false;
 
                 var root = new ConfigNode(SAVE_ROOT_NODE);

@@ -47,6 +47,9 @@ namespace MissionPlanner
         internal static Dictionary<string, EngineTypeInfo> rcsTypeDict = new Dictionary<string, EngineTypeInfo>();
 
         internal static bool systemHeat;
+
+        internal static string[] destTypesAr = { "Asteroid", "Body", "Vessel" };
+        internal static string[] partGroupAr;
         internal static IEnumerator BackgroundInitialize()
         {
             if (!initialized)
@@ -72,6 +75,7 @@ namespace MissionPlanner
 
 
                 ResourceStrings = GetAllResourcesStrings().ToArray();
+                partGroupAr = Enum.GetNames(typeof(PartGroup));
 
                 // *******************************************************************
                 {

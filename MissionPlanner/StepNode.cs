@@ -45,10 +45,11 @@ namespace MissionPlanner
         public bool toggle = false;
         public bool initialToggleValue = false;
 
-        public float minFloatRange = 0f;
-        public float maxFloatRange = 1f;
+        //public float minFloatRange = 0f;
+        //public float maxFloatRange = 1f;
 
-        public float number = 100;
+        //public float number = 0;
+        //public float sumOfChildNumbers = 0;
 
         public string traitName = "";
 
@@ -85,6 +86,7 @@ namespace MissionPlanner
         public string destBody = "";
         public string destBiome = "";
         public string biome = "";
+        public DestinationType destType = 0;
         public string destAsteroid = "";
         public string destVessel = "";
         public string trackedVessel = "";
@@ -117,6 +119,7 @@ namespace MissionPlanner
         public string partName = "";        // internal name (AvailablePart.name)
         public string partTitle = "";       // display title (AvailablePart.title)
         public bool partOnlyAvailable = true;
+        public PartGroup partGroup;
 
         public Step()
         {
@@ -137,10 +140,11 @@ namespace MissionPlanner
             toggle = step.toggle;
             initialToggleValue = step.initialToggleValue;
 
+#if false
             minFloatRange = step.minFloatRange;
             maxFloatRange = step.maxFloatRange;
-
             number = step.number;
+#endif
 
             traitName = step.traitName;
 
@@ -185,6 +189,7 @@ namespace MissionPlanner
             destBody = step.destBody;
             destBiome = step.destBiome;
             biome = step.biome;
+            destType = step.destType;
             destAsteroid = step.destAsteroid;
             destVessel = step.destVessel;
             trackedVessel = step.trackedVessel;
@@ -217,6 +222,8 @@ namespace MissionPlanner
             partName = step.partName;
             partTitle = step.partTitle;
             partOnlyAvailable = step.partOnlyAvailable;
+
+            partGroup = step.partGroup;
         }
 
         public bool CheckCrew(out int crew)
@@ -257,9 +264,13 @@ namespace MissionPlanner
 
             n.AddValue("toggle", toggle);
             n.AddValue("initialToggleValue", initialToggleValue);
+
+#if false
             n.AddValue("minFloatRange", minFloatRange);
             n.AddValue("maxFloatRange", maxFloatRange);
             n.AddValue("number", number);
+#endif
+
             n.AddValue("traitName", traitName);
 
             if (resourceList.Count > 0)
@@ -333,6 +344,8 @@ namespace MissionPlanner
             n.AddValue("destBody", destBody);
             n.AddValue("destBiome", destBiome);
             n.AddValue("biome", biome);
+
+            n.AddValue("destType", destType);
             n.AddValue("destAsteroid", destAsteroid);
 
             n.AddValue("destVessel", destVessel);
@@ -364,6 +377,8 @@ namespace MissionPlanner
             n.AddValue("partTitle", partTitle ?? "");
             n.AddValue("partOnlyAvailable", partOnlyAvailable);
 
+            n.AddValue("partGroup", partGroup);
+
             return n;
         }
 
@@ -381,9 +396,13 @@ namespace MissionPlanner
             if (Enum.TryParse(n.GetValue("maneuver"), out m)) s.maneuver= m;
             s.toggle = n.SafeLoad("toggle", s.toggle);
             s.initialToggleValue = n.SafeLoad("initialToggleValue", s.initialToggleValue);
+
+#if false
             s.minFloatRange = n.SafeLoad("minFloatRange", s.minFloatRange);
             s.maxFloatRange = n.SafeLoad("maxFloatRange", s.maxFloatRange);
             s.number = n.SafeLoad("number", s.number);
+#endif
+
             s.traitName = n.SafeLoad("traitName", s.traitName);
 
             Direction d;
@@ -457,6 +476,10 @@ namespace MissionPlanner
             s.destBody = n.SafeLoad("destBody", s.destBody);
             s.destBiome = n.SafeLoad("destBiome", s.destBiome);
             s.biome = n.SafeLoad("biome", s.biome);
+
+            DestinationType dt;
+            if (Enum.TryParse(n.GetValue("destType"), out dt)) s.destType = dt;
+
             s.destAsteroid = n.SafeLoad("destAsteroid", s.destAsteroid);
 
             s.destVessel = n.SafeLoad("destVessel", s.destVessel);
@@ -487,6 +510,9 @@ namespace MissionPlanner
             s.partTitle = n.SafeLoad("partTitle", s.partTitle);
             s.partOnlyAvailable = n.SafeLoad("partOnlyAvailable", s.partOnlyAvailable);
 
+            PartGroup pg;
+            if (Enum.TryParse(n.GetValue("partGroup"), out pg))
+                s.partGroup = pg;
             return s;
         }
     }

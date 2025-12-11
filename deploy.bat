@@ -15,7 +15,8 @@ set VERSIONFILE=%GAMEDIR%.version
 rem set DP0=r:\dp0\kspdev
 rem set DP0=R:\KSP\KSP_1.12.5-JNSQ
 
-rem set DP0=R:\KSP\KSP_1.12.5-PromisedWorlds
+rem set H=R:\KSP\KSP_1.12.5-PromisedWorlds
+set H=R:\KSP\KSP_1.12.5-Blueshift
 
 
 copy /Y "%1%2" "%GAMEDATA%\%GAMEDIR%\Plugins"
