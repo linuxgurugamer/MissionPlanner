@@ -40,16 +40,9 @@ namespace MissionPlanner
 
         public CriterionType stepType = CriterionType.ChecklistItem;
         public Maneuver maneuver = Maneuver.None;
-        //public ChecklistItem checklistItem = null;
 
         public bool toggle = false;
         public bool initialToggleValue = false;
-
-        //public float minFloatRange = 0f;
-        //public float maxFloatRange = 1f;
-
-        //public float number = 0;
-        //public float sumOfChildNumbers = 0;
 
         public string traitName = "";
 
@@ -81,7 +74,6 @@ namespace MissionPlanner
         public string moduleName = "";
         public int minSASLevel = 0;
 
-        //public string bodyAsteroidVessel = "";
         public string flagBody = "";
         public string destBody = "";
         public string destBiome = "";
@@ -123,7 +115,6 @@ namespace MissionPlanner
 
         public Step()
         {
-            //criterion = new Criterion();
         }
 
         public Step(Step step)
@@ -140,12 +131,6 @@ namespace MissionPlanner
             toggle = step.toggle;
             initialToggleValue = step.initialToggleValue;
 
-#if false
-            minFloatRange = step.minFloatRange;
-            maxFloatRange = step.maxFloatRange;
-            number = step.number;
-#endif
-
             traitName = step.traitName;
 
             resourceList = new List<ResInfo>();
@@ -158,7 +143,6 @@ namespace MissionPlanner
                 engineResourceList.Add(new ResInfo(r));
             foreach (var r in step.rcsResourceList)
                 rcsResourceList.Add(new ResInfo(r));
-
 
             batteryCapacity = step.batteryCapacity;
             chargeRateTotal = step.chargeRateTotal;
@@ -180,7 +164,6 @@ namespace MissionPlanner
             pe = step.pe;
             marginOfError = step.marginOfError;
             peMatchesAp = step.peMatchesAp;
-
 
             moduleName = step.moduleName;
             minSASLevel = step.minSASLevel;
@@ -251,7 +234,6 @@ namespace MissionPlanner
         }
 
 
-
         public ConfigNode ToConfigNode()
         {
             var n = new ConfigNode("STEP");
@@ -264,12 +246,6 @@ namespace MissionPlanner
 
             n.AddValue("toggle", toggle);
             n.AddValue("initialToggleValue", initialToggleValue);
-
-#if false
-            n.AddValue("minFloatRange", minFloatRange);
-            n.AddValue("maxFloatRange", maxFloatRange);
-            n.AddValue("number", number);
-#endif
 
             n.AddValue("traitName", traitName);
 
@@ -396,12 +372,6 @@ namespace MissionPlanner
             if (Enum.TryParse(n.GetValue("maneuver"), out m)) s.maneuver= m;
             s.toggle = n.SafeLoad("toggle", s.toggle);
             s.initialToggleValue = n.SafeLoad("initialToggleValue", s.initialToggleValue);
-
-#if false
-            s.minFloatRange = n.SafeLoad("minFloatRange", s.minFloatRange);
-            s.maxFloatRange = n.SafeLoad("maxFloatRange", s.maxFloatRange);
-            s.number = n.SafeLoad("number", s.number);
-#endif
 
             s.traitName = n.SafeLoad("traitName", s.traitName);
 

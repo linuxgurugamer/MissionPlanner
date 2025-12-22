@@ -92,6 +92,12 @@ namespace MissionPlanner.Utils
                                 else
                                     return false;
                             }
+
+                        case PartGroup.ControlSource:
+                            return (HighLogic.LoadedSceneIsFlight && PartLookupUtils.ShipModulesCount<ModuleCommand>(FlightGlobals.ActiveVessel) >= s.controlSourceQty) ||
+                                (HighLogic.LoadedSceneIsEditor && PartLookupUtils.ShipModulesCount<ModuleCommand>(EditorLogic.fetch.ship) >= s.controlSourceQty);
+
+
                         case PartGroup.DockingPort:
                             return (HighLogic.LoadedSceneIsFlight && DockingPortUtils.GetDockingParts(FlightGlobals.ActiveVessel).Count >= s.dockingPortQty) ||
                                 (HighLogic.LoadedSceneIsEditor && DockingPortUtils.GetDockingParts(EditorLogic.fetch.ship).Count >= s.dockingPortQty);
@@ -283,11 +289,11 @@ namespace MissionPlanner.Utils
                 case CriterionType.DockingPort:
                     return (HighLogic.LoadedSceneIsFlight && DockingPortUtils.GetDockingParts(FlightGlobals.ActiveVessel).Count >= s.dockingPortQty) ||
                     (HighLogic.LoadedSceneIsEditor && DockingPortUtils.GetDockingParts(EditorLogic.fetch.ship).Count >= s.dockingPortQty);
-#endif
 
                 case CriterionType.ControlSource:
                     return (HighLogic.LoadedSceneIsFlight && PartLookupUtils.ShipModulesCount<ModuleCommand>(FlightGlobals.ActiveVessel) >= s.controlSourceQty) ||
                         (HighLogic.LoadedSceneIsEditor && PartLookupUtils.ShipModulesCount<ModuleCommand>(EditorLogic.fetch.ship) >= s.controlSourceQty);
+#endif
 
                 case CriterionType.Part:
                     return s.CheckPart();

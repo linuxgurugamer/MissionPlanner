@@ -4,14 +4,14 @@ Add check and warning about existing mission for a vessel when tracking a vessel
 
 
 
-
-
 Science????
 
-Possible add reward system to MissionPlanner
+Reward system
 	Science points
 	money
 	Reputation
+Would require contracts to be marked as active, or at least specific goal/objective be set for a specific vessel
+Maybe only step needs to be marked as active for a vessel???
 Need to figure out how to have different vessels fulfil different items in the mission plan, in flight
 
 

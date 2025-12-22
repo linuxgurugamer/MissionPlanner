@@ -25,7 +25,7 @@ namespace MissionPlanner
         const float COMPACT_WIDTH = 650;
         const float FULL_WIDTH = 840;
 
-        const float MAX_TITLE_WIDTH = 300;
+        //const float MAX_TITLE_WIDTH = 600;
 
 
         internal const string MODID = "Mission Planner";
@@ -139,6 +139,7 @@ namespace MissionPlanner
 
         // Save As / New
         private bool _showSaveAs = false;
+        private bool _saveAsDefault = false;
         private string _saveAsName = "";
         private bool _creatingNewMission = false;
         private bool _newMissionAddSample = true;
@@ -338,6 +339,7 @@ namespace MissionPlanner
             ComboBox.DrawGUI();
             if (_visible)
             {
+
                 _treeRect = ClickThruBlocker.GUILayoutWindow(_treeWinId, _treeRect, DrawTreeWindow, "Mission Planner/Checklist");
                 // do this here since if it's done within the window you only recieve events that are inside of the window
                 this.resizeHandle.DoResize(ref this._treeRect);
@@ -357,7 +359,7 @@ namespace MissionPlanner
                         _detailRect = ClickThruBlocker.GUILayoutWindow(
                             _detailWinId, _detailRect, DrawDetailWindow,
                             string.Format("Step Details — {0}", _detailNode.data.title),
-                            GUILayout.MinWidth(520), GUILayout.MinHeight(440)
+                            GUILayout.MinWidth(520), GUILayout.MinHeight(200)
                         );
                     }
                 }
@@ -1078,6 +1080,10 @@ namespace MissionPlanner
                             criteria = node.data.antennaPower.ToString();  // may need a suffix added 
                             break;
 
+                        case PartGroup.ControlSource:
+                            criteria = $"{node.data.controlSourceQty} needed";
+                            break;
+
                         case PartGroup.DockingPort:
                             criteria = node.data.dockingPortQty.ToString() + " docking ports";
                             break;
@@ -1170,12 +1176,12 @@ namespace MissionPlanner
                 case CriterionType.Communication:
                     criteria = node.data.antennaPower.ToString();  // may need a suffix added 
                     break;
-#endif
 
 
                 case CriterionType.ControlSource:
                     criteria = $"{node.data.controlSourceQty} needed";
                     break;
+#endif
 
                 case CriterionType.CrewCount:
                     criteria = node.data.crewCount.ToString() + " kerbals";
@@ -1414,11 +1420,6 @@ namespace MissionPlanner
             float indent = 0;
             string criteria = "";
 
-#if false
-            if (node.data.stepType == CriterionType.Sum)
-                node.data.sumOfChildNumbers = GetChildSums.GetSums(node);
-#endif
-
             using (new GUILayout.VerticalScope())
             {
                 using (new GUILayout.HorizontalScope())
@@ -1470,7 +1471,7 @@ namespace MissionPlanner
                         const float controlsBase = 100f;
                         float controlsWidth = controlsBase + _controlsPad;
                         float available = Mathf.Max(120f, _treeRect.width - indent - _foldColWidth - controlsWidth - 12f);
-                        float titleWidth = Mathf.Clamp(available * _titleWidthPct, MAX_TITLE_WIDTH, available);
+                        float titleWidth = Mathf.Clamp(available * _titleWidthPct, HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings2>().titleColumnWidth, available);
 
                         var style = (_selectedNode == node) ? _selectedTitleLabel : _titleLabel;
 
@@ -1879,6 +1880,7 @@ namespace MissionPlanner
             _saveAsRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - _saveAsRect.height - 40);
 
             _showSaveAs = true;
+            _saveAsDefault = false;
         }
 
         private void DrawSaveAsDialogWindow(int id)
@@ -1891,7 +1893,14 @@ namespace MissionPlanner
                 GUILayout.Label(_creatingNewMission ? "New mission name:" : "Save as name:", ScaledGUILayoutWidth(140));
                 _saveAsName = GUILayout.TextField(_saveAsName ?? "", GUILayout.MinWidth(180), GUILayout.ExpandWidth(true));
             }
-
+            if (!_creatingNewMission)
+            {
+                using (new GUILayout.HorizontalScope())
+                {
+                    _saveAsDefault = GUILayout.Toggle(_saveAsDefault, "");
+                    GUILayout.Label("Save as default");
+                }
+            }
             if (_creatingNewMission)
             {
                 GUILayout.Space(6);
@@ -1971,8 +1980,8 @@ namespace MissionPlanner
                         {
                             _missionName = proposed;
                             _showSaveAs = false;
-                            if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().autosave)
-                                TrySaveToDisk_Internal(true);
+                            if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().autosave || _saveAsDefault)
+                                TrySaveToDisk_Internal(true, _saveAsDefault);
                         }
                     }
                 }

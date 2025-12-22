@@ -49,6 +49,7 @@ namespace MissionPlanner
         internal static bool systemHeat;
 
         internal static string[] destTypesAr = { "Asteroid", "Body", "Vessel" };
+        internal static string[] partGroupDisplayAr;
         internal static string[] partGroupAr;
         internal static IEnumerator BackgroundInitialize()
         {
@@ -195,6 +196,31 @@ namespace MissionPlanner
                     }
                     else
                         Log.Error("rcsTypesAr is empty");
+
+                    Array.Sort(partGroupAr);
+                    if (partGroupAr.Length > 0)
+                    {
+                        List<string> strings = new List<string>();
+                        foreach (var e in partGroupAr)
+                        {
+                            var split = e.Split(':');
+                            string str = split[0] + " (";
+                            for (int i = 1; i < split.Length; i++)
+                            {
+                                str += split[i];
+                                if (i < split.Length - 2)
+                                    str += ", ";
+                            }
+                            str += ")";
+                            strings.Add(str);
+                        }
+                        partGroupDisplayAr = strings.ToArray();
+                    }
+                    else
+                        Log.Error("partGroupDisplayAr is empty");
+
+
+
                 }
             }
             yield return null;

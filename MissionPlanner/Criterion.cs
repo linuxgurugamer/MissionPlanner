@@ -11,6 +11,7 @@
     {
         Batteries,
         Communication,
+        ControlSource,
         DockingPort,
         Drills,
         Engines,
@@ -30,7 +31,7 @@
         ChargeRateTotal,
         ChecklistItem,
         //Communication,
-        ControlSource,
+        //ControlSource,
         CrewMemberTrait,
         CrewCount,
         Destination,

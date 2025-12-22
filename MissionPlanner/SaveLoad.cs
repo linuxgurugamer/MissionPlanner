@@ -33,32 +33,42 @@ namespace MissionPlanner
 
         private string GetCombinedFileName(string save, string mission) { return SanitizeForFile(save) + "__" + SanitizeForFile(mission) + SAVE_FILE_EXT; }
         private string GetSaveFileAbsolute(string save, string mission) { return Path.Combine(GetMissionDirectoryAbsolute(), GetCombinedFileName(save, mission)); }
+        private string GetDefaultFileName(string mission) { return SanitizeForFile(mission) + SAVE_FILE_EXT; }
+        private string GetDefaultSaveFileAbsolute(string mission) { return Path.Combine(GetDefaultMissionDirectoryAbsolute(), GetDefaultFileName(mission)); }
 
         private bool TrySaveToDisk()
         {
             return TrySaveToDisk_Internal(true);
         }
 
-        private bool TrySaveToDisk_Internal(bool overwriteOk)
+        private bool TrySaveToDisk_Internal(bool overwriteOk, bool saveAsDefault = false)
         {
             try
             {
                 string save = GetCurrentSaveName();
                 string mission = IsNullOrWhiteSpace(_missionName) ? "Unnamed" : _missionName.Trim();
-                string full = GetSaveFileAbsolute(save, mission);
-
-                if (!Directory.Exists(GetMissionDirectoryAbsolute()))
+                var root = new ConfigNode(SAVE_ROOT_NODE);
+                string full = "";
+                if (saveAsDefault)
                 {
-                    Directory.CreateDirectory(GetMissionDirectoryAbsolute());
+                    full = GetDefaultSaveFileAbsolute(mission);
+                }
+                else
+                {
+                    full = GetSaveFileAbsolute(save, mission);
+
+
+                    if (!Directory.Exists(GetMissionDirectoryAbsolute()))
+                    {
+                        Directory.CreateDirectory(GetMissionDirectoryAbsolute());
+                    }
+                    root.AddValue("SaveName", save);
                 }
                 if (File.Exists(full) && !overwriteOk) return false;
 
-                var root = new ConfigNode(SAVE_ROOT_NODE);
-                root.AddValue("SaveName", save);
                 root.AddValue("MissionName", mission);
                 root.AddValue("MissionSummary", _missionSummary ?? "");
                 root.AddValue("SimpleChecklist", _simpleChecklist);
-
 
                 root.AddValue("currentView", (int)currentView);
 

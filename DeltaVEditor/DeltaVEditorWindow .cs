@@ -74,7 +74,6 @@ namespace DeltaVEditor
         {
             using (new GUILayout.VerticalScope())
             {
-
                 // Path + Load/Save + Browse
                 GUILayout.Label("CSV Path (relative to KSP root):");
                 using (new GUILayout.HorizontalScope())

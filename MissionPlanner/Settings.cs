@@ -39,8 +39,6 @@ namespace MissionPlanner
         [GameParameters.CustomParameterUI("Close DeltaV Picker Window after selection")]
         public bool closeDvPickerAfterClick = true;
 
-        //[GameParameters.CustomIntParameterUI("Font size", minValue = 8, maxValue = 20)]
-        //public int fontSize = 12;
 
         public override bool Enabled(MemberInfo member, GameParameters parameters) { return true; }
 
@@ -66,6 +64,9 @@ namespace MissionPlanner
 
         [GameParameters.CustomIntParameterUI("Font size", minValue = 8, maxValue = 20)]
         public int fontSize = 12;
+
+        [GameParameters.CustomIntParameterUI("Title Column Width", minValue = 300, maxValue = 800)]
+        public int titleColumnWidth = 450;
 
         [GameParameters.CustomParameterUI("Use KSP Skin")]
         public bool useKspSkin = true;

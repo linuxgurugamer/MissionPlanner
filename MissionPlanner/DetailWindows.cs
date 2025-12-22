@@ -589,7 +589,7 @@ namespace MissionPlanner
                     using (new GUILayout.HorizontalScope())
                     {
                         GUILayout.Label("Part Group:");
-                        s.partGroup = (PartGroup)ComboBox.Box(PARTGROUP_COMBO, (int)s.partGroup, Initialization.partGroupAr, this, 150, s.locked);
+                        s.partGroup = (PartGroup)ComboBox.Box(PARTGROUP_COMBO, (int)s.partGroup, Initialization.partGroupDisplayAr, this, 150, s.locked);
                     }
                     using (new GUILayout.VerticalScope())
                     {
@@ -686,6 +686,48 @@ namespace MissionPlanner
                                 }
                                 break;
 
+                            case PartGroup.ControlSource:
+                                using (new GUILayout.HorizontalScope())
+                                {
+                                    GUILayout.Label("Minimum Quantity: ");
+                                    IntField("", ref s.controlSourceQty, s.locked);
+                                }
+
+
+                                if (HighLogic.LoadedSceneIsEditor)
+                                {
+                                    int i = PartLookupUtils.ShipModulesCount<ModuleCommand>(EditorLogic.fetch.ship);
+                                    if (i >= s.controlSourceQty)
+                                    {
+                                        StatusMessage = "Sufficient Control Sources found";
+                                    }
+                                    else
+                                    {
+                                        if (i > 0)
+                                            ErrorMessage = "Insufficient Control Sources found";
+                                        else
+                                            ErrorMessage = "No Control Sources found";
+
+                                    }
+                                }
+                                else
+                                if (HighLogic.LoadedSceneIsFlight)
+                                {
+                                    int i = PartLookupUtils.ShipModulesCount<ModuleCommand>(FlightGlobals.ActiveVessel);
+                                    if (i >= s.controlSourceQty)
+                                    {
+                                        StatusMessage = "Sufficient Control Sources found";
+                                    }
+                                    else
+                                    {
+                                        if (i > 0)
+                                            ErrorMessage = "Insufficient Control Sources found";
+                                        else
+                                            ErrorMessage = "No Control Sources found";
+
+                                    }
+                                }
+                                break;
 
                             case PartGroup.DockingPort:
                                 {
@@ -2601,7 +2643,6 @@ namespace MissionPlanner
                         }
                         break;
                     }
-#endif
                 case CriterionType.ControlSource:
                     using (new GUILayout.HorizontalScope())
                     {
@@ -2644,6 +2685,7 @@ namespace MissionPlanner
                         }
                     }
                     break;
+#endif
 
                 case CriterionType.Staging:
                     using (new GUILayout.HorizontalScope())
