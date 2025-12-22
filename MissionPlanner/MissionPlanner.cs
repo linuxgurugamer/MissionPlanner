@@ -84,6 +84,7 @@ namespace MissionPlanner
         private const string SAVE_LIST_NODE = "ROOTS";
         internal const string SAVE_MOD_FOLDER = "MissionPlanner/PluginData";
         internal const string MISSION_FOLDER = SAVE_MOD_FOLDER + "/Missions";
+        internal const string ACTIVE_MISSION_FOLDER = SAVE_MOD_FOLDER + "/ActiveMissions";
         internal const string DEFAULT_MISSION_FOLDER = SAVE_MOD_FOLDER + "/DefaultMissions";
         internal const string DELTA_V_FOLDER = SAVE_MOD_FOLDER + "/DeltaVTables";
 
@@ -202,7 +203,7 @@ namespace MissionPlanner
         }
         public static GUILayoutOption ScaledGUIFontLayoutWidth(float width)
         {
-            return GUILayout.Width(width * HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().fontSize / 12f);
+            return GUILayout.Width(width * HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings2>().fontSize / 12f);
         }
 
         public void Awake()
@@ -578,9 +579,9 @@ namespace MissionPlanner
         int lastFontSize;
         void SetUpSkins()
         {
-            forceRecalcStyles = (lastUseKSPSkin != _useKspSkin || lastFontSize != HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().fontSize);
+            forceRecalcStyles = (lastUseKSPSkin != _useKspSkin || lastFontSize != HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings2>().fontSize);
             lastUseKSPSkin = _useKspSkin;
-            lastFontSize = HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().fontSize;
+            lastFontSize = HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings2>().fontSize;
 
             if (originalGuiSkin == null)
             {
@@ -597,7 +598,7 @@ namespace MissionPlanner
             if (!forceRecalcStyles)
                 return;
 
-            GUI.skin.label.fontSize = HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().fontSize;
+            GUI.skin.label.fontSize = HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings2>().fontSize;
 
             largeLabelFontSize = (int)((GUI.skin.label.fontSize + 2) * GameSettings.UI_SCALE);
             normalLabelFontSize = (int)(GUI.skin.label.fontSize * GameSettings.UI_SCALE);
@@ -812,7 +813,7 @@ namespace MissionPlanner
 
                 View localType = currentView;
                 var names = Enum.GetNames(typeof(View));
-                currentView = (View)Utils.ComboBox.Box(VIEW_COMBO, (int)currentView, names, this, 100);
+                currentView = (View)Utils.ComboBox.Box(VIEW_COMBO, (int)currentView, names, this, 100, false);
                 if (currentView != localType)
                 {
                     float width = 0;

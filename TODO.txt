@@ -8,3 +8,16 @@ Add check and warning about existing mission for a vessel when tracking a vessel
 
 Science????
 
+Possible add reward system to MissionPlanner
+	Science points
+	money
+	Reputation
+Need to figure out how to have different vessels fulfil different items in the mission plan, in flight
+
+
+
+More dv charts:  
+RSS-RO
+RSS
+2.7x stock
+https://i.pinimg.com/originals/46/9d/6f/469d6f39f79b810cfea8082174dc8ac5.png

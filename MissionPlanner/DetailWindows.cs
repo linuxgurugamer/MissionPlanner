@@ -77,7 +77,7 @@ namespace MissionPlanner
                 {
                     GUILayout.Label("Criterion Type");
 
-                    s.stepType = (CriterionType)ComboBox.Box(CRITERIUM_COMBO, (int)s.stepType, criterionTypeStrings, this, 200);
+                    s.stepType = (CriterionType)ComboBox.Box(CRITERIUM_COMBO, (int)s.stepType, criterionTypeStrings, this, 200, s.locked);
 
                     if (!s.locked)
                     {
@@ -161,7 +161,7 @@ namespace MissionPlanner
                         using (new GUILayout.HorizontalScope())
                         {
                             GUILayout.Label("Maneuver: ");
-                            s.maneuver = (Maneuver)ComboBox.Box(MANEUVER_COMBO, (int)s.maneuver, maneuverStrings, this, 250);
+                            s.maneuver = (Maneuver)ComboBox.Box(MANEUVER_COMBO, (int)s.maneuver, maneuverStrings, this, 250, s.locked);
                             GUILayout.FlexibleSpace();
                         }
                         switch (s.maneuver)
@@ -304,7 +304,7 @@ namespace MissionPlanner
                                     using (new GUILayout.HorizontalScope())
                                     {
                                         int resId = GetResourceId(resinfo.resourceName);
-                                        resId = ComboBox.Box(RESOURCE_COMBO + i, resId, ResourceStrings, this, 150);
+                                        resId = ComboBox.Box(RESOURCE_COMBO + i, resId, ResourceStrings, this, 150, s.locked);
                                         resinfo.resourceName = ResourceStrings[resId];
                                         GUILayout.Space(10);
 
@@ -589,9 +589,9 @@ namespace MissionPlanner
                     using (new GUILayout.HorizontalScope())
                     {
                         GUILayout.Label("Part Group:");
-                        s.partGroup = (PartGroup)ComboBox.Box(PARTGROUP_COMBO, (int)s.partGroup, Initialization.partGroupAr, this, 150);
+                        s.partGroup = (PartGroup)ComboBox.Box(PARTGROUP_COMBO, (int)s.partGroup, Initialization.partGroupAr, this, 150, s.locked);
                     }
-                    using (new GUILayout.HorizontalScope())
+                    using (new GUILayout.VerticalScope())
                     {
                         switch (s.partGroup)
                         {
@@ -798,7 +798,7 @@ namespace MissionPlanner
                                             }
                                         }
                                         var old = engineType;
-                                        engineType = ComboBox.Box(ENGINETYPE_COMBO, engineType, Initialization.engineTypesDisplayAr, this, 300);
+                                        engineType = ComboBox.Box(ENGINETYPE_COMBO, engineType, Initialization.engineTypesDisplayAr, this, 300, s.locked);
                                         if (old != engineType || s.engineResourceList.Count == 0)
                                         {
                                             s.engineType = Initialization.engineTypesAr[engineType];
@@ -1247,7 +1247,7 @@ namespace MissionPlanner
                                             }
                                         }
                                         var old = rcsType;
-                                        rcsType = ComboBox.Box(RCSTYPE_COMBO, rcsType, Initialization.rcsTypesDisplayAr, this, 300);
+                                        rcsType = ComboBox.Box(RCSTYPE_COMBO, rcsType, Initialization.rcsTypesDisplayAr, this, 300, s.locked);
                                         if (old != rcsType || s.rcsResourceList.Count == 0)
                                         {
                                             s.rcsType = Initialization.rcsTypesAr[rcsType];
@@ -1493,7 +1493,7 @@ namespace MissionPlanner
                                         GUILayout.FlexibleSpace();
                                         GUILayout.Label("Tracking:");
                                         var old = (int)s.solarPaneltracking;
-                                        var solarPaneltracking = ComboBox.Box(TRACKING_COMBO, (int)s.solarPaneltracking, SolarUtils.trackingStr, this, 150);
+                                        var solarPaneltracking = ComboBox.Box(TRACKING_COMBO, (int)s.solarPaneltracking, SolarUtils.trackingStr, this, 150, s.locked);
                                         if (old != solarPaneltracking)
                                         {
                                             s.solarPaneltracking = (SolarUtils.Tracking)solarPaneltracking;
@@ -1635,7 +1635,7 @@ namespace MissionPlanner
                             using (new GUILayout.HorizontalScope())
                             {
                                 int resId = GetResourceId(resinfo.resourceName);
-                                resId = ComboBox.Box(RESOURCE_COMBO + i, resId, ResourceStrings, this, 150);
+                                resId = ComboBox.Box(RESOURCE_COMBO + i, resId, ResourceStrings, this, 150, s.locked);
                                 resinfo.resourceName = ResourceStrings[resId];
                                 GUILayout.Space(10);
                                 FloatField("", ref resinfo.resourceAmount, 0, s.locked, width: 100, flex: false);
@@ -1725,7 +1725,7 @@ namespace MissionPlanner
                             if (!s.locked)
                             {
                                 int x = s.minSASLevel;
-                                x = ComboBox.Box(SAS_COMBO, x, SASUtils.SasLevelDescriptions, this, 350);
+                                x = ComboBox.Box(SAS_COMBO, x, SASUtils.SasLevelDescriptions, this, 350, s.locked);
                                 s.minSASLevel = x;
 
                                 GUILayout.FlexibleSpace();
@@ -2942,7 +2942,7 @@ namespace MissionPlanner
                         using (new GUILayout.HorizontalScope())
                         {
                             GUILayout.Label("Destination Type: ");
-                            var dt = ComboBox.Box(DESTINATION_TYPE_COMBO, (int)s.destType, Initialization.destTypesAr, this, 200);
+                            var dt = ComboBox.Box(DESTINATION_TYPE_COMBO, (int)s.destType, Initialization.destTypesAr, this, 200, s.locked);
                             s.destType = (DestinationType)dt;
                         }
                         switch (s.destType)
@@ -3072,9 +3072,9 @@ namespace MissionPlanner
                                             int x = 0;
 
                                             if (b != null)
-                                                x = ComboBox.Box(BIOMES_COMBO, b.Id, biomes, this, 200);
+                                                x = ComboBox.Box(BIOMES_COMBO, b.Id, biomes, this, 200, s.locked);
                                             else
-                                                x = ComboBox.Box(BIOMES_COMBO, x, biomes, this, 200);
+                                                x = ComboBox.Box(BIOMES_COMBO, x, biomes, this, 200, s.locked);
                                             s.destBiome = BiomeUtils.Biomes.GetById(x).Name;
                                         }
                                         GUILayout.FlexibleSpace();

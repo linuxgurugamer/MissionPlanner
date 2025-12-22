@@ -1,12 +1,4 @@
-﻿
-using System;
-using System.Collections;
-using System.Collections.Generic;
-
-using System.Reflection;
-using UnityEngine;
-using KSP;
-using KSP.IO;
+﻿using System.Reflection;
 
 
 namespace MissionPlanner
@@ -26,9 +18,8 @@ namespace MissionPlanner
         [GameParameters.CustomParameterUI("Show tooltips")]
         public bool showTooltips = true;
 
-        [GameParameters.CustomParameterUI("Autosave", toolTip ="Automatically saves the mission after every edit")]
+        [GameParameters.CustomParameterUI("Autosave", toolTip = "Automatically saves the mission after every edit")]
         public bool autosave = true;
-
 
         [GameParameters.CustomParameterUI("Show Save Indicator")]
         public bool showSaveIndicator = true;
@@ -45,22 +36,20 @@ namespace MissionPlanner
             toolTip = "The selected Delta V will be increased by this percentage")]
         public int defaultPadding = 15;
 
-        [GameParameters.CustomIntParameterUI("Font size", minValue = 8, maxValue = 20)]
-        public int fontSize = 12;
+        [GameParameters.CustomParameterUI("Close DeltaV Picker Window after selection")]
+        public bool closeDvPickerAfterClick = true;
 
-        public override bool Enabled(MemberInfo member, GameParameters parameters)
-        {
-            return true;
-        }
+        //[GameParameters.CustomIntParameterUI("Font size", minValue = 8, maxValue = 20)]
+        //public int fontSize = 12;
 
-        public override bool Interactible(MemberInfo member, GameParameters parameters)
-        {
-            return true;
-        }
+        public override bool Enabled(MemberInfo member, GameParameters parameters) { return true; }
+
+        public override bool Interactible(MemberInfo member, GameParameters parameters) { return true; }
 
         public override void SetDifficultyPreset(GameParameters.Preset preset) { }
 
     }
+
 
     // HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings2>().
     public class MissionPlannerSettings2 : GameParameters.CustomParameterNode
@@ -74,6 +63,9 @@ namespace MissionPlanner
         public override int SectionOrder { get { return 2; } }
         public override bool HasPresets { get { return false; } }
 
+
+        [GameParameters.CustomIntParameterUI("Font size", minValue = 8, maxValue = 20)]
+        public int fontSize = 12;
 
         [GameParameters.CustomParameterUI("Use KSP Skin")]
         public bool useKspSkin = true;

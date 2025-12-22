@@ -127,8 +127,9 @@ namespace MissionPlanner.Utils
             }
         }
 
-        public static int Box(int id, int selectedItem, string[] entries, object caller,float width , bool expandWidth = true)
+        public static int Box(int id, int selectedItem, string[] entries, object caller,float width , bool locked, bool expandWidth = true)
         {
+            int oldSelectedItem = selectedItem;
             // Trivial cases (0-1 items)
             if (entries.Length == 0)
                 return 0;
@@ -194,7 +195,8 @@ namespace MissionPlanner.Utils
             {
                 comboBoxData[id].popupOwner = null;
             }
-
+            if (locked)
+                return oldSelectedItem;
             return selectedItem;
         }
     }
