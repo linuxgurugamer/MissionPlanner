@@ -1,12 +1,11 @@
 ﻿using SpaceTuxUtility;
 using System;
 using System.Collections.Generic;
-using static MissionPlanner.RegisterToolbar;
 
 namespace MissionPlanner
 {
 
-    public enum Direction { StartToEnd, EndToStart};
+    public enum Direction { StartToEnd, EndToStart };
     public class ResInfo
     {
         public string resourceName = "";
@@ -15,7 +14,7 @@ namespace MissionPlanner
         public bool locked = false;
 
         public float startingAmount { get { return resourceAmount; } set { resourceAmount = value; } }
-        public float endingAmount { get { return resourceCapacity;  } set { resourceCapacity = value; } }
+        public float endingAmount { get { return resourceCapacity; } set { resourceCapacity = value; } }
         public Direction direction = Direction.StartToEnd;
         public ResInfo() { }
         public ResInfo(string resourceName) { this.resourceName = resourceName; }
@@ -81,7 +80,16 @@ namespace MissionPlanner
         public DestinationType destType = 0;
         public string destAsteroid = "";
         public string destVessel = "";
+
         public string trackedVessel = "";
+        public int experience = 0;
+        public int reputation = 0;
+        public int kerbucks = 0;
+
+        public bool stepActive = false;
+        public bool stepCompleted = false;
+
+
         public Guid vesselGuid = Guid.Empty;
 
         public string vabCategory = "";
@@ -176,6 +184,12 @@ namespace MissionPlanner
             destAsteroid = step.destAsteroid;
             destVessel = step.destVessel;
             trackedVessel = step.trackedVessel;
+            experience = step.experience;
+            reputation = step.reputation;
+            kerbucks = step.kerbucks;
+            stepCompleted = step.stepCompleted;
+            stepActive = step.stepActive;
+
             vesselGuid = step.vesselGuid;
 
             vabCategory = step.vabCategory;
@@ -234,7 +248,7 @@ namespace MissionPlanner
         }
 
 
-        public ConfigNode ToConfigNode()
+        public ConfigNode ToConfigNode(bool _saveAsDefault)
         {
             var n = new ConfigNode("STEP");
             n.AddValue("title", title ?? "");
@@ -325,8 +339,27 @@ namespace MissionPlanner
             n.AddValue("destAsteroid", destAsteroid);
 
             n.AddValue("destVessel", destVessel);
-            n.AddValue("trackedVessel", trackedVessel);
-            n.AddValue("vesselGuid", vesselGuid);
+
+            if (_saveAsDefault)
+            {
+                n.AddValue("trackedVessel", "");
+                n.AddValue("experience", 0);
+                n.AddValue("reputation", 0);
+                n.AddValue("kerbucks", 0);
+                n.AddValue("vesselGuid", Guid.Empty);
+                n.AddValue("stepCompleted", false);
+                n.AddValue("stepActive", false);
+            }
+            else
+            {
+                n.AddValue("trackedVessel", trackedVessel);
+                n.AddValue("experience", experience);
+                n.AddValue("reputation", reputation);
+                n.AddValue("kerbucks", kerbucks);
+                n.AddValue("vesselGuid", vesselGuid);
+                n.AddValue("stepCompleted", stepCompleted);
+                n.AddValue("stepActive", stepActive);
+            }
             n.AddValue("vabCategory", vabCategory);
             n.AddValue("requiresLanding", requiresLanding);
 
@@ -369,7 +402,7 @@ namespace MissionPlanner
             if (Enum.TryParse(n.GetValue("stepType"), out t)) s.stepType = t;
 
             Maneuver m;
-            if (Enum.TryParse(n.GetValue("maneuver"), out m)) s.maneuver= m;
+            if (Enum.TryParse(n.GetValue("maneuver"), out m)) s.maneuver = m;
             s.toggle = n.SafeLoad("toggle", s.toggle);
             s.initialToggleValue = n.SafeLoad("initialToggleValue", s.initialToggleValue);
 
@@ -454,6 +487,11 @@ namespace MissionPlanner
 
             s.destVessel = n.SafeLoad("destVessel", s.destVessel);
             s.trackedVessel = n.SafeLoad("trackedVessel", s.trackedVessel);
+            s.experience = n.SafeLoad("experience", s.experience);
+            s.reputation = n.SafeLoad("reputation", s.reputation);
+            s.kerbucks = n.SafeLoad("kerbucks", s.kerbucks);
+            s.stepCompleted = n.SafeLoad("stepCompleted", s.stepCompleted);
+            s.stepActive = n.SafeLoad("stepActive", s.stepActive);
             s.vesselGuid = n.SafeLoad("vesselGuid", Guid.Empty);
             s.vabCategory = n.SafeLoad("vabCategory", s.vabCategory);
             s.requiresLanding = n.SafeLoad("requiresLanding", s.requiresLanding);
@@ -497,7 +535,7 @@ namespace MissionPlanner
         public bool Expanded = true;
         public StepNode Parent = null;
         public bool requireAll = true;
-        public  List<StepNode> Children = new List<StepNode>();
+        public List<StepNode> Children = new List<StepNode>();
 
         public StepNode() { Id = _nextId++; }
 
@@ -526,14 +564,14 @@ namespace MissionPlanner
             return n;
         }
 
-        public ConfigNode ToConfigNodeRecursive()
+        public ConfigNode ToConfigNodeRecursive(bool _saveAsDefault)
         {
             var n = new ConfigNode("NODE");
-            n.AddValue("title", data.title );
+            n.AddValue("title", data.title);
             n.AddValue("Expanded", Expanded);
             n.AddValue("requireAll", requireAll);
-            n.AddNode(data.ToConfigNode());
-            foreach (var c in Children) n.AddNode(c.ToConfigNodeRecursive());
+            n.AddNode(data.ToConfigNode(_saveAsDefault));
+            foreach (var c in Children) n.AddNode(c.ToConfigNodeRecursive(_saveAsDefault));
             return n;
         }
 
@@ -543,7 +581,7 @@ namespace MissionPlanner
 
             node.Expanded = n.SafeLoad("Expanded", false);
             node.requireAll = n.SafeLoad("requireAll", false);
-            
+
             node.data.title = n.SafeLoad("title", "noTitle");
 
             var stepNode = n.GetNode("STEP");

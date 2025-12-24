@@ -1,0 +1,44 @@
+Origin,Destination,dV_to_low_orbit,ejection_dV,capture_dV,transfer_to_low_orbit_dV,total_capture_dV,dV_low_orbit_to_surface,ascent_dV,plane_change_dV,parent,isMoon,order
+Earth,Sun,9000,21290,178000,-1,178000,400,-1,-1,,False,0
+Earth,Mercury,9000,5550,6310,1220,7530,3060,0,0,,False,1
+Earth,Venus,9000,3490,360,2940,3300,270,0,0,,False,2
+Earth,Geostationary,9000,2440,1470,0,1470,0,0,0,,False,3.1
+Earth,Moon,9000,3120,680,0,680,1720,0,0,Earth,True,3.2
+Earth,L1,9000,3120,580,0,580,0,0,0,Earth,True,3.3
+Earth,L2,9000,3120,350,0,350,0,0,0,Earth,True,3.4
+Earth,Mars,9000,4270,340,1100,1440,3600,0,0,,False,4
+Mars,Phobos,3600,610,540,3,543,6,0,0,Mars,True,4.1
+Mars,Deimos,3600,1100,650,2,652,4,0,0,Mars,True,4.2
+Earth,Vesta,9000,4520,4110,100,4210,160,0,0,,False,5
+Earth,Ceres,9000,4900,4390,150,4540,270,0,0,,False,6
+Earth,Jupiter,9000,6300,270,17210,17480,3300,0,0,,False,7
+Jupiter Capture,Himalia,0,0,3060,20,3080,40,0,0,Jupiter,True,7.1
+Jupiter Capture,Callisto,0,0,5150,700,5850,1750,0,0,Jupiter,True,7.2
+Jupiter Capture,Ganymede,0,0,6710,790,7500,1950,0,0,Jupiter,True,7.3
+Jupiter Capture,Europa,0,0,8900,580,9480,1440,0,0,Jupiter,True,7.4
+Jupiter Capture,Io,0,0,10330,730,11060,1780,0,0,Jupiter,True,7.5
+Jupiter Capture,Amelthea,0,0,15500,10,15510,20,0,0,Jupiter,True,7.6
+Earth,Saturn,9000,7290,420,10220,10640,1900,0,0,,False,8
+Saturn CaptureNeptune CaptureNeptune Capture,Iapetus,0,0,2190,160,2350,410,0,0,Saturn,True,8.1
+Saturn CaptureNeptune CaptureNeptune Capture,Titan,0,0,2500,660,3160,7600,0,0,Saturn,True,8.2
+Saturn CaptureNeptune CaptureNeptune Capture,Rhea,0,0,5910,180,6090,450,0,0,Saturn,True,8.3
+Saturn CaptureNeptune CaptureNeptune Capture,Dione,0,0,6800,140,6940,360,0,0,Saturn,True,8.4
+Saturn CaptureNeptune CaptureNeptune Capture,Tethys,0,0,7480,110,7590,270,0,0,Saturn,True,8.5
+Saturn CaptureNeptune CaptureNeptune Capture,Enceladus,0,0,8100,70,8170,160,0,0,Saturn,True,8.6
+Saturn CaptureNeptune CaptureNeptune Capture,Mimas,0,0,8720,40,8760,100,0,0,Saturn,True,8.7
+Earth,Uranus,9000,7980,510,6130,6640,150,0,0,,False,9
+Uranus Capture,Oberon,0,0,2090,210,2300,530,0,0,Uranus,True,9.1
+Uranus Capture,Titania,0,0,2390,220,2610,560,0,0,Uranus,True,9.2
+Uranus Capture,Umbriel,0,0,3210,150,3360,370,0,0,Uranus,True,9.3
+Uranus Capture,Ariel,0,0,3630,160,3790,390,0,0,Uranus,True,9.4
+Uranus Capture,Miranda,0,0,4480,50,4530,130,0,0,Uranus,True,9.5
+Earth,Neptune,9000,8220,350,6750,7100,1600,0,0,,False,10
+Neptune Capture,Nereid,0,50,870,40,910,90,0,0,Neptune,True,10.1
+Neptune Capture,Triton,4580,0,2500,410,2910,1050,0,0,Neptune,True,10.2
+Neptune Capture,Proteus,4580,4580,5070,50,5120,110,0,0,Neptune,True,10.3
+Earth,Pluto,9000,8330,2700,350,3050,890,0,0,,False,11
+Pluto,Charon,890,310,20,160,180,420,0,0,Pluto,True,11.1
+Earth,Haumea,9000,8250,2920,210,3130,100,0,0,,False,12
+Earth,MakeMake,9000,8350,2860,210,3070,360,0,0,,False,13
+Earth,Eris,9000,8460,1960,390,2350,940,0,0,,False,14
+Earth,Sedna,9000,8480,820,150,970,290,0,0,,False,15

@@ -10,7 +10,7 @@ namespace DeltaVEditor
     {
         private const string Header =
             //"Origin,Destination,dV_to_low_orbit,ejection_dV,capture_dV,dV_low_orbit_to_surface,plane_change_dV,parent,isMoon";
-            "Origin,Destination,dV_to_low_orbit,ejection_dV,capture_dV,transfer_to_low_orbit_dV,total_capture_dV,dV_low_orbit_to_surface,ascent_dV,plane_change_dV,parent,isMoon";
+            "Origin,Destination,dV_to_low_orbit,ejection_dV,capture_dV,transfer_to_low_orbit_dV,total_capture_dV,dV_low_orbit_to_surface,ascent_dV,plane_change_dV,parent,isMoon,order";
         public static List<DeltaV> Load(string path)
         {
             var list = new List<DeltaV>();
@@ -63,8 +63,12 @@ namespace DeltaVEditor
                             ascent_dV = Math.Max(0f, ParseFloat(cols[8])),
                             plane_change_dV = Math.Max(0f, ParseFloat(cols[9])),
                             parent = cols[10].Trim(),
-                            isMoon = bool.Parse(cols[11].Trim())
+                            isMoon = bool.Parse(cols[11].Trim()),
+                            sortOrder = ""
                         };
+                        if (cols.Length > 12)
+                            dv.sortOrder = cols[12].Trim();
+
                     }
                     catch (Exception ex)
                     {
@@ -99,7 +103,8 @@ namespace DeltaVEditor
                         dv.ascent_dV.ToString(CultureInfo.InvariantCulture),
                         dv.plane_change_dV.ToString(CultureInfo.InvariantCulture),
                         dv.parent,
-                        dv.isMoon
+                        dv.isMoon,
+                        dv.sortOrder
                     );
                     writer.WriteLine(line);
                 }

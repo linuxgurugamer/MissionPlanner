@@ -76,7 +76,7 @@ namespace MissionPlanner
                 root.AddNode(list);
 
                 foreach (var r in _roots)
-                    list.AddNode(r.ToConfigNodeRecursive());
+                    list.AddNode(r.ToConfigNodeRecursive(_saveAsDefault));
 
                 Directory.CreateDirectory(GetSaveDirectoryAbsolute());
                 root.Save(full);

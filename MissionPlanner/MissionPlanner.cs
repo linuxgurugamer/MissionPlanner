@@ -2,6 +2,7 @@
 // Mod: MissionPlanner
 
 using ClickThroughFix;
+using KSP.Localization;
 using KSP.UI.Screens;
 using MissionPlanner.Utils;
 using SpaceTuxUtility;
@@ -86,7 +87,7 @@ namespace MissionPlanner
         internal const string MISSION_FOLDER = SAVE_MOD_FOLDER + "/Missions";
         internal const string ACTIVE_MISSION_FOLDER = SAVE_MOD_FOLDER + "/ActiveMissions";
         internal const string DEFAULT_MISSION_FOLDER = SAVE_MOD_FOLDER + "/DefaultMissions";
-        internal const string DELTA_V_FOLDER = SAVE_MOD_FOLDER + "/DeltaVTables";
+        public const string DELTA_V_FOLDER = SAVE_MOD_FOLDER + "/DeltaVTables";
 
         private const string SAVE_FILE_EXT = ".cfg";
 
@@ -324,7 +325,9 @@ namespace MissionPlanner
 
         public void OnGUI()
         {
-            if ((HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings2>().hideOnPause && PauseMenu.exists && PauseMenu.isOpen) ||
+            if ((HighLogic.CurrentGame!= null &&
+                HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings2>().hideOnPause && 
+                PauseMenu.exists && PauseMenu.isOpen) ||
                 Hidden)
                 return;
 
@@ -1064,7 +1067,7 @@ namespace MissionPlanner
 
 
 
-        public string OneLineSummary(StepNode node, ref GUIStyle style)
+        public string OneLineSummary(StepNode node)
         {
             string criteria = "";
             switch (node.data.stepType)
@@ -1118,7 +1121,7 @@ namespace MissionPlanner
                         case PartGroup.Parachutes:
                             criteria = node.data.parachutes.ToString() + " parachutes";
                             break;
-                        
+
                         case PartGroup.Radiators:
                             {
                                 float coolingRate = node.data.radiatorCoolingRate;
@@ -1152,36 +1155,9 @@ namespace MissionPlanner
                     criteria = " " + node.data.partGroup.ToString() + ": " + criteria;
                     break;
 
-                //case CriterionType.Batteries:
-                //    criteria = node.data.batteryCapacity.ToString() + " EC";
-                //    break;
                 case CriterionType.ChargeRateTotal:
                     criteria = node.data.chargeRateTotal.ToString() + " EC/sec";
                     break;
-
-#if false
-                case CriterionType.ChecklistItem:
-                    criteria = node.data.completed ? ": Completed" : ": Incomplete";
-
-                    if (HighLogic.LoadedSceneIsFlight)
-                    {
-                        if (_selectedNode == node)
-                            style = (node.data.completed) ? _selectedTitleLabel : _selectedUnfilledTitleLabel;
-                        else
-                            style = (node.data.completed) ? _titleLabel : _unfilledTitleLabel;
-
-                    }
-                    break;
-
-                case CriterionType.Communication:
-                    criteria = node.data.antennaPower.ToString();  // may need a suffix added 
-                    break;
-
-
-                case CriterionType.ControlSource:
-                    criteria = $"{node.data.controlSourceQty} needed";
-                    break;
-#endif
 
                 case CriterionType.CrewCount:
                     criteria = node.data.crewCount.ToString() + " kerbals";
@@ -1208,63 +1184,12 @@ namespace MissionPlanner
                     }
                     break;
 
-#if false
-                case CriterionType.Destination_asteroid:
-                    criteria = node.data.destAsteroid;
-                    break;
-
-                case CriterionType.Destination_body:
-                    criteria = node.data.destBody;
-                    break;
-
-                case CriterionType.Destination_vessel:
-                    criteria = node.data.destVessel;
-                    break;
-
-                case CriterionType.DockingPort:
-                    criteria = node.data.dockingPortQty.ToString() + " docking ports";
-                    break;
-
-                case CriterionType.Drills:
-                    criteria = node.data.drillQty.ToString() + " drills";
-                    break;
-
-
-                case CriterionType.Engines:
-                    for (int i = 0; i < Initialization.engineTypesAr.Length; i++)
-                    {
-                        if (Initialization.engineTypesAr[i] == node.data.engineType)
-                        {
-                            criteria = Initialization.engineTypesDisplayAr[i];
-                            break;
-                        }
-                    }
-                    break;
-#endif
-
-
                 case CriterionType.Flags:
                     {
                         int flagCount = FlightChecks.flagCount;
                         criteria = $"Need to plant {flagCount} flags";
                         break;
                     }
-#if false
-                case CriterionType.FuelCells:
-                    {
-                        float chargeRate = node.data.fuelCellChargeRate; //  Utils.FlightChecks.chargeRate;
-                        criteria = $"Charge rate: {chargeRate}";
-                        break;
-                    }
-
-                case CriterionType.Generators:
-                    criteria = node.data.generatorChargeRate.ToString() + " EC/sec";
-                    break;
-
-                case CriterionType.Lights:
-                    criteria = node.data.spotlights.ToString() + " spotlights";
-                    break;
-#endif
 
                 case CriterionType.Maneuver:
                     criteria = StringFormatter.BeautifyName(node.data.maneuver.ToString());
@@ -1314,53 +1239,12 @@ namespace MissionPlanner
                     criteria = node.data.moduleName;
                     break;
 
-#if false
-                case CriterionType.Number:
-                    criteria = $"{node.data.number}";
-                    break;
-#endif
-
                 case CriterionType.Part:
                     if (node.data.partName != null)
                         criteria = node.data.partTitle;
                     else
                         criteria = "Unnamed Part";
                     break;
-
-#if false
-                case CriterionType.Parachutes:
-                    criteria = node.data.parachutes.ToString() + " parachutes";
-                    break;
-
-                case CriterionType.Radiators:
-                    {
-                        float coolingRate = node.data.radiatorCoolingRate;
-                        criteria = $"Cooling rate: {coolingRate} kW";
-                        break;
-                    }
-#endif
-#if false
-                case CriterionType.Range:
-                    criteria = $"{node.data.minFloatRange} - {node.data.maxFloatRange}";
-                    break;
-#endif
-
-#if false
-                case CriterionType.RCS:
-                    for (int i = 0; i < Initialization.rcsTypesAr.Length; i++)
-                    {
-                        if (Initialization.rcsTypesAr[i] == node.data.rcsType)
-                        {
-                            criteria = Initialization.rcsTypesDisplayAr[i];
-                            break;
-                        }
-                    }
-                    break;
-
-                case CriterionType.ReactionWheels:
-                    criteria = node.data.reactionWheels.ToString() + " reaction wheels";
-                    break;
-#endif
 
                 case CriterionType.Resource:
                     for (int i = 0; i < node.data.resourceList.Count; i++)
@@ -1373,23 +1257,10 @@ namespace MissionPlanner
                     }
                     break;
 
-#if false
-                case CriterionType.Sum:
-                    break;
-#endif
-
                 case CriterionType.SAS:
                     criteria = SASUtils.SasLevelDescriptions[node.data.minSASLevel];
                     break;
 
-#if false
-                case CriterionType.SolarPanels:
-                    {
-                        float chargeRate = node.data.solarChargeRate; //  Utils.FlightChecks.chargeRate;
-                        criteria = $"Charge rate: {chargeRate} EC/sec";
-                        break;
-                    }
-#endif
                 case CriterionType.Staging:
                     {
                         bool rc = StageUtility.StageHasDecouplerOrSeparator(node.data.stage, out criteria, node.data.includeDockingPort);
@@ -1399,7 +1270,7 @@ namespace MissionPlanner
                     }
 
                 case CriterionType.TrackedVessel:
-                    criteria = StringFormatter.BeautifyName(node.data.stepType.ToString()) + $": {node.data.trackedVessel})";
+                    criteria = StringFormatter.BeautifyName(node.data.stepType.ToString()) + $": {node.data.trackedVessel}";
                     break;
 
                 case CriterionType.VABOrganizerCategory:
@@ -1427,13 +1298,18 @@ namespace MissionPlanner
                     // The following "if" is formatted this way to make it easier to add additional criteria types to be associated
                     // with a specific stage
                     if (!showVesselSpecific ||
-                        (node.data.stepType ==  CriterionType.PartGroup &&  node.data.partGroup == PartGroup.Engines) ||
+                        (node.data.stepType == CriterionType.PartGroup && node.data.partGroup == PartGroup.Engines) ||
                         node.data.stepType == CriterionType.Staging)
                     {
 
                         if (!_useKspSkin)
                             GUILayout.Space(15);
-                        node.data.completed = GUILayout.Toggle(node.data.completed, new GUIContent("", "Mark this line as completed"));
+
+                        if (node.data.stepActive)
+                            GUILayout.Toggle(node.data.completed, new GUIContent("", "Indicates if step is completed"));
+                        else
+                            node.data.completed = GUILayout.Toggle(node.data.completed, new GUIContent("", "Mark this line as completed"));
+
                         if (_simpleChecklist)
                         {
 
@@ -1451,9 +1327,15 @@ namespace MissionPlanner
                             else
                                 GUILayout.Space(5);
 
-                            bool b = GUILayout.Toggle(node.requireAll, new GUIContent("", "Require all children to be fulfilled for this to be fulfilled"));
-                            if (!node.data.locked)
-                                node.requireAll = b;
+                            if (node.data.stepActive)
+                            {
+                                GUILayout.Toggle(node.requireAll, new GUIContent("", "Indicates if all children need to be completed for this to be completed"));
+                            } else
+                            { 
+                                bool b = GUILayout.Toggle(node.requireAll, new GUIContent("", "Require all children to be fulfilled for this to be fulfilled"));
+                                if (!node.data.locked)
+                                    node.requireAll = b;
+                            }
                         }
                         indent = 12f + _indentPerLevel * depth;
                         GUILayout.Space(indent);
@@ -1483,94 +1365,39 @@ namespace MissionPlanner
 
                         if (showDetail)
                         {
-                            criteria = OneLineSummary(node, ref style);
-#if false
-                        switch (node.data.stepType)
-                        {
-                            case CriterionType.Resource:
-                                for (int i = 0; i < node.data.resourceList.Count; i++)
-                                {
-                                    ResInfo resinfo = node.data.resourceList[i];
-                                    if (criteria.Length > 0)
-                                        criteria += ", ";
-                                    criteria += resinfo.resourceName;
-
-                                }
-                                break;
-
-                            case CriterionType.TrackedVessel:
-                                criteria = StringFormatter.BeautifyName(node.data.stepType.ToString()) + $": {node.data.trackedVessel})";
-                                break;
-
-                            case CriterionType.SolarPanels:
-                                {
-                                    float chargeRate = node.data.solarChargeRate; //  Utils.FlightChecks.chargeRate;
-                                    criteria = $"Charge rate: {chargeRate}";
-                                    break;
-                                }
-
-                            case CriterionType.FuelCells:
-                                {
-                                    float chargeRate = node.data.fuelCellChargeRate; //  Utils.FlightChecks.chargeRate;
-                                    criteria = $"Charge rate: {chargeRate}";
-                                    break;
-                                }
-
-                            case CriterionType.Radiators:
-                                {
-                                    float coolingRate = node.data.radiatorCoolingRate;
-                                    criteria = $"Cooling rate: {coolingRate}";
-                                    break;
-                                }
-
-                            case CriterionType.Flags:
-                                {
-                                    int flagCount = FlightChecks.flagCount;
-                                    criteria = $"Flag count: {flagCount}";
-                                    break;
-                                }
-
-                            case CriterionType.ChecklistItem:
-                                criteria = node.data.completed ? ": Completed" : ": Incomplete";
-
-                                if (HighLogic.LoadedSceneIsFlight)
-                                {
-                                    if (_selectedNode == node)
-                                        style = (node.data.completed) ? _selectedTitleLabel : _selectedUnfilledTitleLabel;
-                                    else
-                                        style = (node.data.completed) ? _titleLabel : _unfilledTitleLabel;
-                                }
-                                break;
-
-                            case CriterionType.CrewMemberTrait:
-                                criteria = ": " + node.data.traitName;
-                                break;
-
-                            case CriterionType.ControlSource:
-                                criteria = $": {node.data.controlSourceQty} needed";
-                                break;
-
-                            case CriterionType.Engines:
-                                criteria = $": {node.data.engineType}";
-                                break;
-
-                            case CriterionType.Number:
-                                criteria = $": {node.data.number}";
-                                break;
-                            case CriterionType.Range:
-                                criteria = $": {node.data.minFloatRange} - {node.data.maxFloatRange}";
-                                break;
-
-                            default:
-                                break;
+                            criteria = OneLineSummary(node);
                         }
 
-#endif
+                        if (HighLogic.LoadedSceneIsFlight && node.data.stepType == CriterionType.TrackedVessel && node.data.trackedVessel == "")
+                        {
+                            titleWidth /= 2;
                         }
 
                         GUIContent titleContent = new GUIContent(node.data.title, "Double-click to open edit window");
                         GUILayout.Label(titleContent, style, ScaledGUILayoutWidth(titleWidth));
                         titleRect = GUILayoutUtility.GetLastRect();
+
+                        if (HighLogic.LoadedSceneIsFlight && node.data.stepType == CriterionType.TrackedVessel && node.data.trackedVessel == "")
+                        {
+                            if (GUILayout.Button("Set Vessel to Active Vessel"))
+                            {
+                                node.data.trackedVessel = Localizer.Format(FlightGlobals.ActiveVessel.vesselName);
+                                node.data.vesselGuid = FlightGlobals.ActiveVessel.id;
+
+                                if (node.data.experience > 0 || node.data.reputation > 0 || node.data.kerbucks > 0)
+                                {
+                                    node.data.stepActive = true;
+                                }
+
+                                criteria = OneLineSummary(node);
+                                if (criteria.StartsWith(node.data.stepType.ToString()))
+                                    node.data.title = criteria;
+                                else
+                                    node.data.title = StringFormatter.BeautifyName(node.data.stepType.ToString()) + criteria;
+                            }
+                        }
+
+
                         up = down = promote = demote = moveTo = dup = add = del = false;
 
                         GUILayout.FlexibleSpace();
@@ -2012,6 +1839,7 @@ namespace MissionPlanner
 
         private void ReparentAll() { foreach (var r in _roots) { r.Parent = null; ReparentRecursive(r); } }
         private void ReparentRecursive(StepNode n) { foreach (var c in n.Children) { c.Parent = n; ReparentRecursive(c); } }
+        
         private class MissionFileInfo
         {
             public string FullPath;
@@ -2033,22 +1861,25 @@ namespace MissionPlanner
                 yield return new WaitForEndOfFrame();
 
             StageInfo.Init();
+            waitForEditorCoroutine = null;
         }
+
+        private Coroutine waitForEditorCoroutine = null;
 
         void onEditorStarted()
         {
-            Log.Info("onEditorStarted");
-            StartCoroutine(WaitForEditor());
+            if (waitForEditorCoroutine == null)
+                waitForEditorCoroutine = StartCoroutine(WaitForEditor());
         }
         void onEditorLoad(ShipConstruct sc, CraftBrowserDialog.LoadType lt)
         {
-            Log.Info("onEditorLoad");
-            StartCoroutine(WaitForEditor());
+            if (waitForEditorCoroutine == null)
+                waitForEditorCoroutine = StartCoroutine(WaitForEditor());
         }
         void onEditorShipModified(ShipConstruct sc)
         {
-            Log.Info("onEditorShipModified");
-            StartCoroutine(WaitForEditor());
+            if (waitForEditorCoroutine == null)
+                waitForEditorCoroutine = StartCoroutine(WaitForEditor());
         }
         void onVesselChange(Vessel v)
         {
@@ -2091,12 +1922,12 @@ namespace MissionPlanner
         {
             if (c.data.stepType == CriterionType.TrackedVessel)
             {
-                if (string.IsNullOrEmpty(c.data.trackedVessel))
-                {
-                    c.data.trackedVessel = FlightGlobals.ActiveVessel.vesselName;
-                    c.data.vesselGuid = FlightGlobals.ActiveVessel.id;
-                    trackedVesselUpdated.Add(c);
-                }
+                //if (string.IsNullOrEmpty(c.data.trackedVessel))
+                //{
+                //    c.data.trackedVessel = FlightGlobals.ActiveVessel.vesselName;
+                //    c.data.vesselGuid = FlightGlobals.ActiveVessel.id;
+                //    trackedVesselUpdated.Add(c);
+                //}
             }
         }
 
@@ -2111,7 +1942,6 @@ namespace MissionPlanner
                 }
             }
             toolbarControl.SetFalse(true);
-
         }
 
         private Texture2D MakeSolidTexture(int w, int h, Color c)

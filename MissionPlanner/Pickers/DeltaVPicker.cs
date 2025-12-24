@@ -1,8 +1,9 @@
-﻿using CommNet.Network;
+﻿using MissionPlanner.Utils;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using UnityEngine;
 using static MissionPlanner.RegisterToolbar;
 
@@ -28,6 +29,7 @@ namespace MissionPlanner
 
             public bool isMoon;
             public string parent;
+            public string sortOrder;
         }
 
         static List<DeltaV> DeltaVDict = new List<DeltaV>();
@@ -39,10 +41,29 @@ namespace MissionPlanner
         private static string GetDeltaVFileAbsolute(string planetPack) { return Path.Combine(KSPUtil.ApplicationRootPath, "GameData", DELTA_V_FOLDER, planetPack + ".csv"); }
 
         static string packName = "";
+        static int packIndex = 0;
+
+        public static string[] GetCsvFileNamesWithoutExtension(string directoryPath)
+        {
+            if (string.IsNullOrWhiteSpace(directoryPath))
+                throw new ArgumentException("Directory path is null or empty.", nameof(directoryPath));
+
+            if (!Directory.Exists(directoryPath))
+                throw new DirectoryNotFoundException($"Directory not found: {directoryPath}");
+
+            string[] files = Directory.GetFiles(directoryPath, "*.csv", SearchOption.TopDirectoryOnly);
+
+            for (int i = 0; i < files.Length; i++)
+            {
+                files[i] = Path.GetFileNameWithoutExtension(files[i]);
+            }
+
+            return files;
+        }
 
         public static bool DeltaVTableAvailable()
         {
-            var packInfo = PlanetPackHeuristics.GetPlanetPackInfo();
+            PlanetPackInfo packInfo = PlanetPackHeuristics.GetPlanetPackInfo();
 
             Log.Info("Planet pack detected: " + packInfo);
             if (packInfo.Kind == PlanetPackKind.CustomSinglePack)
@@ -120,7 +141,6 @@ namespace MissionPlanner
 
                     try
                     {
-
                         var dv = new DeltaV
                         {
                             Origin = cols[0].Trim(),
@@ -134,7 +154,8 @@ namespace MissionPlanner
                             ascent_dV = Math.Max(0f, ParseFloat(cols[8])),
                             plane_change_dV = Math.Max(0f, ParseFloat(cols[9])),
                             parent = cols[10].Trim(),
-                            isMoon = bool.Parse(cols[11].Trim())
+                            isMoon = bool.Parse(cols[11].Trim()),
+                            sortOrder = cols[12].Trim()
                         };
 
                         if (!string.IsNullOrEmpty(dv.Origin))
@@ -178,7 +199,7 @@ namespace MissionPlanner
         }
 
         float pad = 0f;
-
+        string[] availablePlanetPackCSVs = null;
         private void DrawDeltaVPickerWindow(int id)
         {
             if (_deltaVTargetNode == null)
@@ -186,16 +207,31 @@ namespace MissionPlanner
                 _showDeltaVDialog = false;
                 return;
             }
+            if (availablePlanetPackCSVs == null)
+            {
+                availablePlanetPackCSVs = GetCsvFileNamesWithoutExtension("GameData/"+DELTA_V_FOLDER);
+                for (packIndex = 0; packIndex < availablePlanetPackCSVs.Length; packIndex++)
+                    if (packName == availablePlanetPackCSVs[packIndex])
+                        break;
+            }
             GUILayout.Space(6);
-
             using (new GUILayout.HorizontalScope())
             {
-                GUILayout.Label("Start/Dest Filter:", ScaledGUILayoutWidth(60));
+                GUILayout.Label("Planet Pack: ");
+                int oldPackIndex = packIndex;
+                packIndex = ComboBox.Box(PLANETPACK_COMBO, packIndex, availablePlanetPackCSVs, this, 200, false);
+                if (oldPackIndex != packIndex)
+                {
+                    packName = availablePlanetPackCSVs[packIndex];
+                    LoadDeltaV(packName);
+                }
+            }
+            using (new GUILayout.HorizontalScope())
+            {
+                GUILayout.Label("Start/Dest Filter:", ScaledGUILayoutWidth(120));
                 _deltaVFilter = GUILayout.TextField(_deltaVFilter ?? "", GUILayout.MinWidth(160), GUILayout.ExpandWidth(true));
                 GUILayout.FlexibleSpace();
 
-                
-                //var promoteContent = new GUIContent("Pad:", "Increase selected Delta V by this percentage");
                 pad = FloatField("Increase selected Delta V by this percentage", pad, 0, false, " %", width: 40, flex: false);
                 pad = GUILayout.HorizontalSlider(pad, 0, 100, ScaledGUILayoutWidth(240));
                 GUILayout.FlexibleSpace();
@@ -204,9 +240,15 @@ namespace MissionPlanner
             GUILayout.Space(6);
             using (new GUILayout.HorizontalScope())
             {
-                GUILayout.Label("Start", ScaledGUILayoutWidth(60));
+                if (GUILayout.Button("Start", ScaledGUILayoutWidth(60)))
+                {
+                    StableSortByOrigin(DeltaVDict);
+                }
                 GUILayout.Space(20);
-                GUILayout.Label("Dest", ScaledGUILayoutWidth(90));
+                if (GUILayout.Button("Dest", ScaledGUILayoutWidth(90)))
+                {
+                    StableSortByDestination(DeltaVDict);
+                }
                 GUILayout.Space(20);
                 GUILayout.Label("To Low Orbit", GUILayout.Width(90));
                 GUILayout.Space(4);
@@ -299,5 +341,59 @@ namespace MissionPlanner
 
             GUI.DragWindow(new Rect(0, 0, 10000, 10000));
         }
+
+        public void StableSortByOrigin(List<DeltaV> list)
+        {
+            if (list == null || list.Count <= 1)
+                return;
+
+            // Associate each element with its original index
+            var indexed = list
+                .Select((item, index) => new { item, index })
+                .ToList();
+
+            indexed.Sort((a, b) =>
+            {
+                int cmp = string.Compare(a.item.Origin, b.item.Origin,
+                                         StringComparison.OrdinalIgnoreCase);
+
+                if (cmp != 0)
+                    return cmp;
+
+                // Stable fallback: preserve original order
+                return a.index.CompareTo(b.index);
+            });
+
+            // Write back in sorted order
+            for (int i = 0; i < indexed.Count; i++)
+                list[i] = indexed[i].item;
+        }
+
+        public static void StableSortByDestination(List<DeltaV> list)
+        {
+            if (list == null || list.Count <= 1)
+                return;
+
+            var indexed = list
+                .Select((item, index) => new { item, index })
+                .ToList();
+
+            indexed.Sort((a, b) =>
+            {
+                int cmp = string.Compare(a.item.Destination, b.item.Destination,
+                                         StringComparison.OrdinalIgnoreCase);
+
+                if (cmp != 0)
+                    return cmp;
+
+                // Stable fallback
+                return a.index.CompareTo(b.index);
+            });
+
+            for (int i = 0; i < indexed.Count; i++)
+                list[i] = indexed[i].item;
+        }
+
+
     }
 }

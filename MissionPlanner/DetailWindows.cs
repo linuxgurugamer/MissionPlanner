@@ -25,6 +25,7 @@ namespace MissionPlanner
         const int MANEUVER_COMBO = 8;
         const int DESTINATION_TYPE_COMBO = 9;
         const int PARTGROUP_COMBO = 10;
+        const int PLANETPACK_COMBO = 11;
         const int RESOURCE_COMBO = 20; // Needs to make sure doesn't conflict with any others since this is just a base number
 
         // Following two vars cache this info for use by the comboboxes
@@ -99,8 +100,7 @@ namespace MissionPlanner
                     {
                         if (!s.locked && GUILayout.Button("Update Title", GUILayout.Width(120)))
                         {
-                            GUIStyle x = null;
-                            string criteria = OneLineSummary(_detailNode, ref x);
+                            string criteria = OneLineSummary(_detailNode);
                             if (criteria.StartsWith(s.stepType.ToString()))
                                 s.title = criteria;
                             else
@@ -2975,7 +2975,47 @@ namespace MissionPlanner
                     {
                         string oldTrackedVessel = s.trackedVessel;
                         Guid oldVesselGuid = s.vesselGuid;
-                        SelectVessel(s.locked, ref s.trackedVessel, BodyAsteroidVessel.trackedVessel);
+                        SelectVessel(s.locked, ref s.trackedVessel, BodyAsteroidVessel.trackedVessel, s);
+                        if (s.trackedVessel != ""  &&
+                            (s.experience > 0 || s.reputation > 0 || s.kerbucks > 0))
+                        {
+                            using (new GUILayout.HorizontalScope())
+                            {
+                                GUILayout.Label("Step Active: " + s.stepActive.ToString());
+                                if (!s.stepActive)
+                                {
+                                    if (GUILayout.Button(new GUIContent("Activate", "Activate step rewards"), GUILayout.Width(90)))
+                                    {
+                                        s.stepActive = true;
+                                    }
+                                }
+                            }
+                        }
+                        GUILayout.Space(20);
+                        GUILayout.Label("Completion Rewards");
+
+                        using (new GUILayout.HorizontalScope())
+                        {
+                            IntField(new GUIContent("Experience:", ""),
+                                        ref s.experience,
+                                        s.locked | s.stepActive
+                                        );
+
+                        }
+                        using (new GUILayout.HorizontalScope())
+                        {
+                            IntField(new GUIContent("Reputation:", ""),
+                                ref s.reputation,
+                                s.locked | s.stepActive
+                                );
+                        }
+                        using (new GUILayout.HorizontalScope())
+                        {
+                            IntField(new GUIContent("Kerbucks:", ""),
+                                ref s.kerbucks,
+                                s.locked | s.stepActive
+                                );
+                        }
                     }
                     break;
 
@@ -3336,14 +3376,14 @@ namespace MissionPlanner
             }
         }
 
-        void SelectVessel(bool locked, ref string vessel, BodyAsteroidVessel vesselType)
+        void SelectVessel(bool locked, ref string vessel, BodyAsteroidVessel vesselType, Step s = null)
         {
             GUILayout.Space(2);
             using (new GUILayout.HorizontalScope())
             {
                 GUILayout.Label("Selected:", ScaledGUILayoutWidth(60));
                 GUILayout.Label(String.IsNullOrEmpty(vessel) ? "(none)" : vessel, GUI.skin.label, ScaledGUILayoutWidth(250));
-                if (!locked)
+                if (!locked && (s == null || !s.stepActive || (s.stepActive && !s.stepCompleted)))
                 {
                     GUILayout.FlexibleSpace();
                     if (GUILayout.Button("Select…", ScaledGUILayoutWidth(90)))

@@ -21,6 +21,8 @@ namespace DeltaVEditor
 
         public bool isMoon;
         public string parent;
+
+        public string sortOrder;
         public DeltaV() { }
     }
 

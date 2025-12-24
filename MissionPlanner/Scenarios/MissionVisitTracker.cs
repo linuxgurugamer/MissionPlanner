@@ -1,5 +1,7 @@
-﻿using MissionPlanner;
+﻿using CommNet.Network;
+using MissionPlanner;
 using MissionPlanner.MissionPlanner;
+using MissionPlanner.Utils;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -164,7 +166,6 @@ public class MissionVisitTracker : ScenarioModule
         return set != null && set.Contains(body.bodyName);
     }
 
-
     public static bool HasVisitedVessel(Vessel v, string vesselName, bool countStartBody = true)
     {
         if (v == null || vesselName == null) return false;
@@ -306,24 +307,40 @@ public class MissionVisitTracker : ScenarioModule
         GameEvents.onVesselDocking.Remove(onVesselDocking);
     }
 
+    int childStatusCnt = 0;
     IEnumerator SlowUpdate()
     {
-        if (HighLogic.LoadedSceneIsFlight)
+        if (HighLogic.LoadedSceneIsFlight || HighLogic.LoadedScene == GameScenes.SPACECENTER)
         {
             while (true)
             {
                 yield return new WaitForSeconds(1f);
-                var landed = (FlightGlobals.ActiveVessel.situation == Vessel.Situations.PRELAUNCH) || (FlightGlobals.ActiveVessel.situation == Vessel.Situations.LANDED) ||
-                    (FlightGlobals.ActiveVessel.situation == Vessel.Situations.SPLASHED);
-                if (landed)
-                    OnLanded();
-
-                // add code to check for all vessels which are loaded, add them to the visited list
-                foreach (var v in FlightGlobals.VesselsLoaded)
+                if (HighLogic.LoadedSceneIsFlight)
                 {
-                    Ensure(v.id);
-                    _visited[v.id].Add(v.vesselName);
+                    var landed = (FlightGlobals.ActiveVessel.situation == Vessel.Situations.PRELAUNCH) || (FlightGlobals.ActiveVessel.situation == Vessel.Situations.LANDED) ||
+                        (FlightGlobals.ActiveVessel.situation == Vessel.Situations.SPLASHED);
+                    if (landed)
+                        OnLanded();
+
+                    // add code to check for all vessels which are loaded, add them to the visited list
+                    foreach (var v in FlightGlobals.VesselsLoaded)
+                    {
+                        Ensure(v.id);
+                        _visited[v.id].Add(v.vesselName);
+                    }
                 }
+                // Following is to check for any tracked vessels which are completed/fulfilled.
+                // This doesn't need to be run every second
+                if (childStatusCnt > 10)
+                {
+                    childStatusCnt = 0;
+                    for (int i = 0; i < HierarchicalStepsWindow._roots.Count; i++)
+                    {
+                        var r = HierarchicalStepsWindow._roots[i];
+                        FlightChecks.CheckChildStatus(r);
+                    }
+                }
+                childStatusCnt++;
             }
         }
     }

@@ -14,13 +14,13 @@ namespace DeltaVEditor
     {
         public static DeltaVEditorWindow Instance;
 
-        private Rect _windowRect = new Rect(200, 200, 1250, 800);
+        private Rect _windowRect = new Rect(200, 200, 1350, 800);
         private int _windowId;
 
         private bool _visible = false;
 
         // Default relative CSV path
-        private const string CSVPATH = "GameData/MissionPlanner/PluginData/DeltaVTables/";
+        private const string CSVPATH = MissionPlanner.HierarchicalStepsWindow.DELTA_V_FOLDER; //"GameData/MissionPlanner/PluginData/DeltaVTables/";
         private string _csvPath = CSVPATH;
 
         private readonly List<DeltaVRowEditor> _rows = new List<DeltaVRowEditor>();
@@ -212,6 +212,10 @@ namespace DeltaVEditor
                             StableSortByParent(_rows);
                         }
                         GUILayout.Label("Is Moon", GUILayout.Width(50));
+                        if (GUILayout.Button("Sort Order", GUILayout.Width(90)))
+                        {
+                            StableSortBySortOrder(_rows);
+                        }
                         GUILayout.Label("Del", GUILayout.Width(30));
                         GUILayout.Label("Dup", GUILayout.Width(30));
                     }
@@ -251,8 +255,9 @@ namespace DeltaVEditor
                                 bool toSurfValid = IsValidFloat(row.dV_low_orbit_to_surface_str);
                                 bool ascentValid = IsValidFloat(row.ascent_dV_str);
                                 bool planeChangeValid = IsValidFloat(row.plane_change_dV_str);
+                                bool sortOrderValid = IsValidFloat(row.sortOrder_str);
 
-                                if (captureValid && twrToLowValid )
+                                if (captureValid && twrToLowValid)
                                 {
                                     float captureDv = Math.Max(0f, float.Parse(row.capture_dV_str));
                                     float transferToLowOrbitDv = Math.Max(0f, float.Parse(row.transfer_to_low_orbit_dV_str));
@@ -296,7 +301,6 @@ namespace DeltaVEditor
                                 GUI.backgroundColor = ascentValid ? oldColor : Color.red;
                                 row.plane_change_dV_str = GUILayout.TextField(row.plane_change_dV_str, GUILayout.Width(90));
 
-
                                 // Restore color for the delete button
                                 GUI.backgroundColor = oldColor;
 
@@ -315,6 +319,9 @@ namespace DeltaVEditor
                                     row.isMoon = GUILayout.Toggle(row.isMoon, "");
                                     GUILayout.Space(20);
                                 }
+
+                                GUI.backgroundColor = ascentValid ? oldColor : Color.red;
+                                row.sortOrder_str = GUILayout.TextField(row.sortOrder_str, GUILayout.Width(90));
 
                                 if (GUILayout.Button("X", GUILayout.Width(30)))
                                 {
@@ -400,7 +407,7 @@ namespace DeltaVEditor
                         r.Destination_str == body.Origin_str.TrimAll())
                         found = true;
                 if (!found)
-                _rows.Add(new DeltaVRowEditor(homeWorld.bodyDisplayName.TrimAll(), body.Origin_str.TrimAll(), isMoon: body.isMoon, parent: body.parent));
+                    _rows.Add(new DeltaVRowEditor(homeWorld.bodyDisplayName.TrimAll(), body.Origin_str.TrimAll(), isMoon: body.isMoon, parent: body.parent));
             }
             if (allToAll || allToHome)
             {
@@ -451,7 +458,7 @@ namespace DeltaVEditor
 
             try
             {
-                string relDir = "GameData/MissionPlanner/PluginData/DeltaVTables/";
+                string relDir = "GameData/" + CSVPATH; // "GameData/MissionPlanner/PluginData/DeltaVTables/";
 
                 _pickerDirRelative = relDir;
 
@@ -624,7 +631,8 @@ namespace DeltaVEditor
                         string.IsNullOrWhiteSpace(row.injection_dV_str) &&
                         string.IsNullOrWhiteSpace(row.capture_dV_str) &&
                         string.IsNullOrWhiteSpace(row.dV_low_orbit_to_surface_str) &&
-                        string.IsNullOrEmpty(row.plane_change_dV_str)
+                        string.IsNullOrEmpty(row.plane_change_dV_str) &&
+                        string.IsNullOrEmpty(row.sortOrder_str)
                         )
                     {
                         continue;
@@ -635,7 +643,8 @@ namespace DeltaVEditor
                         !IsValidFloat(row.injection_dV_str) ||
                         !IsValidFloat(row.capture_dV_str) ||
                         !IsValidFloat(row.dV_low_orbit_to_surface_str) ||
-                        !IsValidFloat(row.plane_change_dV_str)
+                        !IsValidFloat(row.plane_change_dV_str) ||
+                        !IsValidFloat(row.sortOrder_str)
                         )
                     {
                         _statusMessage = $"Error: row {rowIndex} has invalid numeric value(s). Fix red cells before saving.";
@@ -748,5 +757,58 @@ namespace DeltaVEditor
                 list[i] = indexed[i].item;
         }
 
+        public static void StableSortBySortOrder(List<DeltaVRowEditor> list)
+        {
+            {
+                var comparer = new SemamticVersionComparer();
+
+                list.Sort((a, b) =>
+                {
+                    int result = comparer.Compare(a?.sortOrder_str, b?.sortOrder_str);
+                    return result; // ascending? result : -result;
+                });
+            }
+        }
+
     }
+    public sealed class SemamticVersionComparer : IComparer<string>
+    {
+        public int Compare(string x, string y)
+        {
+            if (ReferenceEquals(x, y)) return 0;
+            if (x == null) return -1;
+            if (y == null) return 1;
+
+            var xv = Parse(x);
+            var yv = Parse(y);
+
+            for (int i = 0; i < 3; i++)
+            {
+                int cmp = xv[i].CompareTo(yv[i]);
+                if (cmp != 0)
+                    return cmp;
+            }
+
+            return 0;
+        }
+
+        private static int[] Parse(string v)
+        {
+            var parts = v.Split('.');
+            return new[]
+            {
+            parts.Length > 0 ? ToInt(parts[0]) : 0,
+            parts.Length > 1 ? ToInt(parts[1]) : 0,
+            parts.Length > 2 ? ToInt(parts[2]) : 0
+        };
+        }
+
+        private static int ToInt(string s)
+        {
+            int.TryParse(s, out int value);
+            return value;
+        }
+    }
+
+
 }

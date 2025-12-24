@@ -15,6 +15,7 @@ namespace DeltaVEditor
         public string dV_low_orbit_to_surface_str;
         public string ascent_dV_str;
         public string plane_change_dV_str;
+        public string sortOrder_str;
 
         public bool isMoon;
         public string parent;
@@ -45,6 +46,7 @@ namespace DeltaVEditor
                  string dV_low_orbit_to_surface = "-1",
                  string ascent_dV = "-1",
                  string plane_change_dV = "-1",
+                 string sortOrder = "0",
                  bool isMoon = false,
                  string parent = ""
             )
@@ -59,6 +61,7 @@ namespace DeltaVEditor
             this.dV_low_orbit_to_surface_str = dV_low_orbit_to_surface;
             this.ascent_dV_str = ascent_dV;
             this.plane_change_dV_str = plane_change_dV;
+            this.sortOrder_str = sortOrder;
             this.isMoon = isMoon;
             this.parent = parent;
         }
@@ -77,6 +80,7 @@ namespace DeltaVEditor
                  dv.dV_low_orbit_to_surface.ToString(CultureInfo.InvariantCulture),
                  dv.ascent_dV.ToString(CultureInfo.InvariantCulture),
                  dv.plane_change_dV.ToString(CultureInfo.InvariantCulture),
+                 dv.sortOrder.ToString(CultureInfo.InvariantCulture),
                  dv.isMoon,
                  dv.parent
             );
@@ -111,6 +115,7 @@ namespace DeltaVEditor
                 dV_low_orbit_to_surface = toSurface,
                 ascent_dV = ascent,
                 plane_change_dV = planeChange,
+                sortOrder = sortOrder_str,
                 parent = this.parent,
                 isMoon = this.isMoon
             };

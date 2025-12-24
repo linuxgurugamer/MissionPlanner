@@ -27,41 +27,19 @@
 
     public enum CriterionType
     {
-        //Batteries,
         ChargeRateTotal,
         ChecklistItem,
-        //Communication,
-        //ControlSource,
         CrewMemberTrait,
         CrewCount,
         Destination,
-#if false
-        Destination_asteroid,
-        Destination_body,
-        Destination_vessel,
-#endif
-        //DockingPort,
-        //Drills,
-        //Engines,
         Flags,
-        //FuelCells,
-        //Generators,
-        //Lights,
         Maneuver,
         Module,
-        //Number,
         Part,
         PartGroup,
-        //Parachutes,
-        //Radiators,
-        //Range,
-        //RCS,
-        //ReactionWheels,
         Resource,
         SAS,
-        //Sum,
         Staging,
-        //SolarPanels,
         TrackedVessel,
         VABOrganizerCategory
     }
