@@ -13,7 +13,7 @@ namespace MissionPlanner
     public partial class HierarchicalStepsWindow : MonoBehaviour
     {
         // Resource picker dialog
-        bool _showDeltaVDialog = false;
+        bool showDeltaVDialog = false;
         public class DeltaV
         {
             public string Origin;
@@ -87,7 +87,7 @@ namespace MissionPlanner
             {
                 if (GUILayout.Button(dv.ToString("F0"), ScaledGUILayoutWidth(90)))
                 {
-                    _deltaVTargetNode.data.deltaV = dv * (1 + pad / 100);
+                    deltaVTargetNode.data.deltaV = dv * (1 + pad / 100);
                     return true;
                 }
             }
@@ -187,24 +187,24 @@ namespace MissionPlanner
 
         private void OpenDeltaVPicker(StepNode target)
         {
-            _deltaVTargetNode = target;
-            _deltaVFilter = "";
-            _showDeltaVDialog = true;
+            deltaVTargetNode = target;
+            deltaVFilter = "";
+            showDeltaVDialog = true;
 
             pad = HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().defaultPadding;
             LoadDeltaV(packName);
             var mp = Input.mousePosition;
-            _deltaVRect.x = Mathf.Clamp(mp.x, 40, Screen.width - _deltaVRect.width - 40);
-            _deltaVRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - _deltaVRect.height - 40);
+            deltaVRect.x = Mathf.Clamp(mp.x, 40, Screen.width - deltaVRect.width - 40);
+            deltaVRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - deltaVRect.height - 40);
         }
 
         float pad = 0f;
         string[] availablePlanetPackCSVs = null;
         private void DrawDeltaVPickerWindow(int id)
         {
-            if (_deltaVTargetNode == null)
+            if (deltaVTargetNode == null)
             {
-                _showDeltaVDialog = false;
+                showDeltaVDialog = false;
                 return;
             }
             if (availablePlanetPackCSVs == null)
@@ -229,7 +229,7 @@ namespace MissionPlanner
             using (new GUILayout.HorizontalScope())
             {
                 GUILayout.Label("Start/Dest Filter:", ScaledGUILayoutWidth(120));
-                _deltaVFilter = GUILayout.TextField(_deltaVFilter ?? "", GUILayout.MinWidth(160), GUILayout.ExpandWidth(true));
+                deltaVFilter = GUILayout.TextField(deltaVFilter ?? "", GUILayout.MinWidth(160), GUILayout.ExpandWidth(true));
                 GUILayout.FlexibleSpace();
 
                 pad = FloatField("Increase selected Delta V by this percentage", pad, 0, false, " %", width: 40, flex: false);
@@ -272,11 +272,11 @@ namespace MissionPlanner
                 GUILayout.Label("Is Moon", GUILayout.Width(50));
 #endif
             }
-            _deltaVScroll = GUILayout.BeginScrollView(_deltaVScroll, HighLogic.Skin.textArea, GUILayout.ExpandHeight(true));
+            deltaVScroll = GUILayout.BeginScrollView(deltaVScroll, HighLogic.Skin.textArea, GUILayout.ExpandHeight(true));
             foreach (var dv in DeltaVDict)
             {
-                if (dv.Destination.StartsWith(_deltaVFilter, StringComparison.OrdinalIgnoreCase) ||
-                    dv.Origin.StartsWith(_deltaVFilter, StringComparison.OrdinalIgnoreCase))
+                if (dv.Destination.StartsWith(deltaVFilter, StringComparison.OrdinalIgnoreCase) ||
+                    dv.Origin.StartsWith(deltaVFilter, StringComparison.OrdinalIgnoreCase))
                 {
                     using (new GUILayout.HorizontalScope())
                     {
@@ -287,41 +287,41 @@ namespace MissionPlanner
 
                         if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().closeDvPickerAfterClick &&
                             SetSelectedDeltaV(dv.dV_to_low_orbit))
-                            _showDeltaVDialog = false;
+                            showDeltaVDialog = false;
 
                         GUILayout.Space(4);
                         if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().closeDvPickerAfterClick &&
                             SetSelectedDeltaV(dv.injection_dV))
-                            _showDeltaVDialog = false;
+                            showDeltaVDialog = false;
                         GUILayout.Space(4);
                         if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().closeDvPickerAfterClick &&
                             SetSelectedDeltaV(dv.capture_dV))
-                            _showDeltaVDialog = false;
+                            showDeltaVDialog = false;
                         GUILayout.Space(4);
 
                         if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().closeDvPickerAfterClick &&
                             SetSelectedDeltaV(dv.transfer_to_low_orbit_dV))
-                            _showDeltaVDialog = false;
+                            showDeltaVDialog = false;
                         GUILayout.Space(4);
 
                         if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().closeDvPickerAfterClick &&
                             SetSelectedDeltaV(dv.total_capture_dV))
-                            _showDeltaVDialog = false;
+                            showDeltaVDialog = false;
                         GUILayout.Space(4);
 
                         if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().closeDvPickerAfterClick &&
                             SetSelectedDeltaV(dv.dV_low_orbit_to_surface))
-                            _showDeltaVDialog = false;
+                            showDeltaVDialog = false;
                         GUILayout.Space(4);
 
                         if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().closeDvPickerAfterClick &&
                             SetSelectedDeltaV(dv.ascent_dV))
-                            _showDeltaVDialog = false;
+                            showDeltaVDialog = false;
                         GUILayout.Space(4);
 
                         if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().closeDvPickerAfterClick &&
                             SetSelectedDeltaV(dv.plane_change_dV))
-                            _showDeltaVDialog = false;
+                            showDeltaVDialog = false;
                         GUILayout.FlexibleSpace();
                     }
                 }
@@ -331,10 +331,11 @@ namespace MissionPlanner
             GUILayout.FlexibleSpace();
             using (new GUILayout.HorizontalScope())
             {
+                GUILayout.FlexibleSpace();
                 if (GUILayout.Button("Close", ScaledGUILayoutWidth(100)))
                 {
-                    _showDeltaVDialog = false;
-                    _deltaVTargetNode = null;
+                    showDeltaVDialog = false;
+                    deltaVTargetNode = null;
                 }
                 GUILayout.FlexibleSpace();
             }

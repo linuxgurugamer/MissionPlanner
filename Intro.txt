@@ -1,0 +1,115 @@
+﻿Usually, this is the sequence of events.
+
+We drive into the VAB with confidence, pile parts until the rocket looks right, add a few extra fuel tanks "just in case, " and tell ourselves that we will figure out the rest on the way up. Someone asks about delta, V, someone else shrugs, and I am already listening to the countdown and hoping that the snacks will last longer than the fuel. If we make orbit, great. If we dont well, thats what the Tracking Station is for.
+
+That used to be the plan.
+
+Then I found the Mission Planner.
+
+With the Mission Planner, assembling a rocket is not a gamble with fuel but a matter of proper engineering. Instead of wondering whether I packed enough fuel, I know. I can literally see the whole mission before the first bolt is screwed: launch, transfer, capture, landing, return. Every burn is purposeful, every stage exists for a reason, and every number tells a story rather than being scratched out on the VAB floor.
+
+Now when I get in the capsule, its not a matter of hoping things will be fineI am actually expecting them to be so. The Mission Planner tool allows me to test out my ideas in a safe manner, to reconsider daring concepts, and to find faulty ones before they turn into a disaster. The outer space remains hazardous, thrilling, and unpredictable but its not anymore a matter of blind luck.
+
+I still fly like a Kerbal. I just plan like a professional
+
+---------------------------------------------------------------------------------------------------------
+
+Bob
+Hi. Bob Kerman here.
+Yes, that Bob. The one who usually gets told “don’t worry, it’ll probably work.”
+
+Normally, mission planning goes something like this: Jeb builds a rocket that looks powerful, Bill tightens everything that rattles, and I get handed a clipboard with numbers written in different inks, some of them upside down. Someone says we have “plenty of fuel,” no one agrees on what planet we’re actually going to, and before I can finish checking the math, I’m already strapped into a seat with a helmet fogging up.
+
+That was the old way.
+
+Then the Mission Planner showed up, and suddenly my job got a lot less… terrifying.
+
+With the Mission Planner, I can actually see the mission before we fly it. I know how much delta-V we need, when the burns happen, what margins we have, and which ideas are “bold and innovative” versus “guaranteed to strand us forever.” Instead of guessing, we calculate. Instead of adding random fuel tanks, we design with purpose. I can tweak a maneuver, test a transfer, and prove—with numbers—that yes, we really can make it back.
+
+Now, when I’m sitting in the capsule at T-minus ten, my hands aren’t shaking nearly as much. The plan has been checked, the math agrees, and the mission makes sense from launch to landing. Space is still dangerous, of course—but at least it’s dangerous in a way I understand.
+
+Jeb still flies like Jeb.
+Bill still over-engineers everything.
+And me? I finally get to stop screaming internally and start doing science.
+
+That’s what the Mission Planner gives us.
+Fewer surprises. Better missions. And a much higher chance that I come home. 🧪🚀
+
+---------------------------------------------------------------------------------------------------------
+
+Bill
+Bill Kerman here. Engineer. Builder. The one who gets blamed when something mysteriously explodes.
+
+The usual process used to drive me nuts. We’d start in the VAB with a vague goal—“somewhere near the Mun”—and a rocket design that grew by instinct instead of logic. If someone worried about fuel, we’d bolt on another tank. If something bent, we’d add struts. Lots of struts. By the time the clamps released, the vehicle was held together by hope, tape, and my reputation.
+
+That was before the Mission Planner.
+
+Now, I don’t have to design in the dark. With the Mission Planner, I know exactly what the mission demands before I choose a single part. I can see the delta-V budget, the burn sequence, the margins, and the failure points. That means fewer “just in case” tanks, cleaner staging, and structures that exist because they’re needed—not because we panicked at the last minute.
+
+The best part? Fewer surprises in flight. When something goes wrong now, it’s usually something interesting, not something obvious we should have caught earlier. The Mission Planner lets me test ideas safely, refine designs, and prove that a lighter, simpler rocket will still get the job done—and get everyone home in one piece.
+
+Jeb still pushes the limits.
+Bob still double-checks my math.
+But thanks to the Mission Planner, I finally get to build rockets that are elegant, efficient, and intentionally over-engineered.
+
+And when the launch succeeds?
+They cheer for the pilot.
+But I know the plan held—and that’s the real victory 🔧🚀
+
+---------------------------------------------------------------------------------------------------------
+
+Jebediah
+Jebediah Kerman here. Pilot. Explorer. Professional enjoyer of explosions.
+
+Now, I’ll be honest—this is how we used to do things: build the biggest rocket that would fit in the VAB, add more boosters until it felt right, and launch. If it went up, great. If it went sideways, also great. We’d figure out where we were going after reaching orbit… or after something caught fire. Either way, it was exciting.
+
+That was the fun way.
+
+Then they made me use the Mission Planner.
+
+At first, I thought it would take the thrill out of it. Numbers, charts, paths through space—very Bob, very not “hold my snacks.” But once I actually tried it… wow. Turns out knowing when to burn and why doesn’t make flying boring—it makes it better. Every maneuver feels sharper. Every engine burn hits harder because I know it’s exactly right.
+
+With the Mission Planner, I can see the whole adventure before I fly it. Launch, transfer, landing, return—laid out like a challenge instead of a gamble. I still push the limits, still thread the needle, still grin when the G-forces climb… but now I do it with confidence instead of crossed fingers.
+
+The best part? We go farther. We try crazier missions. And somehow, everyone keeps coming back alive.
+
+So yeah, I still fly like Jeb.
+I still love the explosions.
+But thanks to the Mission Planner, the explosions are optional.
+
+And when they do happen?
+At least they’re spectacular. 🚀😄
+
+---------------------------------------------------------------------------------------------------------
+
+Valentina Kerman here. Commander. Test pilot. The one who brings the crew home.
+
+I’ve seen the old way of flying missions. A rocket built on enthusiasm, a destination chosen late, and a flight plan that mostly existed in someone’s head. It worked—sometimes. Other times, we relied on improvisation, luck, and the assumption that courage alone could bend orbital mechanics. It made for exciting stories… and unnecessary risk.
+
+That is not how I fly.
+
+The Mission Planner changes everything. Before we ever roll out to the pad, I know the mission from start to finish. I see every maneuver, every margin, every decision that matters. If something is risky, it’s clear *why*. If a plan is inefficient, it shows. That means when I commit to a burn, I do it with intent—not hope.
+
+With the Mission Planner, precision replaces bravado. We still take on ambitious missions, but they are calculated, repeatable, and disciplined. I can push a craft to its limits because I understand exactly where those limits are. That confidence carries through every phase of flight—from ascent to landing to the final burn home.
+
+Jeb flies on instinct.
+Bob trusts the math.
+Bill trusts the hardware.
+
+I trust the plan.
+
+And when the Mission Planner says the mission will succeed, I make sure it does. 🚀
+
+---------------------------------------------------------------------------------------------------------
+
+Bob Kerman:
+Normally, missions start with optimism and end with me doing frantic math on a clipboard while the rocket is already rolling to the pad. We’d build something that looked right, guess at the fuel, and hope orbital mechanics felt generous that day. The Mission Planner changes that completely. It lets me see the whole mission in advance—every burn, every margin, every return path—so the science actually makes sense. For the first time, I’m not reacting to space… I’m prepared for it.
+
+Bill Kerman:
+From an engineering standpoint, the old method was chaos disguised as confidence. Extra tanks, extra struts, extra mass—because nobody really knew what was required. With the Mission Planner, I design with purpose. I know what the mission demands before I pick the first part, which means cleaner builds, smarter staging, and fewer “why is this on fire?” moments. The plan holds, the structure holds, and the rocket finally flies the way it was meant to.
+
+Jebediah Kerman:
+I used to fly by feel: big rocket, loud engines, and figure it out as we go. It was fun—but even I’ll admit it had limits. The Mission Planner doesn’t kill the thrill; it sharpens it. Knowing the path ahead lets me push harder, fly cleaner, and pull off maneuvers that would’ve been pure luck before. I still take risks—I just take the right ones now.
+
+Valentina Kerman:
+Exploration demands courage, but success demands discipline. The Mission Planner provides that discipline. Every mission begins with clarity: objectives, maneuvers, contingencies, and margins understood before launch. That knowledge turns ambition into precision and risk into calculated challenge. When we launch with a plan we trust, the crew flies with confidence—and confidence is what brings us home.

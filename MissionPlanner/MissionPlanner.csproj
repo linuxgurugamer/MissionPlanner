@@ -53,11 +53,13 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Mission.cs" />
     <Compile Include="Pickers\BodyAsteroidVesselPicker.cs" />
     <Compile Include="Pickers\CategoryPicker.cs" />
     <Compile Include="Pickers\DeltaVPicker.cs" />
     <Compile Include="Pickers\ResourcePicker.cs" />
     <Compile Include="Pickers\SASPicker.cs" />
+    <Compile Include="Scenarios\ActiveMissions.cs" />
     <Compile Include="Settings.cs" />
     <Compile Include="Utils\AntennaUtils.cs" />
     <Compile Include="AssemblyVersion.cs">
@@ -75,6 +77,7 @@
     <Compile Include="Pickers\ModulePicker.cs" />
     <Compile Include="Utils\CelestialBodyUtils.cs" />
     <Compile Include="Utils\DeltaVUtils.cs" />
+    <Compile Include="Utils\DialogHelper.cs" />
     <Compile Include="Utils\DockingPortUtils.cs" />
     <Compile Include="Utils\DrillUtils.cs" />
     <Compile Include="Utils\EngineTypeMatcher.cs" />
@@ -104,10 +107,13 @@
     <Compile Include="Initialization.cs" />
     <Compile Include="Utils\ResourceUtils.cs" />
     <Compile Include="Utils\ReactionWheelUtils.cs" />
+    <Compile Include="Utils\Rewards.cs" />
     <Compile Include="Utils\SASUtils.cs" />
     <Compile Include="SaveLoad.cs" />
     <Compile Include="Utils\SolarUtils.cs" />
     <Compile Include="StepNode.cs" />
+    <Compile Include="Utils\SpriteSheetIMGUI.cs" />
+    <Compile Include="Utils\SpriteSheetUtils.cs" />
     <Compile Include="Utils\StageInfo.cs" />
     <Compile Include="Utils\StageUtils.cs" />
     <Compile Include="Utils\StringFormatter.cs" />

@@ -1,12 +1,10 @@
-﻿using CommNet.Network;
-using MissionPlanner;
+﻿using MissionPlanner;
 using MissionPlanner.MissionPlanner;
 using MissionPlanner.Utils;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using static MissionPlanner.RegisterToolbar;
 using static SpaceTuxUtility.ConfigNodeUtils;
 
 // ============================================================
@@ -17,8 +15,8 @@ using static SpaceTuxUtility.ConfigNodeUtils;
 public class MissionVisitTracker : ScenarioModule
 {
     #region BodyNameLookup
-    private static Dictionary<string, CelestialBody> _bodyLookup;
-    private static bool _bodyLookupInitialized = false;
+    private static Dictionary<string, CelestialBody> bodyLookup;
+    private static bool bodyLookupInitialized = false;
 
     /// <summary>
     /// Initialize the body dictionary (if not already).
@@ -26,22 +24,22 @@ public class MissionVisitTracker : ScenarioModule
     /// </summary>
     private static void EnsureBodyLookup()
     {
-        if (_bodyLookupInitialized && _bodyLookup != null) return;
+        if (bodyLookupInitialized && bodyLookup != null) return;
 
-        _bodyLookup = new Dictionary<string, CelestialBody>(StringComparer.OrdinalIgnoreCase);
+        bodyLookup = new Dictionary<string, CelestialBody>(StringComparer.OrdinalIgnoreCase);
 
         if (FlightGlobals.Bodies != null)
         {
             foreach (var body in FlightGlobals.Bodies)
             {
                 if (body == null) continue;
-                if (!_bodyLookup.ContainsKey(body.bodyName))
-                    _bodyLookup.Add(body.bodyName, body);
+                if (!bodyLookup.ContainsKey(body.bodyName))
+                    bodyLookup.Add(body.bodyName, body);
             }
         }
 
-        _bodyLookupInitialized = true;
-        Debug.Log($"[MissionVisitTracker] Body lookup dictionary initialized with {_bodyLookup.Count} entries.");
+        bodyLookupInitialized = true;
+        Debug.Log($"[MissionVisitTracker] Body lookup dictionary initialized with {bodyLookup.Count} entries.");
     }
 
     /// <summary>
@@ -53,7 +51,7 @@ public class MissionVisitTracker : ScenarioModule
         EnsureBodyLookup();
         if (string.IsNullOrEmpty(bodyName)) return null;
 
-        return _bodyLookup.TryGetValue(bodyName, out var body) ? body : null;
+        return bodyLookup.TryGetValue(bodyName, out var body) ? body : null;
     }
 
     /// <summary>
@@ -62,7 +60,7 @@ public class MissionVisitTracker : ScenarioModule
     public static bool BodyExists(string bodyName)
     {
         EnsureBodyLookup();
-        return !string.IsNullOrEmpty(bodyName) && _bodyLookup.ContainsKey(bodyName);
+        return !string.IsNullOrEmpty(bodyName) && bodyLookup.ContainsKey(bodyName);
     }
 
     /// <summary>
@@ -71,7 +69,7 @@ public class MissionVisitTracker : ScenarioModule
     /// </summary>
     public static void RefreshBodyLookup()
     {
-        _bodyLookupInitialized = false;
+        bodyLookupInitialized = false;
         EnsureBodyLookup();
     }
     #endregion
@@ -231,20 +229,22 @@ public class MissionVisitTracker : ScenarioModule
         return biomes[body.bodyName].BiomeVisited(biome);
     }
 
-    public static bool HasPlantedFlagOnBody(Vessel v, string bodyName, bool countStartBody = true)
+    //public static bool HasPlantedFlagOnBody(Vessel v, string bodyName, bool countStartBody = true)
+    public static bool HasPlantedFlagOnBody(Guid vesselId, string bodyName, bool countStartBody = true)
     {
-        return HasPlantedFlagOnBody(v, FindBodyByName(bodyName), countStartBody);
+        return HasPlantedFlagOnBody(vesselId, FindBodyByName(bodyName), countStartBody);
     }
-    public static bool HasPlantedFlagOnBody(Vessel v, CelestialBody body, bool countStartBody = true)
+    //public static bool HasPlantedFlagOnBody(Vessel v, CelestialBody body, bool countStartBody = true)
+    public static bool HasPlantedFlagOnBody(Guid vesselId, CelestialBody body, bool countStartBody = true)
     {
-        if (v == null || body == null) return false;
+        if (vesselId == Guid.Empty || body == null) return false;
         var inst = HighLogic.FindObjectOfType<MissionVisitTracker>();
         if (inst == null) return false;
 
 
-        if (!inst._flags.TryGetValue(v.id, out var set)) set = null;
+        if (!inst._flags.TryGetValue(vesselId, out var set)) set = null;
 
-        if (countStartBody && inst._startBody.TryGetValue(v.id, out var start) && start == body.bodyName)
+        if (countStartBody && inst._startBody.TryGetValue(vesselId, out var start) && start == body.bodyName)
             return true;
 
         return set != null && set.Contains(body.bodyName);
@@ -331,12 +331,12 @@ public class MissionVisitTracker : ScenarioModule
                 }
                 // Following is to check for any tracked vessels which are completed/fulfilled.
                 // This doesn't need to be run every second
-                if (childStatusCnt > 10)
+                if (childStatusCnt > 10 && HierarchicalStepsWindow.mission.missionActive)
                 {
                     childStatusCnt = 0;
-                    for (int i = 0; i < HierarchicalStepsWindow._roots.Count; i++)
+                    for (int i = 0; i < HierarchicalStepsWindow.mission.roots.Count; i++)
                     {
-                        var r = HierarchicalStepsWindow._roots[i];
+                        var r = HierarchicalStepsWindow.mission.roots[i];
                         FlightChecks.CheckChildStatus(r);
                     }
                 }
@@ -352,18 +352,18 @@ public class MissionVisitTracker : ScenarioModule
         if (!_visitCounts.ContainsKey(id)) _visitCounts[id] = new Dictionary<string, int>();
     }
 
-    private void EnsureLanded(Vessel v, Guid id)
+    private void EnsureLanded(Vessel v)
     {
-        if (!_landed.ContainsKey(id)) _landed[id] = new HashSet<string>();
-        if (!_landedCounts.ContainsKey(id)) _landedCounts[id] = new Dictionary<string, int>();
+        if (!_landed.ContainsKey(v.id)) _landed[v.id] = new HashSet<string>();
+        if (!_landedCounts.ContainsKey(v.id)) _landedCounts[v.id] = new Dictionary<string, int>();
 
     }
-    private void EnsureLandedBiome(Vessel v, Guid id, string bodyName)
+    private void EnsureLandedBiome(Vessel v, string bodyName)
     {
-        if (!_landedBiomes.ContainsKey(id))
-            _landedBiomes[id] = new Dictionary<string, BiomeVisits>();
-        if (!_landedBiomes[id].ContainsKey(bodyName))
-            _landedBiomes[id][bodyName] = new BiomeVisits(bodyName);
+        if (!_landedBiomes.ContainsKey(v.id))
+            _landedBiomes[v.id] = new Dictionary<string, BiomeVisits>();
+        if (!_landedBiomes[v.id].ContainsKey(bodyName))
+            _landedBiomes[v.id][bodyName] = new BiomeVisits(bodyName);
     }
 
     private void EnsureFlags(Guid id)
@@ -407,9 +407,9 @@ public class MissionVisitTracker : ScenarioModule
             _dockings[firstGuid].Add(secondGuid);
             _dockings[secondGuid].Add(firstGuid);
 
-            for (int i = 0; i < HierarchicalStepsWindow._roots.Count; i++)
+            for (int i = 0; i < HierarchicalStepsWindow.mission.roots.Count; i++)
             {
-                var r = HierarchicalStepsWindow._roots[i];
+                var r = HierarchicalStepsWindow.mission.roots[i];
                 CheckDocking(r, firstGuid, secondGuid);
             }
         }
@@ -450,8 +450,8 @@ public class MissionVisitTracker : ScenarioModule
     private void OnLanded()
     {
         Vessel v = FlightGlobals.ActiveVessel;
-        EnsureLanded(v, v.id);
-        EnsureLandedBiome(v, v.id, v.mainBody.bodyName);
+        EnsureLanded(v);
+        EnsureLandedBiome(v, v.mainBody.bodyName);
         _landed[v.id].Add(v.mainBody.bodyName);
         _landedBiomes[v.id][v.mainBody.bodyName].AddBiome(BiomeUtils.GetCurrentBiome(v));
 

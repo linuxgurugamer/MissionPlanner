@@ -11,9 +11,9 @@ namespace DeltaVEditor
         private const string Header =
             //"Origin,Destination,dV_to_low_orbit,ejection_dV,capture_dV,dV_low_orbit_to_surface,plane_change_dV,parent,isMoon";
             "Origin,Destination,dV_to_low_orbit,ejection_dV,capture_dV,transfer_to_low_orbit_dV,total_capture_dV,dV_low_orbit_to_surface,ascent_dV,plane_change_dV,parent,isMoon,order";
-        public static List<DeltaV> Load(string path)
+        public static List<MissionPlanner.HierarchicalStepsWindow.DeltaV> Load(string path)
         {
-            var list = new List<DeltaV>();
+            var list = new List<MissionPlanner.HierarchicalStepsWindow.DeltaV>();
 
             if (!File.Exists(path))
             {
@@ -47,10 +47,10 @@ namespace DeltaVEditor
                     }
 
 
-                    DeltaV dv = null;
+                    MissionPlanner.HierarchicalStepsWindow.DeltaV dv = null;
                     try
                     {
-                        dv = new DeltaV
+                        dv = new MissionPlanner.HierarchicalStepsWindow.DeltaV
                         {
                             Origin = cols[0].Trim(),
                             Destination = cols[1].Trim(),
@@ -83,7 +83,7 @@ namespace DeltaVEditor
             return list;
         }
 
-        public static void Save(string path, List<DeltaV> rows)
+        public static void Save(string path, List<MissionPlanner.HierarchicalStepsWindow.DeltaV> rows)
         {
             using (var writer = new StreamWriter(path, false))
             {

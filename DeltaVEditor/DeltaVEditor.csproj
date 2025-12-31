@@ -44,7 +44,6 @@
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="DeltaV.cs" />
     <Compile Include="DeltaVCsv.cs" />
     <Compile Include="DeltaVEditorController .cs" />
     <Compile Include="DeltaVEditorWindow .cs" />

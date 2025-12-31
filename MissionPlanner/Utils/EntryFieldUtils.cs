@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using static MissionPlanner.RegisterToolbar;
 
 namespace MissionPlanner
 {
@@ -29,8 +30,33 @@ namespace MissionPlanner
                 GUILayout.FlexibleSpace();
             }
         }
-        private float FloatField(string label, float value, int places, bool locked, string suffix = "", float width = 120, bool flex = true)
+
+        private float FloatField(GUIContent label, float value, int places, bool locked, string suffix = "", float width = 120, bool flex = true, float labelWidth=90)
         {
+            using (new GUILayout.HorizontalScope())
+            {
+                GUILayout.Label(label, ScaledGUILayoutWidth(labelWidth)); //, ScaledGUILayoutWidth(120));
+                string buf = "";
+                GetCurrentEntryFieldID();
+                if (places == 0)
+                    buf = GUILayout.TextField(value.ToString("F0"), ScaledGUILayoutWidth(width));
+                else
+                    buf = GUILayout.TextField(value.ToString($"F{places}"), ScaledGUILayoutWidth(width));
+                oldEntryFieldId = (GUIUtility.keyboardControl - 1) == currentEntryFieldId ? currentEntryFieldId : oldEntryFieldId;
+
+                if (!locked && float.TryParse(buf, out float parsed))
+                    value = parsed;
+                GUILayout.Label(suffix);
+                if (flex)
+                    GUILayout.FlexibleSpace();
+            }
+            return value;
+
+        }
+        private float FloatField(string label, float value, int places, bool locked, string suffix = "", float width = 120, bool flex = true, float labelWidth = 90)
+        {
+            return FloatField(new GUIContent(label, ""), value, places, locked, suffix, width, flex);
+#if false
             using (new GUILayout.HorizontalScope())
             {
                 GUILayout.Label(label); //, ScaledGUILayoutWidth(120));
@@ -49,6 +75,7 @@ namespace MissionPlanner
                     GUILayout.FlexibleSpace();
             }
             return value;
+#endif
         }
 
         private void FloatField(string label, ref float value, int places, bool locked, string suffix = "", float width = 120, bool flex = true)
@@ -86,6 +113,7 @@ namespace MissionPlanner
                 else
                 {
                     buf = GUILayout.TextField(value.ToString(), ScaledGUILayoutWidth(width));
+                    Log.Info("DoubleField, value: " + value + ", buf: " + buf);
                     if (TryParseWithSuffix(buf, out double parsed))
                     {
                         value = parsed;
@@ -134,7 +162,7 @@ namespace MissionPlanner
                 default:
                     break;
             }
-
+            Log.Info("Before double.TryParse, numericPart: " + numericPart);
             if (double.TryParse(numericPart, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double baseValue))
             {
                 result = baseValue * multiplier;

@@ -1,10 +1,12 @@
 ﻿using MissionPlanner.MissionPlanner;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using static MissionPlanner.Utils.FuelCellUtils;
 using static ParachuteUtils;
 using static RadiatorUtils;
 using static ReactionWheelUtils;
+using static RewardUtils;
 using static SolarUtils;
 
 namespace MissionPlanner.Utils
@@ -21,22 +23,46 @@ namespace MissionPlanner.Utils
             return crew >= s.crewCount;
         }
 
-        public static bool CheckChildStatus(StepNode s, int level = 0)
+        public static bool CheckChildStatus(StepNode s, int level = 0, Guid trackedVesselGuid = new Guid(), List<FlightLogEntrySpec> xpEntries = null)
         {
-            if (CheckStatus(s.data))
+            if (xpEntries == null)
+                xpEntries = new List<FlightLogEntrySpec>();
+            if (s.data.stepType == CriterionType.TrackedVessel)
+                trackedVesselGuid = s.data.vesselGuid;
+            if (CheckStatus(s.data, trackedVesselGuid, xpEntries))
             {
                 bool ok = true;
                 foreach (StepNode c in s.Children)
                 {
-                    var rc = CheckChildStatus(c, level + 1);
+                    bool rc = false;
+                    if (c.data.stepType == CriterionType.TrackedVessel)
+                    {
+                        xpEntries = new List<FlightLogEntrySpec>();
+                        rc = CheckChildStatus(c, level + 1, c.data.vesselGuid, xpEntries);
+                    }
+                    else
+                        rc = CheckChildStatus(c, level + 1, trackedVesselGuid, xpEntries);
                     if (s.requireAll && !rc)
                     {
                         return false;
                     }
                     ok |= rc;
                 }
-                if (ok && s.data.stepActive)
-                        s.data.completed = true;
+                if (ok && s.data.IsStepActive)
+                {
+                    s.data.completed = true;
+                    s.data.stepStatus = StepStatus.Completed;
+                    RewardUtils.GrantVesselRewards_StockXP(
+                        FlightGlobals.ActiveVessel,
+                        xpEntries: null, //s.data.experience,
+                        reputationDelta: s.data.reputation,
+                        fundsDelta: s.data.funding,
+                        scienceDelta: s.data.science,
+                        reason: TransactionReasons.Mission
+                    );
+
+
+                }
                 return ok;
             }
             return false;
@@ -58,7 +84,7 @@ namespace MissionPlanner.Utils
         }
 
 
-        public static bool CheckStatus(Step s)
+        public static bool CheckStatus(Step s, Guid trackedVesselGuid, List<FlightLogEntrySpec> xpEntries)
         {
             if ((!HighLogic.LoadedSceneIsFlight || FlightGlobals.ActiveVessel == null) &&
                  !HighLogic.LoadedSceneIsEditor)
@@ -279,15 +305,39 @@ namespace MissionPlanner.Utils
                     return s.CheckPart();
 
                 case CriterionType.Maneuver:
-
                     switch (s.maneuver)
                     {
                         case Maneuver.Launch:
                         case Maneuver.Orbit:
-                            ApPeFromOrbit.ApPe aPpE = ApPeFromOrbit.ComputeApPe(FlightGlobals.ActiveVessel.orbitDriver.orbit,
-                                                                                FlightGlobals.ActiveVessel.mainBody);
-                            return FlightChecks.IsWithinPercent(aPpE.ApAltitude, s.ap * 1000f, s.marginOfError) &&
-                                    FlightChecks.IsWithinPercent(aPpE.PeAltitude, s.pe * 1000f, s.marginOfError);
+                            if (HighLogic.LoadedSceneIsFlight && FlightGlobals.ActiveVessel.id == trackedVesselGuid)
+                            {
+                                if (FlightGlobals.ActiveVessel.mainBody.bodyName == s.maneuverBody)
+                                {
+                                    ApPeFromOrbit.ApPe aPpE = ApPeFromOrbit.ComputeApPe(FlightGlobals.ActiveVessel.orbitDriver.orbit,
+                                                                                    FlightGlobals.ActiveVessel.mainBody);
+                                    xpEntries.Add(new FlightLogEntrySpec((s.maneuver == Maneuver.Launch) ? FlightLog.EntryType.Launch : FlightLog.EntryType.Orbit, FlightGlobals.ActiveVessel.mainBody.bodyName));
+                                    return FlightChecks.IsWithinPercent(aPpE.ApAltitude, s.ap * 1000f, s.marginOfError) &&
+                                            FlightChecks.IsWithinPercent(aPpE.PeAltitude, s.pe * 1000f, s.marginOfError);
+                                }
+                                else
+                                    return false;
+                            }
+                            else
+                                return true;
+
+                        case Maneuver.SubOrbitalLaunch:
+                            if (HighLogic.LoadedSceneIsFlight && FlightGlobals.ActiveVessel.id == trackedVesselGuid)
+                            {
+                                if (FlightGlobals.ActiveVessel.mainBody.bodyName == s.maneuverBody)
+                                {
+                                    xpEntries.Add(new FlightLogEntrySpec(FlightLog.EntryType.Suborbit, FlightGlobals.ActiveVessel.mainBody.bodyName));
+                                    return (FlightGlobals.ActiveVessel.altitude >= s.ap * 1000);
+                                }
+                                else
+                                    return false;
+                            }
+                            else
+                                return true;
 
                         case Maneuver.ResourceTransfer:
                             for (int i = 0; i < s.resourceList.Count; i++)
@@ -307,6 +357,12 @@ namespace MissionPlanner.Utils
                                         return false;
                                 }
                             }
+                            return true;
+
+                        case Maneuver.Landing:
+                        case Maneuver.Splashdown:
+                            if (HighLogic.LoadedSceneIsFlight && FlightGlobals.ActiveVessel.id == trackedVesselGuid)
+                                xpEntries.Add(new FlightLogEntrySpec(FlightLog.EntryType.Land, FlightGlobals.ActiveVessel.mainBody.bodyName));
                             return true;
 
                         default:
@@ -415,8 +471,10 @@ namespace MissionPlanner.Utils
                     {
                         if (HighLogic.LoadedSceneIsEditor)
                             return true;
+                        if (HighLogic.LoadedSceneIsFlight && FlightGlobals.ActiveVessel.id == trackedVesselGuid)
+                            xpEntries.Add(new FlightLogEntrySpec(FlightLog.EntryType.PlantFlag, s.flagBody));
 
-                        bool landed = MissionVisitTracker.HasPlantedFlagOnBody(FlightGlobals.ActiveVessel, s.flagBody, countStartBody: false);
+                        bool landed = MissionVisitTracker.HasPlantedFlagOnBody(FlightGlobals.ActiveVessel.id, s.flagBody, countStartBody: false);
                         flagCount = MissionVisitTracker.FlagCount(FlightGlobals.ActiveVessel, s.flagBody);
 
                         return s.flagCnt <= flagCount;

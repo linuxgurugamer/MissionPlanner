@@ -14,37 +14,37 @@ namespace MissionPlanner
     public partial class HierarchicalStepsWindow : MonoBehaviour
     {
         // Module picker dialog
-        private bool _showModuleDialog = false;
-        private StepNode _moduleTargetNode = null;
-        private Vector2 _moduleScroll;
-        private string _moduleFilter = "";
+        private bool showModuleDialog = false;
+        private StepNode moduleTargetNode = null;
+        private Vector2 moduleScroll;
+        private string moduleFilter = "";
 
         private void OpenModulePicker(StepNode target)
         {
-            _moduleTargetNode = target;
-            _moduleFilter = "";
-            _showModuleDialog = true;
+            moduleTargetNode = target;
+            moduleFilter = "";
+            showModuleDialog = true;
 
             var mp = Input.mousePosition;
-            _moduleRect.x = Mathf.Clamp(mp.x, 40, Screen.width - _moduleRect.width - 40);
-            _moduleRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - _moduleRect.height - 40);
+            moduleRect.x = Mathf.Clamp(mp.x, 40, Screen.width - moduleRect.width - 40);
+            moduleRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - moduleRect.height - 40);
         }
 
         private void DrawModulePickerWindow(int id)
         {
             BringWindowForward(id, true);
-            if (_moduleTargetNode == null) { _showModuleDialog = false; GUI.DragWindow(new Rect(0, 0, 10000, 10000)); return; }
+            if (moduleTargetNode == null) { showModuleDialog = false; GUI.DragWindow(new Rect(0, 0, 10000, 10000)); return; }
             GUILayout.Space(6);
 
             using (new GUILayout.HorizontalScope())
             {
                 GUILayout.Label("Search:", ScaledGUILayoutWidth(60));
-                _moduleFilter = GUILayout.TextField(_moduleFilter ?? "", GUILayout.MinWidth(160), GUILayout.ExpandWidth(true));
+                moduleFilter = GUILayout.TextField(moduleFilter ?? "", GUILayout.MinWidth(160), GUILayout.ExpandWidth(true));
                 GUILayout.FlexibleSpace();
             }
 
             GUILayout.Space(6);
-            _moduleScroll = GUILayout.BeginScrollView(_moduleScroll, HighLogic.Skin.textArea, GUILayout.ExpandHeight(true));
+            moduleScroll = GUILayout.BeginScrollView(moduleScroll, HighLogic.Skin.textArea, GUILayout.ExpandHeight(true));
 
             if (ListAllModules.uniqueModules != null)
             {
@@ -53,9 +53,9 @@ namespace MissionPlanner
                     if (pm == null) continue;
                     if (IsBannedModule(pm)) continue;
 
-                    if (!String.IsNullOrEmpty(_moduleFilter))
+                    if (!String.IsNullOrEmpty(moduleFilter))
                     {
-                        var f = _moduleFilter.Trim();
+                        var f = moduleFilter.Trim();
                         if (!(pm.IndexOf(f, StringComparison.OrdinalIgnoreCase) >= 0))
                             continue;
                     }
@@ -65,10 +65,10 @@ namespace MissionPlanner
                         GUILayout.FlexibleSpace();
                         if (GUILayout.Button(pm, ScaledGUILayoutWidth(320)))
                         {
-                            var s = _moduleTargetNode.data;
+                            var s = moduleTargetNode.data;
                             s.moduleName = pm;
-                            _showModuleDialog = false;
-                            _moduleTargetNode = null;
+                            showModuleDialog = false;
+                            moduleTargetNode = null;
                             if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().autosave)
                                 TrySaveToDisk_Internal(true);
                         }
@@ -78,7 +78,7 @@ namespace MissionPlanner
             }
             else
             {
-                GUILayout.Label("No modules loaded.", _tinyLabel);
+                GUILayout.Label("No modules loaded.", tinyLabel);
             }
 
             GUILayout.EndScrollView();
@@ -86,10 +86,11 @@ namespace MissionPlanner
             GUILayout.FlexibleSpace();
             using (new GUILayout.HorizontalScope())
             {
+                GUILayout.FlexibleSpace();
                 if (GUILayout.Button("Close", ScaledGUILayoutWidth(100)))
                 {
-                    _showModuleDialog = false;
-                    _moduleTargetNode = null;
+                    showModuleDialog = false;
+                    moduleTargetNode = null;
                 }
                 GUILayout.FlexibleSpace();
             }

@@ -14,32 +14,32 @@ namespace DeltaVEditor
     {
         public static DeltaVEditorWindow Instance;
 
-        private Rect _windowRect = new Rect(200, 200, 1350, 800);
-        private int _windowId;
+        private Rect windowRect = new Rect(200, 200, 1350, 800);
+        private int windowId;
 
-        private bool _visible = false;
+        private bool visible = false;
 
         // Default relative CSV path
         private const string CSVPATH = MissionPlanner.HierarchicalStepsWindow.DELTA_V_FOLDER; //"GameData/MissionPlanner/PluginData/DeltaVTables/";
-        private string _csvPath = CSVPATH;
+        private string csvPath = CSVPATH;
 
         private readonly List<DeltaVRowEditor> _rows = new List<DeltaVRowEditor>();
-        private Vector2 _scrollPos;
+        private Vector2 scrollPos;
 
-        private string _filterOrigin = "";
-        private string _filterDestination = "";
+        private string filterOrigin = "";
+        private string filterDestination = "";
 
-        private string _statusMessage = "";
+        private string statusMessage = "";
 
         // ---- File picker state ----
-        private bool _showFilePicker = false;
-        private bool _showFileNameEntry = false;
-        private bool _show_SaveAsEntry = false;
+        private bool showFilePicker = false;
+        private bool showFileNameEntry = false;
+        private bool show_SaveAsEntry = false;
 
         string planetPackName = "";
-        private Vector2 _fileScrollPos;
-        private List<string> _fileOptions = new List<string>();
-        private string _pickerDirRelative = "";   // e.g. "GameData/MyMod/Data"
+        private Vector2 fileScrollPos;
+        private List<string> fileOptions = new List<string>();
+        private string pickerDirRelative = "";   // e.g. "GameData/MyMod/Data"
 
         CelestialBody homeWorld;
 
@@ -54,7 +54,7 @@ namespace DeltaVEditor
             Log.Info("DeltaVEditorWindow.Awake");
             Instance = this;
             DontDestroyOnLoad(gameObject);
-            _windowId = GetHashCode();
+            windowId = GetHashCode();
 
             homeWorld = FlightGlobals.Bodies.FirstOrDefault(b => b.isHomeWorld);
 
@@ -64,10 +64,10 @@ namespace DeltaVEditor
         {
             Log.Info("DeltaVEditorWindow.OnGUI");
             GUI.skin = HighLogic.Skin;
-            if (!_visible)
+            if (!visible)
                 return;
 
-            _windowRect = GUILayout.Window(_windowId, _windowRect, DrawWindow, "Delta-V Editor");
+            windowRect = GUILayout.Window(windowId, windowRect, DrawWindow, "Delta-V Editor");
         }
 
         private void DrawWindow(int id)
@@ -78,11 +78,11 @@ namespace DeltaVEditor
                 GUILayout.Label("CSV Path (relative to KSP root):");
                 using (new GUILayout.HorizontalScope())
                 {
-                    _csvPath = GUILayout.TextField(_csvPath, GUILayout.MinWidth(400));
+                    csvPath = GUILayout.TextField(csvPath, GUILayout.MinWidth(400));
 
                     if (GUILayout.Button("Load...", GUILayout.Width(80)))
                     {
-                        _show_SaveAsEntry = _showFileNameEntry = false;
+                        show_SaveAsEntry = showFileNameEntry = false;
                         ToggleFilePicker();
                     }
 
@@ -90,10 +90,10 @@ namespace DeltaVEditor
                     {
                         _rows.Clear();
                         _rows.Add(new DeltaVRowEditor("", ""));
-                        _showFileNameEntry = true;
+                        showFileNameEntry = true;
                     }
 
-                    if (_csvPath.EndsWith(".csv"))
+                    if (csvPath.EndsWith(".csv"))
                     {
                         if (GUILayout.Button("Save", GUILayout.Width(80)))
                         {
@@ -103,24 +103,24 @@ namespace DeltaVEditor
                     else
                         if (GUILayout.Button("Name", GUILayout.Width(80)))
                     {
-                        _showFileNameEntry = true;
+                        showFileNameEntry = true;
                         planetPackName = "";
 
                     }
                     if (GUILayout.Button("Save As", GUILayout.Width(80)))
                     {
-                        _show_SaveAsEntry = true;
+                        show_SaveAsEntry = true;
                         planetPackName = "";
                     }
                 }
 
                 // File picker UI
-                if (_showFilePicker)
+                if (showFilePicker)
                 {
                     DrawFilePicker();
                 }
 
-                if (_show_SaveAsEntry || _showFileNameEntry)
+                if (show_SaveAsEntry || showFileNameEntry)
                 {
                     using (new GUILayout.HorizontalScope())
                     {
@@ -129,25 +129,25 @@ namespace DeltaVEditor
                     }
                     using (new GUILayout.HorizontalScope())
                     {
-                        if (_show_SaveAsEntry)
+                        if (show_SaveAsEntry)
                         {
                             GUILayout.FlexibleSpace();
                             if (GUILayout.Button("Save", GUILayout.Width(90)))
                             {
-                                _show_SaveAsEntry = _showFileNameEntry = false;
-                                _csvPath = CSVPATH + planetPackName + ".csv";
+                                show_SaveAsEntry = showFileNameEntry = false;
+                                csvPath = CSVPATH + planetPackName + ".csv";
                                 SaveCsv();
                             }
                         }
                         GUILayout.FlexibleSpace();
                         if (GUILayout.Button("OK", GUILayout.Width(90)))
                         {
-                            _show_SaveAsEntry = _showFileNameEntry = false;
-                            _csvPath = CSVPATH + planetPackName + ".csv";
+                            show_SaveAsEntry = showFileNameEntry = false;
+                            csvPath = CSVPATH + planetPackName + ".csv";
                         }
                         GUILayout.FlexibleSpace();
                         if (GUILayout.Button("Cancel", GUILayout.Width(90)))
-                            _show_SaveAsEntry = _showFileNameEntry = false;
+                            show_SaveAsEntry = showFileNameEntry = false;
                         GUILayout.FlexibleSpace();
                     }
                     GUILayout.FlexibleSpace();
@@ -179,10 +179,10 @@ namespace DeltaVEditor
                     using (new GUILayout.HorizontalScope())
                     {
                         GUILayout.Label("Filter Origin:");
-                        _filterOrigin = GUILayout.TextField(_filterOrigin, GUILayout.Width(150));
+                        filterOrigin = GUILayout.TextField(filterOrigin, GUILayout.Width(150));
 
                         GUILayout.Label("Filter Destination:");
-                        _filterDestination = GUILayout.TextField(_filterDestination, GUILayout.Width(150));
+                        filterDestination = GUILayout.TextField(filterDestination, GUILayout.Width(150));
                         GUILayout.FlexibleSpace();
                     }
                     GUILayout.Space(5);
@@ -223,7 +223,7 @@ namespace DeltaVEditor
                     if (_rows.Count > 0)
                     {
                         // Scrollable table
-                        _scrollPos = GUILayout.BeginScrollView(_scrollPos, false, true);
+                        scrollPos = GUILayout.BeginScrollView(scrollPos, false, true);
 
                         for (int i = 0; i < _rows.Count; i++)
                         {
@@ -353,9 +353,9 @@ namespace DeltaVEditor
 
                     GUILayout.Space(5);
 
-                    if (!string.IsNullOrEmpty(_statusMessage))
+                    if (!string.IsNullOrEmpty(statusMessage))
                     {
-                        GUILayout.Label(_statusMessage, HighLogic.Skin.label);
+                        GUILayout.Label(statusMessage, HighLogic.Skin.label);
                         GUILayout.Space(5);
                     }
                 }
@@ -364,7 +364,7 @@ namespace DeltaVEditor
                     GUILayout.FlexibleSpace();
                     if (GUILayout.Button("Close", GUILayout.Width(80)))
                     {
-                        _visible = false;
+                        visible = false;
                     }
                     GUILayout.FlexibleSpace();
                 }
@@ -443,9 +443,9 @@ namespace DeltaVEditor
 
         private void ToggleFilePicker()
         {
-            _showFilePicker = !_showFilePicker;
+            showFilePicker = !showFilePicker;
 
-            if (_showFilePicker)
+            if (showFilePicker)
             {
                 RefreshFileList();
             }
@@ -453,20 +453,20 @@ namespace DeltaVEditor
 
         private void RefreshFileList()
         {
-            _fileOptions.Clear();
-            _fileScrollPos = Vector2.zero;
+            fileOptions.Clear();
+            fileScrollPos = Vector2.zero;
 
             try
             {
                 string relDir = "GameData/" + CSVPATH; // "GameData/MissionPlanner/PluginData/DeltaVTables/";
 
-                _pickerDirRelative = relDir;
+                pickerDirRelative = relDir;
 
                 string fullDir = Path.Combine(KSPUtil.ApplicationRootPath, relDir);
 
                 if (!Directory.Exists(fullDir))
                 {
-                    _statusMessage = $"Directory does not exist: {relDir}";
+                    statusMessage = $"Directory does not exist: {relDir}";
                     return;
                 }
 
@@ -474,21 +474,21 @@ namespace DeltaVEditor
                 foreach (var f in files)
                 {
                     string name = Path.GetFileName(f);
-                    _fileOptions.Add(name);
+                    fileOptions.Add(name);
                 }
 
-                if (_fileOptions.Count == 0)
+                if (fileOptions.Count == 0)
                 {
-                    _statusMessage = $"No *.csv files found in {relDir}";
+                    statusMessage = $"No *.csv files found in {relDir}";
                 }
                 else
                 {
-                    _statusMessage = $"Found {_fileOptions.Count} CSV file(s) in {relDir}";
+                    statusMessage = $"Found {fileOptions.Count} CSV file(s) in {relDir}";
                 }
             }
             catch (Exception ex)
             {
-                _statusMessage = "Error scanning directory: " + ex.Message;
+                statusMessage = "Error scanning directory: " + ex.Message;
                 Debug.LogError("[DeltaVEditorWindow] RefreshFileList error: " + ex);
             }
         }
@@ -498,17 +498,17 @@ namespace DeltaVEditor
             GUILayout.Space(5);
             GUILayout.BeginVertical(GUI.skin.box);
             GUILayout.Label("Select CSV file in directory:");
-            GUILayout.Label(_pickerDirRelative);
+            GUILayout.Label(pickerDirRelative);
 
-            _fileScrollPos = GUILayout.BeginScrollView(_fileScrollPos);
+            fileScrollPos = GUILayout.BeginScrollView(fileScrollPos);
 
-            if (_fileOptions.Count == 0)
+            if (fileOptions.Count == 0)
             {
                 GUILayout.Label("<no CSV files>");
             }
             else
             {
-                foreach (var fileName in _fileOptions)
+                foreach (var fileName in fileOptions)
                 {
                     using (new GUILayout.HorizontalScope())
                     {
@@ -516,11 +516,11 @@ namespace DeltaVEditor
                         if (GUILayout.Button(fileName, GUILayout.Width(300)))
                         {
                             // When clicked, update _csvPath and close the picker
-                            string combined = Path.Combine(_pickerDirRelative, fileName);
+                            string combined = Path.Combine(pickerDirRelative, fileName);
                             // Normalize to forward slashes for consistency
-                            _csvPath = combined.Replace('\\', '/');
-                            _showFilePicker = false;
-                            _statusMessage = $"Selected file: {_csvPath}";
+                            csvPath = combined.Replace('\\', '/');
+                            showFilePicker = false;
+                            statusMessage = $"Selected file: {csvPath}";
                             LoadCsv();
 
                         }
@@ -533,7 +533,7 @@ namespace DeltaVEditor
 
             if (GUILayout.Button("Close Picker"))
             {
-                _showFilePicker = false;
+                showFilePicker = false;
             }
 
             GUILayout.EndVertical();
@@ -542,17 +542,17 @@ namespace DeltaVEditor
 
         private bool RowPassesFilter(DeltaVRowEditor row)
         {
-            if (!string.IsNullOrEmpty(_filterOrigin))
+            if (!string.IsNullOrEmpty(filterOrigin))
             {
                 if (row.Origin_str == null ||
-                    row.Origin_str.IndexOf(_filterOrigin, StringComparison.OrdinalIgnoreCase) < 0)
+                    row.Origin_str.IndexOf(filterOrigin, StringComparison.OrdinalIgnoreCase) < 0)
                     return false;
             }
 
-            if (!string.IsNullOrEmpty(_filterDestination))
+            if (!string.IsNullOrEmpty(filterDestination))
             {
                 if (row.Destination_str == null ||
-                    row.Destination_str.IndexOf(_filterDestination, StringComparison.OrdinalIgnoreCase) < 0)
+                    row.Destination_str.IndexOf(filterDestination, StringComparison.OrdinalIgnoreCase) < 0)
                     return false;
             }
 
@@ -584,7 +584,7 @@ namespace DeltaVEditor
             }
 
             Log.Info("DeltaVEditorWindow.Toggle");
-            Instance._visible = !Instance._visible;
+            Instance.visible = !Instance.visible;
         }
 
         // =====================
@@ -593,33 +593,33 @@ namespace DeltaVEditor
 
         private void LoadCsv()
         {
-            _statusMessage = "";
+            statusMessage = "";
 
             try
             {
-                string fullPath = Path.Combine(KSPUtil.ApplicationRootPath, _csvPath);
+                string fullPath = Path.Combine(KSPUtil.ApplicationRootPath, csvPath);
                 var dvList = DeltaVCsv.Load(fullPath);
 
                 _rows.Clear();
                 foreach (var dv in dvList)
                     _rows.Add(DeltaVRowEditor.FromDeltaV(dv));
 
-                _statusMessage = $"Loaded {dvList.Count} rows from {_csvPath}";
+                statusMessage = $"Loaded {dvList.Count} rows from {csvPath}";
             }
             catch (Exception ex)
             {
-                _statusMessage = "Error loading: " + ex.Message;
+                statusMessage = "Error loading: " + ex.Message;
                 Debug.LogError("[DeltaVEditorWindow] LoadCsv error: " + ex);
             }
         }
 
         private void SaveCsv()
         {
-            _statusMessage = "";
+            statusMessage = "";
 
             try
             {
-                var dvList = new List<DeltaV>();
+                var dvList = new List<MissionPlanner.HierarchicalStepsWindow.DeltaV>();
                 int rowIndex = 0;
 
                 foreach (var row in _rows)
@@ -647,28 +647,28 @@ namespace DeltaVEditor
                         !IsValidFloat(row.sortOrder_str)
                         )
                     {
-                        _statusMessage = $"Error: row {rowIndex} has invalid numeric value(s). Fix red cells before saving.";
+                        statusMessage = $"Error: row {rowIndex} has invalid numeric value(s). Fix red cells before saving.";
                         return;
                     }
 
                     if (!row.TryToDeltaV(out var dv))
                     {
-                        _statusMessage = $"Error: failed to parse row {rowIndex}.";
+                        statusMessage = $"Error: failed to parse row {rowIndex}.";
                         return;
                     }
                     dvList.Add(dv);
                     rowIndex++;
                 }
 
-                string fullPath = Path.Combine(KSPUtil.ApplicationRootPath, _csvPath);
+                string fullPath = Path.Combine(KSPUtil.ApplicationRootPath, csvPath);
                 Directory.CreateDirectory(Path.GetDirectoryName(fullPath) ?? KSPUtil.ApplicationRootPath);
 
                 DeltaVCsv.Save(fullPath, dvList);
-                _statusMessage = $"Saved {dvList.Count} rows to {_csvPath}";
+                statusMessage = $"Saved {dvList.Count} rows to {csvPath}";
             }
             catch (Exception ex)
             {
-                _statusMessage = "Error saving: " + ex.Message;
+                statusMessage = "Error saving: " + ex.Message;
                 Debug.LogError("[DeltaVEditorWindow] SaveCsv error: " + ex);
             }
         }

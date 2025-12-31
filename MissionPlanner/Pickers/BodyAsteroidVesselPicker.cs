@@ -7,45 +7,46 @@ namespace MissionPlanner
     public partial class HierarchicalStepsWindow : MonoBehaviour
     {
         // BodyAsteroid/Vessel picker dialog
-        private bool _showBodyAsteroidVesselDialog = false;
-        private StepNode _bodyAsteroidTargetNode = null;
-        private Vector2 _bodyAsteroidScroll;
-        private string _bodyAsteroidFilter = "";
+        private bool showBodyAsteroidVesselDialog = false;
+        private StepNode bodyAsteroidTargetNode = null;
+        private Vector2 bodyAsteroidScroll;
+        private string bodyAsteroidFilter = "";
 
-        internal enum BodyAsteroidVessel { none, body, asteroid, vessel, trackedVessel };
+        internal enum BodyAsteroidVessel { none, maneuverBody, body, asteroid, vessel, trackedVessel };
 
         BodyAsteroidVessel selectionType;
         private void OpenBodyAsteroidVesselPicker(StepNode target, BodyAsteroidVessel bodyAsteroidVessel)
         {
-            _bodyAsteroidTargetNode = target;
-            _bodyAsteroidFilter = "";
-            _showBodyAsteroidVesselDialog = true;
+            bodyAsteroidTargetNode = target;
+            bodyAsteroidFilter = "";
+            showBodyAsteroidVesselDialog = true;
             selectionType = bodyAsteroidVessel;
 
             var mp = Input.mousePosition;
-            _bodyAsteroidVesselRect.x = Mathf.Clamp(mp.x, 40, Screen.width - _bodyAsteroidVesselRect.width - 40);
-            _bodyAsteroidVesselRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - _bodyAsteroidVesselRect.height - 40);
+            bodyAsteroidVesselRect.x = Mathf.Clamp(mp.x, 40, Screen.width - bodyAsteroidVesselRect.width - 40);
+            bodyAsteroidVesselRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - bodyAsteroidVesselRect.height - 40);
         }
 
         private void DrawBodyAsteroidVesselPickerWindow(int id)
         {
             BringWindowForward(id, true);
-            if (_bodyAsteroidTargetNode == null) { _showBodyAsteroidVesselDialog = false; GUI.DragWindow(new Rect(0, 0, 10000, 10000)); return; }
+            if (bodyAsteroidTargetNode == null) { showBodyAsteroidVesselDialog = false; GUI.DragWindow(new Rect(0, 0, 10000, 10000)); return; }
             GUILayout.Space(6);
 
             using (new GUILayout.HorizontalScope())
             {
                 GUILayout.Space(12);
                 GUILayout.Label("Search:", ScaledGUILayoutWidth(60));
-                _bodyAsteroidFilter = GUILayout.TextField(_bodyAsteroidFilter ?? "", GUILayout.MinWidth(160), GUILayout.ExpandWidth(true));
+                bodyAsteroidFilter = GUILayout.TextField(bodyAsteroidFilter ?? "", GUILayout.MinWidth(160), GUILayout.ExpandWidth(true));
                 GUILayout.FlexibleSpace();
             }
 
             GUILayout.Space(6);
-            _bodyAsteroidScroll = GUILayout.BeginScrollView(_bodyAsteroidScroll, HighLogic.Skin.textArea, GUILayout.ExpandHeight(true));
+            bodyAsteroidScroll = GUILayout.BeginScrollView(bodyAsteroidScroll, HighLogic.Skin.textArea, GUILayout.ExpandHeight(true));
             int lines = 0;
             switch (selectionType)
             {
+                case BodyAsteroidVessel.maneuverBody:
                 case BodyAsteroidVessel.body:
                     {
                         lines = FlightGlobals.Bodies.Count();
@@ -56,11 +57,16 @@ namespace MissionPlanner
                                 GUILayout.FlexibleSpace();
                                 if (GUILayout.Button(b.bodyName, ScaledGUILayoutWidth(320)))
                                 {
-                                    var s = _bodyAsteroidTargetNode.data;
-                                    s.destBody = b.bodyName;
-                                    s.flagBody = b.bodyName;
-                                    _showBodyAsteroidVesselDialog = false;
-                                    _bodyAsteroidTargetNode = null;
+                                    var s = bodyAsteroidTargetNode.data;
+                                    if (selectionType == BodyAsteroidVessel.body)
+                                    {
+                                        s.destBody = b.bodyName;
+                                        s.flagBody = b.bodyName;
+                                    }
+                                    else
+                                        s.maneuverBody = b.bodyName;
+                                    showBodyAsteroidVesselDialog = false;
+                                    bodyAsteroidTargetNode = null;
                                     if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().autosave)
                                         TrySaveToDisk_Internal(true);
                                 }
@@ -79,10 +85,10 @@ namespace MissionPlanner
                                 GUILayout.FlexibleSpace();
                                 if (GUILayout.Button(v, ScaledGUILayoutWidth(320)))
                                 {
-                                    var s = _bodyAsteroidTargetNode.data;
+                                    var s = bodyAsteroidTargetNode.data;
                                     s.destAsteroid = v;
-                                    _showBodyAsteroidVesselDialog = false;
-                                    _bodyAsteroidTargetNode = null;
+                                    showBodyAsteroidVesselDialog = false;
+                                    bodyAsteroidTargetNode = null;
                                     if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().autosave)
                                         TrySaveToDisk_Internal(true);
                                 }
@@ -93,7 +99,7 @@ namespace MissionPlanner
                     break;
                 case BodyAsteroidVessel.trackedVessel:
                     {
-                        var s = _bodyAsteroidTargetNode.data;
+                        var s = bodyAsteroidTargetNode.data;
                         string oldTrackedVessel = s.trackedVessel;
                         Guid oldVesselGuid = s.vesselGuid;
 
@@ -108,8 +114,8 @@ namespace MissionPlanner
                                 {
                                     s.trackedVessel = v.vesselName;
                                     s.vesselGuid = v.id;
-                                    _showBodyAsteroidVesselDialog = false;
-                                    _bodyAsteroidTargetNode = null;
+                                    showBodyAsteroidVesselDialog = false;
+                                    bodyAsteroidTargetNode = null;
                                     if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().autosave)
                                         TrySaveToDisk_Internal(true);
                                 }
@@ -120,7 +126,7 @@ namespace MissionPlanner
                         if (oldTrackedVessel != s.trackedVessel)
                         {
                             // Create a file for teh vessel with the mission file name in it
-                            MissionVisitTracker.SaveTrackedVesselMission(s.vesselGuid, _missionName);
+                            MissionVisitTracker.SaveTrackedVesselMission(s.vesselGuid, mission.missionName);
                             // delete any file for the vessel using the oldTrackedVessel
                             if (!string.IsNullOrEmpty(oldTrackedVessel))
                                 MissionVisitTracker.DeleteTrackedVesselMission(oldVesselGuid);
@@ -138,11 +144,11 @@ namespace MissionPlanner
                             {
                                 if (GUILayout.Button(v.vesselName, ScaledGUILayoutWidth(320)))
                                 {
-                                    var s = _bodyAsteroidTargetNode.data;
+                                    var s = bodyAsteroidTargetNode.data;
                                     s.destVessel = v.vesselName;
                                     s.vesselGuid = v.id;
-                                    _showBodyAsteroidVesselDialog = false;
-                                    _bodyAsteroidTargetNode = null;
+                                    showBodyAsteroidVesselDialog = false;
+                                    bodyAsteroidTargetNode = null;
                                     if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().autosave)
                                         TrySaveToDisk_Internal(true);
                                 }
@@ -155,7 +161,7 @@ namespace MissionPlanner
             }
             if (lines == 0)
             {
-                GUILayout.Label("No bodyAsteroids loaded.", _tinyLabel);
+                GUILayout.Label("No bodyAsteroids loaded.", tinyLabel);
             }
 
             GUILayout.EndScrollView();
@@ -166,8 +172,8 @@ namespace MissionPlanner
                 GUILayout.FlexibleSpace();
                 if (GUILayout.Button("Close", ScaledGUILayoutWidth(100)))
                 {
-                    _showBodyAsteroidVesselDialog = false;
-                    _bodyAsteroidTargetNode = null;
+                    showBodyAsteroidVesselDialog = false;
+                    bodyAsteroidTargetNode = null;
                 }
                 GUILayout.FlexibleSpace();
             }

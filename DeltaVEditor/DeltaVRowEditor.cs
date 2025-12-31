@@ -66,7 +66,7 @@ namespace DeltaVEditor
             this.parent = parent;
         }
 
-        public static DeltaVRowEditor FromDeltaV(DeltaV dv)
+        public static DeltaVRowEditor FromDeltaV(MissionPlanner.HierarchicalStepsWindow.DeltaV dv)
         {
             return new DeltaVRowEditor
             (
@@ -86,7 +86,7 @@ namespace DeltaVEditor
             );
         }
 
-        public bool TryToDeltaV(out DeltaV dv)
+        public bool TryToDeltaV(out MissionPlanner.HierarchicalStepsWindow.DeltaV dv)
         {
             dv = null;
 
@@ -103,7 +103,7 @@ namespace DeltaVEditor
 
             if (!float.TryParse(plane_change_dV_str, NumberStyles.Float, CultureInfo.InvariantCulture, out var planeChange)) return false;
 
-            dv = new DeltaV
+            dv = new MissionPlanner.HierarchicalStepsWindow.DeltaV
             {
                 Origin = Origin_str?.Trim() ?? "",
                 Destination = Destination_str?.Trim() ?? "",

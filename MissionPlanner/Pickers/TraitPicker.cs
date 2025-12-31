@@ -7,28 +7,28 @@ namespace MissionPlanner
     public partial class HierarchicalStepsWindow : MonoBehaviour
     {
         // Trait picker dialog
-        private bool _showTraitDialog = false;
-        private StepNode _traitTargetNode = null;
-        private Vector2 _traitScroll;
-        private string _traitFilter = "";
+        private bool showTraitDialog = false;
+        private StepNode traitTargetNode = null;
+        private Vector2 traitScroll;
+        private string traitFilter = "";
 
         private void OpenTraitPicker(StepNode target)
         {
-            _traitTargetNode = target;
-            _traitFilter = "";
-            _showTraitDialog = true;
+            traitTargetNode = target;
+            traitFilter = "";
+            showTraitDialog = true;
 
             var mp = Input.mousePosition;
-            _traitRect.x = Mathf.Clamp(mp.x, 40, Screen.width - _traitRect.width - 40);
-            _traitRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - _traitRect.height - 40);
+            traitRect.x = Mathf.Clamp(mp.x, 40, Screen.width - traitRect.width - 40);
+            traitRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - traitRect.height - 40);
         }
 
         private void DrawTraitPickerWindow(int id)
         {
             BringWindowForward(id, true);
-            if (_traitTargetNode == null)
+            if (traitTargetNode == null)
             {
-                _showTraitDialog = false;
+                showTraitDialog = false;
                 GUI.DragWindow(new Rect(0, 0, 10000, 10000));
                 return;
             }
@@ -37,11 +37,11 @@ namespace MissionPlanner
             using (new GUILayout.HorizontalScope())
             {
                 GUILayout.Label("Search:", ScaledGUILayoutWidth(60));
-                _traitFilter = GUILayout.TextField(_traitFilter ?? "", GUILayout.MinWidth(160), GUILayout.ExpandWidth(true));
+                traitFilter = GUILayout.TextField(traitFilter ?? "", GUILayout.MinWidth(160), GUILayout.ExpandWidth(true));
                 GUILayout.FlexibleSpace();
             }
             GUILayout.Space(6);
-            _traitScroll = GUILayout.BeginScrollView(_traitScroll, HighLogic.Skin.textArea, GUILayout.ExpandHeight(true));
+            traitScroll = GUILayout.BeginScrollView(traitScroll, HighLogic.Skin.textArea, GUILayout.ExpandHeight(true));
 
             var traits = TraitUtil.traits;
 
@@ -52,9 +52,9 @@ namespace MissionPlanner
                     if (trait == null) continue;
                     if (IsBannedTrait(trait)) continue;
 
-                    if (!String.IsNullOrEmpty(_traitFilter))
+                    if (!String.IsNullOrEmpty(traitFilter))
                     {
-                        var f = _traitFilter.Trim();
+                        var f = traitFilter.Trim();
                         if (!(trait.IndexOf(f, StringComparison.OrdinalIgnoreCase) >= 0))
                             continue;
                     }
@@ -62,12 +62,12 @@ namespace MissionPlanner
                     using (new GUILayout.HorizontalScope())
                     {
                         GUILayout.FlexibleSpace();
-                        if (GUILayout.Button(trait, GUILayout.Width(_traitRect.width - 40)))
+                        if (GUILayout.Button(trait, GUILayout.Width(traitRect.width - 40)))
                         {
-                            var s = _traitTargetNode.data;
+                            var s = traitTargetNode.data;
                             s.traitName = trait;
-                            _showTraitDialog = false;
-                            _traitTargetNode = null;
+                            showTraitDialog = false;
+                            traitTargetNode = null;
                             if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().autosave)
                                 TrySaveToDisk_Internal(true);
                         }
@@ -77,7 +77,7 @@ namespace MissionPlanner
             }
             else
             {
-                GUILayout.Label("No traits loaded.", _tinyLabel);
+                GUILayout.Label("No traits loaded.", tinyLabel);
             }
 
             GUILayout.EndScrollView();
@@ -88,8 +88,8 @@ namespace MissionPlanner
                 GUILayout.FlexibleSpace();
                 if (GUILayout.Button("Close", ScaledGUILayoutWidth(100)))
                 {
-                    _showTraitDialog = false;
-                    _traitTargetNode = null;
+                    showTraitDialog = false;
+                    traitTargetNode = null;
                 }
                 GUILayout.FlexibleSpace();
             }

@@ -28,17 +28,22 @@ namespace MissionPlanner
         }
     }
 
+    public enum StepStatus { Inactive, Active, Completed};
+
     [Serializable]
     public class Step
     {
+        public bool locked { get { return _locked | HierarchicalStepsWindow.missionRunnerActive; } set { _locked = value; } }
+
         public string title = "New Step";
         public string descr = "";
 
         public bool completed = false;
-        public bool locked = false;
+        public bool _locked = false;
 
         public CriterionType stepType = CriterionType.ChecklistItem;
         public Maneuver maneuver = Maneuver.None;
+        public string maneuverBody;
 
         public bool toggle = false;
         public bool initialToggleValue = false;
@@ -84,11 +89,13 @@ namespace MissionPlanner
         public string trackedVessel = "";
         public int experience = 0;
         public int reputation = 0;
-        public int kerbucks = 0;
+        public int funding = 0;
+        public float science = 0f;
 
-        public bool stepActive = false;
+        public StepStatus stepStatus = StepStatus.Inactive;
+        public bool IsStepActive {  get {  return stepStatus == StepStatus.Active; } }
+
         public bool stepCompleted = false;
-
 
         public Guid vesselGuid = Guid.Empty;
 
@@ -131,10 +138,11 @@ namespace MissionPlanner
             descr = step.descr;
 
             completed = step.completed;
-            locked = step.locked;
+            _locked = step._locked;
 
             stepType = step.stepType;
             maneuver = step.maneuver;
+            maneuverBody = step.maneuverBody;
 
             toggle = step.toggle;
             initialToggleValue = step.initialToggleValue;
@@ -186,9 +194,10 @@ namespace MissionPlanner
             trackedVessel = step.trackedVessel;
             experience = step.experience;
             reputation = step.reputation;
-            kerbucks = step.kerbucks;
+            funding = step.funding;
+            science = step.science;
             stepCompleted = step.stepCompleted;
-            stepActive = step.stepActive;
+            stepStatus = step.stepStatus;
 
             vesselGuid = step.vesselGuid;
 
@@ -254,10 +263,10 @@ namespace MissionPlanner
             n.AddValue("title", title ?? "");
             n.AddValue("descr", descr ?? "");
             n.AddValue("completed", completed);
-            n.AddValue("locked", locked);
+            n.AddValue("locked", _locked);
             n.AddValue("stepType", stepType.ToString());
             n.AddValue("maneuver", maneuver.ToString());
-
+            n.AddValue("maneuverBody", maneuverBody);
             n.AddValue("toggle", toggle);
             n.AddValue("initialToggleValue", initialToggleValue);
 
@@ -345,20 +354,22 @@ namespace MissionPlanner
                 n.AddValue("trackedVessel", "");
                 n.AddValue("experience", 0);
                 n.AddValue("reputation", 0);
-                n.AddValue("kerbucks", 0);
+                n.AddValue("funding", 0);
+                n.AddValue("science", 0f);
                 n.AddValue("vesselGuid", Guid.Empty);
                 n.AddValue("stepCompleted", false);
-                n.AddValue("stepActive", false);
+                n.AddValue("stepStatus", StepStatus.Inactive.ToString());
             }
             else
             {
                 n.AddValue("trackedVessel", trackedVessel);
                 n.AddValue("experience", experience);
                 n.AddValue("reputation", reputation);
-                n.AddValue("kerbucks", kerbucks);
+                n.AddValue("funding", funding);
+                n.AddValue("science", 0f);
                 n.AddValue("vesselGuid", vesselGuid);
                 n.AddValue("stepCompleted", stepCompleted);
-                n.AddValue("stepActive", stepActive);
+                n.AddValue("stepStatus", stepStatus.ToString());
             }
             n.AddValue("vabCategory", vabCategory);
             n.AddValue("requiresLanding", requiresLanding);
@@ -397,12 +408,12 @@ namespace MissionPlanner
             s.title = n.SafeLoad("title", s.title);
             s.descr = n.SafeLoad("descr", s.descr);
             s.completed = n.SafeLoad("completed", s.completed);
-            s.locked = n.SafeLoad("locked", s.locked);
-            CriterionType t;
-            if (Enum.TryParse(n.GetValue("stepType"), out t)) s.stepType = t;
+            s._locked = n.SafeLoad("locked", s._locked);
 
-            Maneuver m;
-            if (Enum.TryParse(n.GetValue("maneuver"), out m)) s.maneuver = m;
+            if (Enum.TryParse(n.GetValue("stepType"), out CriterionType t)) s.stepType = t;
+
+            if (Enum.TryParse(n.GetValue("maneuver"), out Maneuver m)) s.maneuver = m;
+            s.maneuverBody = n.SafeLoad("maneuverBody", "");
             s.toggle = n.SafeLoad("toggle", s.toggle);
             s.initialToggleValue = n.SafeLoad("initialToggleValue", s.initialToggleValue);
 
@@ -480,8 +491,7 @@ namespace MissionPlanner
             s.destBiome = n.SafeLoad("destBiome", s.destBiome);
             s.biome = n.SafeLoad("biome", s.biome);
 
-            DestinationType dt;
-            if (Enum.TryParse(n.GetValue("destType"), out dt)) s.destType = dt;
+            if (Enum.TryParse(n.GetValue("destType"), out DestinationType dt)) s.destType = dt;
 
             s.destAsteroid = n.SafeLoad("destAsteroid", s.destAsteroid);
 
@@ -489,9 +499,13 @@ namespace MissionPlanner
             s.trackedVessel = n.SafeLoad("trackedVessel", s.trackedVessel);
             s.experience = n.SafeLoad("experience", s.experience);
             s.reputation = n.SafeLoad("reputation", s.reputation);
-            s.kerbucks = n.SafeLoad("kerbucks", s.kerbucks);
+            s.funding = n.SafeLoad("funding", s.funding);
+            s.science = n.SafeLoad("science", s.science);
             s.stepCompleted = n.SafeLoad("stepCompleted", s.stepCompleted);
-            s.stepActive = n.SafeLoad("stepActive", s.stepActive);
+
+            if (Enum.TryParse(n.GetValue("StepStatus"), out StepStatus ss))
+                s.stepStatus = ss;
+
             s.vesselGuid = n.SafeLoad("vesselGuid", Guid.Empty);
             s.vabCategory = n.SafeLoad("vabCategory", s.vabCategory);
             s.requiresLanding = n.SafeLoad("requiresLanding", s.requiresLanding);
@@ -518,8 +532,7 @@ namespace MissionPlanner
             s.partTitle = n.SafeLoad("partTitle", s.partTitle);
             s.partOnlyAvailable = n.SafeLoad("partOnlyAvailable", s.partOnlyAvailable);
 
-            PartGroup pg;
-            if (Enum.TryParse(n.GetValue("partGroup"), out pg))
+            if (Enum.TryParse(n.GetValue("partGroup"), out PartGroup pg))
                 s.partGroup = pg;
             return s;
         }
@@ -544,7 +557,7 @@ namespace MissionPlanner
             Id = _nextId++;
             data = new Step(node.data);
             Expanded = node.Expanded;
-            Parent = parent == null ? node.Parent : parent;
+            Parent = (parent == null) ? node.Parent : parent;
             requireAll = node.requireAll;
             foreach (var c in node.Children)
             {
@@ -564,14 +577,15 @@ namespace MissionPlanner
             return n;
         }
 
-        public ConfigNode ToConfigNodeRecursive(bool _saveAsDefault)
+        public   static ConfigNode ToConfigNodeRecursive(StepNode node, bool saveAsDefault)
         {
             var n = new ConfigNode("NODE");
-            n.AddValue("title", data.title);
-            n.AddValue("Expanded", Expanded);
-            n.AddValue("requireAll", requireAll);
-            n.AddNode(data.ToConfigNode(_saveAsDefault));
-            foreach (var c in Children) n.AddNode(c.ToConfigNodeRecursive(_saveAsDefault));
+            n.AddValue("title", node.data.title);
+            n.AddValue("Expanded", node.Expanded);
+            n.AddValue("requireAll", node.requireAll);
+            n.AddNode(node.data.ToConfigNode(saveAsDefault));
+            foreach (var c in node.Children) 
+                n.AddNode(ToConfigNodeRecursive(c, saveAsDefault));
             return n;
         }
 

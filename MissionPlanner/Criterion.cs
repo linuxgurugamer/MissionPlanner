@@ -48,6 +48,7 @@
     {
         None,
         Launch,     // ap/pe
+        SubOrbitalLaunch, // ap
         Orbit,      // ap/pe
         Reentry,
         Landing,   

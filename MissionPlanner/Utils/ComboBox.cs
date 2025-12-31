@@ -24,22 +24,22 @@ namespace MissionPlanner.Utils
     static public class ComboBox
     {
 
-        static GUIStyle _yellowOnHover;
-        public static GUIStyle yellowOnHover
+        static GUIStyle yellowOnHover;
+        public static GUIStyle YellowOnHover
         {
             get
             {
-                if (_yellowOnHover == null)
+                if (yellowOnHover == null)
                 {
-                    _yellowOnHover = new GUIStyle(GUI.skin.button);
-                    _yellowOnHover.hover.textColor = Color.yellow;
+                    yellowOnHover = new GUIStyle(GUI.skin.button);
+                    yellowOnHover.hover.textColor = Color.yellow;
                     Texture2D t = new Texture2D(1, 1);
-                    _yellowOnHover.fontSize = (int)(12f * GameSettings.UI_SCALE);
+                    yellowOnHover.fontSize = (int)(12f * GameSettings.UI_SCALE);
                    // t.SetPixel(0, 0, new Color(0, 0, 0, 0));
                    // t.Apply();
                    //_yellowOnHover.hover.background = t;
                 }
-                return _yellowOnHover;
+                return yellowOnHover;
             }
         }
 
@@ -85,12 +85,12 @@ namespace MissionPlanner.Utils
             style.border.top = style.border.bottom;
             style.padding.top = style.padding.bottom;
             style.fontSize = fontSize;
-            _yellowOnHover = null;
+            yellowOnHover = null;
 
             selectionStyle = new GUIStyle(GUI.skin.button);
             selectionStyle.fontSize = fontSize;
 
-            _yellowOnHover = null;
+            yellowOnHover = null;
             //popupActive = false;
         }
 
@@ -114,7 +114,7 @@ namespace MissionPlanner.Utils
 
                 c.rect = GUILayout.Window(id, c.rect, identifier =>
                 {
-                    c.selectedItem = GUILayout.SelectionGrid(-1, c.entries, 1, yellowOnHover);
+                    c.selectedItem = GUILayout.SelectionGrid(-1, c.entries, 1, YellowOnHover);
                     if (GUI.changed)
                         c.popupActive = false;
                 }, "", style);
