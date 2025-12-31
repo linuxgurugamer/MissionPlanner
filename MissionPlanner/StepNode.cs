@@ -43,7 +43,7 @@ namespace MissionPlanner
 
         public CriterionType stepType = CriterionType.ChecklistItem;
         public Maneuver maneuver = Maneuver.None;
-        public string maneuverBody;
+        public string maneuverBody = "";
 
         public bool toggle = false;
         public bool initialToggleValue = false;

@@ -6,7 +6,7 @@ namespace MissionPlanner
     public class Mission
     {
         // Mission meta
-        public string missionName = "Untitled Mission";
+        public string missionName = "";
         public string missionSummary = ""; // Mission summary
         public bool simpleChecklist = false;
         public View currentView = View.Full;

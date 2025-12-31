@@ -152,19 +152,14 @@ namespace MissionPlanner
         private string deltaVFilter = "";
 
         // Save As / New
-        private bool showSaveAs = false;
         private static bool saveAsDefault = false;
         private string saveAsName = "";
-        private bool creatingNewMission = false;
-        private bool newMissionAddSample = true;
-        private string saveAsSummaryText = "";
 
         // New confirm
         private bool showNewConfirm = false;
 
         // Clear All
-        private bool showClearConfirm = false;
-        private bool clearAddSample = false;
+        //private bool showClearConfirm = false;
 
         private Vector2 summaryScroll;
 
@@ -323,9 +318,8 @@ namespace MissionPlanner
             showOverwriteDialog = false; // ???
             //showDeleteConfirm = false;
             showPartDialog = false;
-            showSaveAs = false;    // ???
             showNewConfirm = false; // ???
-            showClearConfirm = false;
+            //showClearConfirm = false;
             showTraitDialog =
                 showModuleDialog =
                 // _showSASDialog =
@@ -390,16 +384,6 @@ namespace MissionPlanner
                         );
                     }
                 }
-#if false
-                if (showDeleteConfirm)
-                {
-                    deleteRect = ClickThruBlocker.GUILayoutWindow(
-                        deleteWinId, deleteRect, DrawDeleteDialogWindow,
-                        "Delete Mission?",
-                        GUILayout.MinWidth(420), GUILayout.MinHeight(160)
-                    );
-                }
-#endif
 
                 if (showMoveDialog && moveNode != null)
                 {
@@ -433,16 +417,6 @@ namespace MissionPlanner
                          GUILayout.MinHeight(400)
                     );
                 }
-#if false
-            if (_showResourceDialog)
-            {
-                _resourceRect = ClickThruBlocker.GUILayoutWindow(
-                    _resourceWinId, _resourceRect, DrawResourcePickerWindow,
-                    "Select Resource",
-                     GUILayout.MinHeight(400)
-                );
-            }
-#endif
 
                 if (showDeltaVDialog)
                 {
@@ -489,27 +463,11 @@ namespace MissionPlanner
                     );
                 }
 
-                if (showSaveAs)
-                {
-                    saveAsRect = ClickThruBlocker.GUILayoutWindow(
-                        saveAsWinId, saveAsRect, DrawSaveAsDialogWindow,
-                        creatingNewMission ? "New Mission" : "Save As…",
-                        GUILayout.MinWidth(460), GUILayout.MinHeight((creatingNewMission ? 270 : 170))
-                    );
-                }
                 if (showNewConfirm)
                 {
                     newConfirmRect = ClickThruBlocker.GUILayoutWindow(
                         newConfirmWinId, newConfirmRect, DrawNewConfirmWindow,
                         "Start New Mission?",
-                        GUILayout.MinWidth(420), GUILayout.MinHeight(160)
-                    );
-                }
-                if (showClearConfirm)
-                {
-                    clearConfirmRect = ClickThruBlocker.GUILayoutWindow(
-                        clearConfirmWinId, clearConfirmRect, DrawClearConfirmWindow,
-                        "Clear All Steps?",
                         GUILayout.MinWidth(420), GUILayout.MinHeight(160)
                     );
                 }
@@ -885,8 +843,10 @@ namespace MissionPlanner
                     if (GUILayout.Button(content, buttonIconStyle, GUILayout.Width(40), GUILayout.Height(40)))
                     {
                         YesNoDialogShow(
-                              title: "Confirm Running",
-                              message: missionRunnerActive ? "Are you sure you want to save and stop running this mission?" : "Are you sure you want to run a mission?",
+                              title: missionRunnerActive ? "Confirm Stop Running" : "Confirm Running",
+                              message: missionRunnerActive ? "Are you sure you want to save and stop running this mission?\n" +
+                              "(current save will automatically be saved)" : "Are you sure you want to run a mission?\n" +
+                              "(current save will automatically be saved)",
                               onYes: OnConfirmMissionRunYes
                           );
                     }
@@ -929,7 +889,7 @@ namespace MissionPlanner
                     }
                     else
                     {
-                        GUILayout.Label("Simple Checklist");
+                        GUILayout.Label("<B>Simple Checklist</B>");
                         GUILayout.FlexibleSpace();
                     }
                 }
@@ -1053,23 +1013,48 @@ namespace MissionPlanner
             {
                 if (GUILayout.Button("New", ScaledGUILayoutWidth(90)))
                 {
-                    showNewConfirm = true;
-                    var mp = Input.mousePosition;
-                    newConfirmRect.x = Mathf.Clamp(mp.x, 40, Screen.width - newConfirmRect.width - 40);
-                    newConfirmRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - newConfirmRect.height - 40);
+                    YesNoDialogShow(
+                            title: "Confirm New Mission",
+                            message: "Are you sure you want to start a new mission?\n" +
+                            "(will save current mission)",
+                            onYes: OnConfirmNewMissionYes
+                        );
+
+                    //showNewConfirm = true;
+                    //var mp = Input.mousePosition;
+                    //newConfirmRect.x = Mathf.Clamp(mp.x, 40, Screen.width - newConfirmRect.width - 40);
+                    //newConfirmRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - newConfirmRect.height - 40);
                 }
 
                 if (GUILayout.Button("Clear All", ScaledGUILayoutWidth(90)))
                 {
-                    clearAddSample = false;
-                    showClearConfirm = true;
-                    var mp = Input.mousePosition;
-                    clearConfirmRect.x = Mathf.Clamp(mp.x, 40, Screen.width - clearConfirmRect.width - 40);
-                    clearConfirmRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - clearConfirmRect.height - 40);
+                    YesNoDialogShow(
+                          title: "Confirm Mission Clear",
+                          message: "Are you sure you want to clear this mission?",
+                          onYes: OnConfirmMissionClearYes
+                      );
+
+
+                    //clearAddSample = false;
+                    //showClearConfirm = true;
+                    //var mp = Input.mousePosition;
+                    //clearConfirmRect.x = Mathf.Clamp(mp.x, 40, Screen.width - clearConfirmRect.width - 40);
+                    //clearConfirmRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - clearConfirmRect.height - 40);
                 }
 
                 if (GUILayout.Button("Save", ScaledGUILayoutWidth(90)))
                 {
+                    if (IsNullOrWhiteSpace(mission.missionName) || mission.missionName == "Untitled Mission")
+                    {
+                        TextEntryDialogShow(
+                                    title: "Enter New Mission Name",
+                                    message: "Please enter the mission name:",
+                                    onOk: OnSaveOK
+                            );
+
+                        return;
+                    }
+
                     TrySaveToDisk_Internal(true);
                 }
 
@@ -1077,7 +1062,7 @@ namespace MissionPlanner
                 {
                     if (GUILayout.Button("Save As…", ScaledGUILayoutWidth(100)))
                     {
-                        creatingNewMission = false;
+                        saveAsName = "";
                         OpenSaveAsDialog();
                     }
                 }
@@ -1130,22 +1115,11 @@ namespace MissionPlanner
                 {
                     TrySaveToDisk_Internal(true);
                     showNewConfirm = false;
-
-                    creatingNewMission = true;
-                    newMissionAddSample = true;
-                    saveAsName = "New Mission";
-                    saveAsSummaryText = "";
-                    mission.simpleChecklist = false;
                     OpenSaveAsDialog();
                 }
                 if (GUILayout.Button("Discard", ScaledGUILayoutWidth(100)))
                 {
                     showNewConfirm = false;
-                    creatingNewMission = true;
-                    newMissionAddSample = true;
-                    saveAsName = "New Mission";
-                    saveAsSummaryText = "";
-                    mission.simpleChecklist = false;
                     OpenSaveAsDialog();
                 }
                 if (GUILayout.Button("Cancel", ScaledGUILayoutWidth(100)))
@@ -1157,58 +1131,6 @@ namespace MissionPlanner
 
             GUI.DragWindow(new Rect(0, 0, 10000, 10000));
         }
-
-        private void DrawClearConfirmWindow(int id)
-        {
-            BringWindowForward(id, true);
-            GUILayout.Space(6);
-            GUILayout.Label("This will remove ALL steps from the current mission.\n(Your mission name is kept.)", hintLabel);
-
-            GUILayout.Space(6);
-            using (new GUILayout.HorizontalScope())
-            {
-                GUILayout.Label("Add sample root step", ScaledGUILayoutWidth(160));
-                clearAddSample = GUILayout.Toggle(clearAddSample, GUIContent.none, ScaledGUILayoutWidth(22));
-                GUILayout.FlexibleSpace();
-            }
-
-            GUILayout.Space(10);
-            using (new GUILayout.HorizontalScope())
-            {
-                GUILayout.FlexibleSpace();
-                if (GUILayout.Button("Clear", ScaledGUILayoutWidth(100)))
-                {
-                    mission.roots.Clear();
-                    selectedNode = null;
-                    detailNode = null;
-                    if (clearAddSample)
-                    {
-                        var root = new StepNode
-                        {
-                            data = new Step
-                            {
-                                title = "New Step"
-                            },
-                            Expanded = true
-                        };
-                        mission.roots.Add(root);
-                        selectedNode = root;
-                        OpenDetail(root);
-                    }
-                    showClearConfirm = false;
-                }
-                GUILayout.FlexibleSpace();
-                if (GUILayout.Button("Cancel", ScaledGUILayoutWidth(100)))
-                {
-                    showClearConfirm = false;
-                }
-                GUILayout.FlexibleSpace();
-            }
-
-            GUI.DragWindow(new Rect(0, 0, 10000, 10000));
-        }
-
-
 
         public string OneLineSummary(StepNode node)
         {
@@ -1832,6 +1754,9 @@ namespace MissionPlanner
                 HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().autosave)
                 TrySaveToDisk_Internal(true);
 
+            Log.Info("OpenDetail");
+            if (node == null)
+                Log.Info("OpenDetail, node is null");
             detailNode = node;
             newWindow = true;
 
@@ -1841,137 +1766,43 @@ namespace MissionPlanner
         }
 
 
+        void OnSaveAsOK(string str)
+        {
+            saveAsName = str;
+            mission.missionName = str;
+            TrySaveToDisk_Internal(true);
+            //OpenSaveAsDialog();
+        }
+
+        void OnSaveAsOK2(string str)
+        {
+            saveAsName = str;
+            mission.missionName = str;
+            OnConfirmNewMissionYes();
+            //TrySaveToDisk_Internal(true);
+            //OpenSaveAsDialog();
+        }
+
+
+        void OnSaveOK(string str)
+        {
+            mission.missionName = str;
+            TrySaveToDisk_Internal(true);
+        }
 
         private void OpenSaveAsDialog()
         {
-            if (creatingNewMission)
+
+           // if (IsNullOrWhiteSpace(saveAsName) || saveAsName == "Untitled Mission")
             {
-                saveAsName = IsNullOrWhiteSpace(saveAsName) ? "New Mission" : saveAsName.Trim();
+                TextEntryDialogShow(
+                            title: "Enter New Mission Name",
+                            message: "Please enter the mission name:",
+                            onOk: OnSaveAsOK
+                    );
+
+                return;
             }
-            else
-            {
-                saveAsName = IsNullOrWhiteSpace(mission.missionName) ? "Untitled Mission" : mission.missionName.Trim();
-            }
-
-            var mp = Input.mousePosition;
-            saveAsRect.x = Mathf.Clamp(mp.x, 40, Screen.width - saveAsRect.width - 40);
-            saveAsRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - saveAsRect.height - 40);
-
-            showSaveAs = true;
-            saveAsDefault = false;
-        }
-
-        private void DrawSaveAsDialogWindow(int id)
-        {
-            BringWindowForward(id, true);
-            GUILayout.Space(6);
-
-            using (new GUILayout.HorizontalScope())
-            {
-                GUILayout.Label(creatingNewMission ? "New mission name:" : "Save as name:", ScaledGUILayoutWidth(140));
-                saveAsName = GUILayout.TextField(saveAsName ?? "", GUILayout.MinWidth(180), GUILayout.ExpandWidth(true));
-            }
-            if (!creatingNewMission)
-            {
-                using (new GUILayout.HorizontalScope())
-                {
-                    saveAsDefault = GUILayout.Toggle(saveAsDefault, "");
-                    GUILayout.Label("Save as default");
-                }
-            }
-            if (creatingNewMission)
-            {
-                GUILayout.Space(6);
-                using (new GUILayout.HorizontalScope())
-                {
-                    GUILayout.Label("Simple Checklist", ScaledGUILayoutWidth(160));
-                    mission.simpleChecklist = GUILayout.Toggle(mission.simpleChecklist, GUIContent.none, ScaledGUILayoutWidth(22));
-                    GUILayout.FlexibleSpace();
-                }
-                using (new GUILayout.HorizontalScope())
-                {
-                    GUILayout.Label("Add sample root step", ScaledGUILayoutWidth(160));
-                    newMissionAddSample = GUILayout.Toggle(newMissionAddSample, GUIContent.none, ScaledGUILayoutWidth(22));
-                    GUILayout.FlexibleSpace();
-                }
-
-                GUILayout.Space(6);
-                GUILayout.Label("Mission summary (optional):");
-                saveAsSummaryText = GUILayout.TextArea(saveAsSummaryText ?? "", HighLogic.Skin.textArea, GUILayout.MinHeight(80));
-            }
-
-            GUILayout.Space(10);
-            using (new GUILayout.HorizontalScope())
-            {
-                if (GUILayout.Button("OK", ScaledGUILayoutWidth(100)))
-                {
-                    string proposed = IsNullOrWhiteSpace(saveAsName) ? "Unnamed" : saveAsName.Trim();
-
-                    if (creatingNewMission)
-                    {
-                        mission.roots.Clear();
-                        selectedNode = null;
-                        detailNode = null;
-                        mission.missionName = proposed;
-                        mission.missionSummary = saveAsSummaryText ?? "";
-
-                        if (newMissionAddSample)
-                        {
-                            var root = new StepNode
-                            {
-                                data = new Step
-                                {
-                                    title = "New Step"
-                                },
-                                Expanded = true
-                            };
-                            mission.roots.Add(root);
-                            selectedNode = root;
-                            OpenDetail(root);
-                        }
-
-                        creatingNewMission = false;
-                        showSaveAs = false;
-                    }
-                    else
-                    {
-                        string save = GetCurrentSaveName();
-                        if (!Directory.Exists(GetMissionDirectoryAbsolute()))
-                        {
-                            Directory.CreateDirectory(GetMissionDirectoryAbsolute());
-                        }
-                        string path = GetSaveFileAbsolute(save, proposed);
-
-                        pendingSaveMission = proposed;
-                        pendingSavePath = path;
-
-                        if (File.Exists(path))
-                        {
-                            showSaveAs = false;
-                            showOverwriteDialog = true;
-
-                            var mp = Input.mousePosition;
-                            overwriteRect.x = Mathf.Clamp(mp.x, 40, Screen.width - overwriteRect.width - 40);
-                            overwriteRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - overwriteRect.height - 40);
-                        }
-                        else
-                        {
-                            mission.missionName = proposed;
-                            showSaveAs = false;
-                            if (HighLogic.CurrentGame.Parameters.CustomParams<MissionPlannerSettings>().autosave || saveAsDefault)
-                                TrySaveToDisk_Internal(true, saveAsDefault);
-                        }
-                    }
-                }
-                if (GUILayout.Button("Cancel", ScaledGUILayoutWidth(100)))
-                {
-                    creatingNewMission = false;
-                    showSaveAs = false;
-                }
-                GUILayout.FlexibleSpace();
-            }
-
-            GUI.DragWindow(new Rect(0, 0, 10000, 10000));
         }
 
         private void SetAllExpanded(bool ex) { foreach (var r in mission.roots) SetExpandedRecursive(r, ex); }

@@ -14,16 +14,24 @@ namespace MissionPlanner
                 string message,
                 Action onYes,
                 Action onNo = null,
+                Action onCancel = null,
                 string yesText = "Yes",
                 string noText = "No",
-                bool lockControls = true)
+                string cancelText = "", //"Cancel",
+                bool lockControls = true,
+                bool vertical = false,
+                float minWidth = 90)
         {
             YesNoDialog.title = title ?? "Confirm";
             YesNoDialog.message = message ?? "";
             YesNoDialog.yesText = yesText ?? "Yes";
             YesNoDialog.noText = noText ?? "No";
+            YesNoDialog.cancelText = cancelText ?? "";
             YesNoDialog.onYes = onYes;
             YesNoDialog.onNo = onNo;
+            YesNoDialog.onCancel = onCancel;
+            YesNoDialog.vertical = vertical;
+            YesNoDialog.minWidth = minWidth;
 
             dialogOpen = true;
 
@@ -38,8 +46,6 @@ namespace MissionPlanner
         }
     }
 
-
-
     public class YesNoDialog : MonoBehaviour
     {
         //internal static bool open;
@@ -47,8 +53,12 @@ namespace MissionPlanner
         internal static string message;
         internal static string yesText;
         internal static string noText;
+        internal static string cancelText;
         internal static Action onYes;
         internal static Action onNo;
+        internal static Action onCancel;
+        internal static bool vertical;
+        internal static float minWidth;
 
         internal static Rect rect = new Rect(0, 0, 420, 160);
 
@@ -58,25 +68,24 @@ namespace MissionPlanner
         // Optional: locks game controls while open
         private const string LockId = "MyMod_YesNoDialogLock";
 
+#if false
         public void Start()
         {
-            Log.Info("KSPIMGUIYesNoDialog.Start");
+            Log.Info("YesNoDialog.Start");
         }
+#endif
 
         public void Close()
         {
             HierarchicalStepsWindow.dialogOpen = false;
-            onYes = null;
-            onNo = null;
+            //onYes = null;
+            //onNo = null;
+            //onCancel = null;
             //InputLockManager.RemoveControlLock(LockId);
-            Log.Info("KSPIMGUIYesNoDialog.Close");
 
-            Destroy(this);
+            Destroy(gameObject);
         }
 
-        /// <summary>
-        /// Call this from your MonoBehaviour.OnGUI() AFTER drawing your other windows.
-        /// </summary>
         public void OnGUI()
         {
             //if (!open) return;
@@ -94,7 +103,6 @@ namespace MissionPlanner
 
             // Draw the dialog itself last = on top
             rect = ClickThruBlocker.GUILayoutWindow(WindowId, rect, DrawWindow, title, GUILayout.ExpandHeight(false));
-            //rect = GUILayout.Window(WindowId, rect, DrawWindow, title, GUILayout.ExpandHeight(false));
 
             GUI.depth = oldDepth;
 
@@ -102,19 +110,11 @@ namespace MissionPlanner
 
             GUI.BringWindowToFront(WindowId);
             GUI.FocusWindow(WindowId);
-            //HierarchicalStepsWindow.newWindow = true;
-            //HierarchicalStepsWindow.BringWindowForward(WindowId, true);
-            //GUI.BringWindowToFront(WindowId);
-
         }
 
         private void DrawWindow(int id)
         {
-            //GUI.BringWindowToFront(id);
-            //GUI.FocusWindow(id);
-            //HierarchicalStepsWindow.newWindow = true;
             HierarchicalStepsWindow.BringWindowForward(id, true);
-            //GUI.BringWindowToFront(id);
 
             GUILayout.Space(6);
             GUILayout.Label(message, HighLogic.Skin.label, GUILayout.ExpandHeight(true));
@@ -123,21 +123,46 @@ namespace MissionPlanner
             GUILayout.BeginHorizontal();
             GUILayout.FlexibleSpace();
 
-            if (GUILayout.Button(yesText, GUILayout.MinWidth(90)))
+            if (GUILayout.Button(yesText, GUILayout.MinWidth(minWidth)))
             {
-                var a = onYes;
-                a?.Invoke();
+                onYes.Invoke();
                 Close();
             }
-
-            GUILayout.Space(10);
-
-            if (GUILayout.Button(noText, GUILayout.MinWidth(90)))
+            if (vertical)
             {
-                var a = onNo;
-                a?.Invoke();
-                Close();
+                GUILayout.FlexibleSpace();
+                GUILayout.EndHorizontal();
+                GUILayout.BeginHorizontal();
+                GUILayout.FlexibleSpace();
             }
+            else
+                GUILayout.Space(10);
+            if (noText != "")
+            {
+                if (GUILayout.Button(noText, GUILayout.MinWidth(minWidth)))
+                {
+                    onNo.Invoke();
+                    Close();
+                }
+            }
+            if (vertical)
+            {
+                GUILayout.FlexibleSpace();
+                GUILayout.EndHorizontal();
+                GUILayout.BeginHorizontal();
+                GUILayout.FlexibleSpace();
+            }
+            else
+                GUILayout.Space(10);
+            if (cancelText != "")
+            {
+                if (GUILayout.Button(cancelText, GUILayout.MinWidth(minWidth)))
+                {
+                    onCancel.Invoke();
+                    Close();
+                }
+            }
+
 
             GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();

@@ -2,10 +2,8 @@
 using SpaceTuxUtility;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.Eventing.Reader;
 using System.IO;
 using UnityEngine;
-
 using static MissionPlanner.RegisterToolbar;
 
 namespace MissionPlanner
@@ -87,7 +85,7 @@ namespace MissionPlanner
         private void DrawLoadDialogWindow(int id)
         {
             //if (!showDeleteConfirm)
-                BringWindowForward(id, true);
+            BringWindowForward(id, true);
             GUILayout.Space(6);
             if (!missionRunnerActive)
             {
@@ -119,35 +117,15 @@ namespace MissionPlanner
                     GUILayout.Label("Loading Active Missions");
                 }
             }
-#if false
-            using (new GUILayout.HorizontalScope())
-                {
-                    GUILayout.Label("Load Active Missions", ScaledGUILayoutWidth(120));
-                    bool old_loadActiveMissions = loadActiveMissions;
-                    loadActiveMissions = GUILayout.Toggle(loadActiveMissions, GUIContent.none, ScaledGUILayoutWidth(22));
-                    GUILayout.FlexibleSpace();
-                    if (loadActiveMissions != old_loadActiveMissions)
-                    {
-                        if (loadActiveMissions)
-                        {
-                            loadList = Scenarios.ActiveMissions.GetActiveMissionsList();
-                        }
-                        else
-                        {
-                            loadList = GetAllMissionFiles();
-                        }
-                    }
-                }
-#endif
-                GUILayout.Space(4);
+            GUILayout.Space(4);
             string curSave = "";
             if (!loadActiveMissions)
             {
                 curSave = GetCurrentSaveName();
                 GUILayout.Label(loadShowAllSaves ? "All Missions" : ("Missions for save: " + curSave));
             }
-//            else
-//                GUILayout.Label("All Active Missions:");
+            //            else
+            //                GUILayout.Label("All Active Missions:");
 
             GUILayout.Space(4);
             if (loadShowAllSaves)
@@ -236,7 +214,7 @@ namespace MissionPlanner
                         }
 
                     }
-                }               
+                }
 
             }
             GUILayout.EndScrollView();
@@ -272,6 +250,98 @@ namespace MissionPlanner
                 //showDeleteConfirm = false;
                 loadList = GetAllMissionFiles(false);
             }
+        }
+
+        private void OnConfirmMissionClearYes()
+        {
+            mission = new Mission();
+            selectedNode = null;
+            detailNode = null;
+
+            //if (clearAddSample)
+            {
+                var root = new StepNode
+                {
+                    data = new Step
+                    {
+                        title = "New Step"
+                    },
+                    Expanded = true
+                };
+                mission.roots.Add(root);
+                selectedNode = root;
+                OpenDetail(root);
+            }
+        }
+
+        void OnFullMission()
+        {
+            Log.Info("OnFullMission");
+
+            mission.simpleChecklist = false;
+            OpenDetail(mission.roots[0]);
+        }
+
+        void OnSimpleChecklist()
+        {
+            Log.Info("OnSimpleChecklist");
+
+            mission.simpleChecklist = true;
+            OpenDetail(mission.roots[0]);
+        }
+
+
+        private void OnConfirmNewMissionYes()
+        {
+            if (!missionRunnerActive)
+            {
+                if (mission.missionName == "")
+                {
+                    TextEntryDialogShow(
+                        title: "Enter Mission Name",
+                        message: "Please enter the mission name for current mission:",
+                        onOk: OnSaveAsOK2
+                    );
+                    return;
+                }
+                TrySaveToDisk_Internal(true);
+            }
+            else
+            {
+                ActiveMissions.SaveMission(mission);
+            }
+
+            //showNewConfirm = true;
+            //var mp = Input.mousePosition;
+            //newConfirmRect.x = Mathf.Clamp(mp.x, 40, Screen.width - newConfirmRect.width - 40);
+            //newConfirmRect.y = Mathf.Clamp(Screen.height - mp.y, 40, Screen.height - newConfirmRect.height - 40);
+
+            mission = new Mission();
+            var root = new StepNode
+            {
+                data = new Step
+                {
+                    title = "New Step"
+                },
+                Expanded = true
+            };
+
+            mission.roots.Add(root);
+            selectedNode = root;
+
+
+            YesNoDialogShow(
+                    title: "Full Mission or Checklist",
+                    message: "Select one of the following:",
+                    yesText: "Full Mission",
+                    noText: "Simple Checklist",
+                    onYes: OnFullMission,
+                    onNo: OnSimpleChecklist,
+                    vertical: true,
+                    minWidth : 180f
+                );
+
+
         }
     }
 }

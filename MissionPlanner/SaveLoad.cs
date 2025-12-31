@@ -195,7 +195,6 @@ namespace MissionPlanner
 
         private void TrySaveAs()
         {
-            creatingNewMission = false;
             OpenSaveAsDialog();
         }
 

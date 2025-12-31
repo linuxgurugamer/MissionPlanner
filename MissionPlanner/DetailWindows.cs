@@ -683,12 +683,6 @@ namespace MissionPlanner
                                     {
                                         if (HighLogic.LoadedSceneIsEditor)
                                         {
-#if false
-                                if (Utils.AntennaUtils.HasAntennaEditor(EditorLogic.fetch.ship))
-                                    GUILayout.Label("Antenna(s) are available");
-                                else
-                                    GUILayout.Label("No antenna are available", _errorLabel);
-#endif
                                             power = Utils.AntennaUtils.GetTotalAntennaPowerEditor(EditorLogic.fetch.ship);
                                             powerMet = (power >= s.antennaPower);
                                         }
@@ -1782,11 +1776,6 @@ namespace MissionPlanner
                     }
                     break;
 
-#if false
-                case CriterionType.Sum:
-                    GUILayout.Label("Sum of children: " + s.sumOfChildNumbers.ToString("F0"));
-                    break;
-#endif
 
                 case CriterionType.SAS:
                     {

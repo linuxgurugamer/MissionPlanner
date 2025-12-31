@@ -56,26 +56,6 @@ namespace MissionPlanner
         private float FloatField(string label, float value, int places, bool locked, string suffix = "", float width = 120, bool flex = true, float labelWidth = 90)
         {
             return FloatField(new GUIContent(label, ""), value, places, locked, suffix, width, flex);
-#if false
-            using (new GUILayout.HorizontalScope())
-            {
-                GUILayout.Label(label); //, ScaledGUILayoutWidth(120));
-                string buf = "";
-                GetCurrentEntryFieldID();
-                if (places == 0)
-                    buf = GUILayout.TextField(value.ToString("F0"), ScaledGUILayoutWidth(width));
-                else
-                    buf = GUILayout.TextField(value.ToString($"F{places}"), ScaledGUILayoutWidth(width));
-                oldEntryFieldId = (GUIUtility.keyboardControl - 1) == currentEntryFieldId ? currentEntryFieldId : oldEntryFieldId;
-
-                if (!locked && float.TryParse(buf, out float parsed))
-                    value = parsed;
-                GUILayout.Label(suffix);
-                if (flex)
-                    GUILayout.FlexibleSpace();
-            }
-            return value;
-#endif
         }
 
         private void FloatField(string label, ref float value, int places, bool locked, string suffix = "", float width = 120, bool flex = true)
@@ -171,30 +151,6 @@ namespace MissionPlanner
 
             return false;
         }
-
-
-#if false
-        private void IntRangeFields(ref int min, ref int max, bool locked)
-        {
-                       SetNextControlName();
- using (new GUILayout.HorizontalScope())
-            {
-            GUILayout.Label("Min (int)", ScaledGUILayoutWidth(90));
-            string minBuf = GUILayout.TextField(min.ToString(), ScaledGUILayoutWidth(120));
-            GUILayout.Space(12);
-            GUILayout.Label("Max (int)", ScaledGUILayoutWidth(90));
-            string maxBuf = GUILayout.TextField(max.ToString(), ScaledGUILayoutWidth(120));
-            GUILayout.FlexibleSpace();
-            }
-
-            if (!locked)
-            {
-                int pmin, pmax;
-                if (int.TryParse(minBuf, out pmin)) min = pmin;
-                if (int.TryParse(maxBuf, out pmax)) max = pmax;
-            }
-        }
-#endif
 
         private void FloatRangeFields(ref float min, ref float max, bool locked)
         {
