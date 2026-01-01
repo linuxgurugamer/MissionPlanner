@@ -141,7 +141,8 @@ namespace MissionPlanner
             {
                 if (GUILayout.Button(noText, GUILayout.MinWidth(minWidth)))
                 {
-                    onNo.Invoke();
+                    var a = onNo;
+                    a?.Invoke();
                     Close();
                 }
             }
@@ -158,7 +159,8 @@ namespace MissionPlanner
             {
                 if (GUILayout.Button(cancelText, GUILayout.MinWidth(minWidth)))
                 {
-                    onCancel.Invoke();
+                    var a = onCancel;
+                    a?.Invoke();
                     Close();
                 }
             }

@@ -88,11 +88,12 @@ namespace MissionPlanner
 
             if (invokeCancel)
             {
-                onCancel.Invoke();
+                var a = onCancel;
+                a?.Invoke();
             }
 
-            onOk = null;
-            onCancel = null;
+            //onOk = null;
+            //onCancel = null;
 
             //InputLockManager.RemoveControlLock(LockId);
 
@@ -202,7 +203,8 @@ namespace MissionPlanner
         private void InvokeOkAndClose()
         {
             var value = text ?? "";
-            onOk.Invoke(value);
+            var a = onOk;
+            a?.Invoke(value);
             Close(invokeCancel: false);
         }
     }
