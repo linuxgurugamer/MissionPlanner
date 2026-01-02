@@ -11,7 +11,7 @@ namespace MissionPlanner
 {
     public partial class HierarchicalStepsWindow : MonoBehaviour
     {
-        private string GetCurrentSaveName()
+        internal static string GetCurrentSaveName()
         {
             if (HighLogic.SaveFolder == null)
                 Log.Error("SaveFolder is  null");
@@ -26,13 +26,13 @@ namespace MissionPlanner
             return s.Trim();
         }
 
-        private string GetSaveDirectoryAbsolute() { return Path.Combine(KSPUtil.ApplicationRootPath, "GameData", SAVE_MOD_FOLDER); }
-        private string GetMissionDirectoryAbsolute() { return Path.Combine(KSPUtil.ApplicationRootPath, "GameData", MISSION_FOLDER); }
-        private string GetDefaultMissionDirectoryAbsolute() { return Path.Combine(KSPUtil.ApplicationRootPath, "GameData", DEFAULT_MISSION_FOLDER); }
-        private string GetCombinedFileName(string save, string mission) { return SanitizeForFile(save) + "__" + SanitizeForFile(mission) + SAVE_FILE_EXT; }
-        private string GetSaveFileAbsolute(string save, string mission) { return Path.Combine(GetMissionDirectoryAbsolute(), GetCombinedFileName(save, mission)); }
-        private string GetDefaultFileName(string mission) { return SanitizeForFile(mission) + SAVE_FILE_EXT; }
-        private string GetDefaultSaveFileAbsolute(string mission) { return Path.Combine(GetDefaultMissionDirectoryAbsolute(), GetDefaultFileName(mission)); }
+        internal static string GetSaveDirectoryAbsolute() { return Path.Combine(KSPUtil.ApplicationRootPath, "GameData", SAVE_MOD_FOLDER); }
+        internal static string GetMissionDirectoryAbsolute() { return Path.Combine(KSPUtil.ApplicationRootPath, "GameData", MISSION_FOLDER); }
+        internal static string GetDefaultMissionDirectoryAbsolute() { return Path.Combine(KSPUtil.ApplicationRootPath, "GameData", DEFAULT_MISSION_FOLDER); }
+        internal static string GetCombinedFileName(string save, string mission) { return SanitizeForFile(save) + "__" + SanitizeForFile(mission) + SAVE_FILE_EXT; }
+        internal static string GetSaveFileAbsolute(string save, string mission) { return Path.Combine(GetMissionDirectoryAbsolute(), GetCombinedFileName(save, mission)); }
+        internal static string GetDefaultFileName(string mission) { return SanitizeForFile(mission) + SAVE_FILE_EXT; }
+        internal static string GetDefaultSaveFileAbsolute(string mission) { return Path.Combine(GetDefaultMissionDirectoryAbsolute(), GetDefaultFileName(mission)); }
 
         private bool TrySaveToDisk()
         {
@@ -98,7 +98,7 @@ namespace MissionPlanner
             }
         }
 
-        private void ShowSaveIndicator(string text, bool success)
+        private static void ShowSaveIndicator(string text, bool success)
         {
             if (HighLogic.CurrentGame == null)
                 return;
@@ -111,7 +111,7 @@ namespace MissionPlanner
             }
         }
 
-        private bool TryLoadFromDisk(string fullPath, bool import = false)
+        internal static  bool TryLoadFromDisk(string fullPath, bool import = false)
         {
             try
             {
@@ -168,10 +168,10 @@ namespace MissionPlanner
 
         private bool TryAutoLoadMostRecentForCurrentSave()
         {
-            //return false;
+            return false;
             string save = GetCurrentSaveName();
             var list = GetAllMissionFiles(false);
-            MissionFileInfo best = default(MissionFileInfo);
+            MissionFileInfo best = new MissionFileInfo();
             bool found = false;
 
             foreach (var mf in list)

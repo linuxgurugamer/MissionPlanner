@@ -145,6 +145,7 @@ namespace MissionPlanner
                                     VABOrganizerUtils.AddPartToCategory(s, ap.name);
                                 }
                             }
+                            VABOrganizerUtils.GetSortedCatList();
                         }
                         //VABOrganizerUtils.Dump();
                     }

@@ -11,6 +11,8 @@ namespace MissionPlanner.Utils
     public class VABOrganizerUtils
     {
         static Dictionary<string, VABOrganizerUtils> dict = new Dictionary<string, VABOrganizerUtils>();
+        static List<string> sortedCatList = new List<string>();
+
         string organizerSubcategory;
         HashSet<string> parts = new HashSet<string>();
 
@@ -27,6 +29,11 @@ namespace MissionPlanner.Utils
             dict[organizerSubcategory].parts.Add(partName);
         }
 
+        public static void GetSortedCatList()
+        {
+            sortedCatList = dict.Keys.Select(k => k.ToString()).ToList();
+        }
+
         public static bool IsPartInCategory(string organizerSubcategory, string partName)
         {
             if (dict.ContainsKey(organizerSubcategory))
@@ -38,16 +45,8 @@ namespace MissionPlanner.Utils
 
         public static List<string> SubCategories()
         {
-            return dict.Keys.Select(k => k.ToString()).ToList();
-            // Following does this without Linq
-#if false
-            List<string> result = new List<string>();
-            foreach (var d in dict.Keys)
-            {
-                result.Add(d);
-            }
-            return result();
-#endif
+            return sortedCatList;
+            //return dict.Keys.Select(k => k.ToString()).ToList();
         }
 
 #if DEBUG

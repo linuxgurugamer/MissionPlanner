@@ -1,6 +1,6 @@
 ﻿using SpaceTuxUtility;
 using System.Collections.Generic;
-
+using System.IO;
 using static MissionPlanner.RegisterToolbar;
 
 
@@ -10,13 +10,19 @@ namespace MissionPlanner.Scenarios
          {GameScenes.FLIGHT, GameScenes.TRACKSTATION, GameScenes.SPACECENTER, GameScenes.EDITOR})]
     internal class ActiveMissions : ScenarioModule
     {
+        const string CURRENT_MISSION = "CURRENT_MISSION";
 
-        //static Dictionary<string, ConfigNode> activeMissionsCfgNodes = new Dictionary<string, ConfigNode>();
         static Dictionary<string, Mission> activeMissions = new Dictionary<string, Mission>();
         public void Start() { }
 
         public override void OnSave(ConfigNode node)
         {
+            ConfigNode currentMission = new ConfigNode(CURRENT_MISSION);
+
+            currentMission.AddValue("missionName", HierarchicalStepsWindow.mission.missionName);
+            currentMission.AddValue("missionActive", HierarchicalStepsWindow.mission.missionActive);
+            node.AddNode(currentMission);
+
             var current = HierarchicalStepsWindow.MakeConfigNodes();
             ConfigNode missionCfgNode = new ConfigNode("ACTIVE_MISSIONS");
 
@@ -42,6 +48,18 @@ namespace MissionPlanner.Scenarios
 
         public override void OnLoad(ConfigNode node)
         {
+            string currentMission = "";
+            bool missionActive = false;
+
+            var current = node.GetNode(CURRENT_MISSION);
+            if (current!=null)
+            {
+                currentMission = current.SafeLoad("missionName", currentMission);
+                missionActive = current.SafeLoad("missionActive", missionActive);
+                Log.Info($"ActiveMission.OnLoad, currentMission: {currentMission}");
+            }
+
+
             var missions = node.GetNodes("ACTIVE_MISSIONS");
             foreach (var m in missions)
             {
@@ -51,11 +69,25 @@ namespace MissionPlanner.Scenarios
                 if (!activeMissions.ContainsKey(missionName))
                 {
                     activeMissions.Add(missionName, LoadMission(mCfg));
+
                 }
                 else
                     Log.Error("Duplicate mission loaded");
             }
-        }
+            if (missionActive)
+                HierarchicalStepsWindow.mission = GetMission(currentMission);
+            else
+            {
+                string save = HierarchicalStepsWindow. GetCurrentSaveName();
+
+                var path = HierarchicalStepsWindow.GetSaveFileAbsolute(save, currentMission);
+                var dir = HierarchicalStepsWindow.GetMissionDirectoryAbsolute();
+                Log.Info("Fullpath: " + path);
+                HierarchicalStepsWindow. TryLoadFromDisk(path, false);
+                
+
+            }
+}
 
         public static List<HierarchicalStepsWindow.MissionFileInfo> GetActiveMissionsList()
         {
@@ -79,8 +111,11 @@ namespace MissionPlanner.Scenarios
         public static Mission GetMission(string mission)
         {
             if (activeMissions.ContainsKey(mission))
+            {
+                Log.Info("ActiveMission.GetMission, mission found");
                 return activeMissions[mission];
-            return null;
+            }
+            return new Mission();
         }
 
         public static void SaveMission(Mission mission)

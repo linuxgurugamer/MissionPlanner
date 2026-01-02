@@ -265,12 +265,6 @@ namespace MissionPlanner
                 GUILayout.Label("Ascent", GUILayout.Width(90));
                 GUILayout.Space(4);
                 GUILayout.Label("Plane Chg", GUILayout.Width(90));
-#if false
-                GUILayout.Space(4);
-                GUILayout.Label("Parent", GUILayout.Width(100));
-                GUILayout.Space(4);
-                GUILayout.Label("Is Moon", GUILayout.Width(50));
-#endif
             }
             deltaVScroll = GUILayout.BeginScrollView(deltaVScroll, HighLogic.Skin.textArea, GUILayout.ExpandHeight(true));
             foreach (var dv in DeltaVDict)

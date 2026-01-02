@@ -154,6 +154,8 @@ namespace MissionPlanner
                         if (loadActiveMissions)
                         {
                             mission = ActiveMissions.GetMission(mf.MissionName);
+                            ScreenMessages.PostScreenMessage("Loaded mission “" + mission.missionName + "”.", 2f, ScreenMessageStyle.UPPER_LEFT);
+                            showLoadDialog = false;
                         }
                         else
                         {
@@ -215,8 +217,8 @@ namespace MissionPlanner
 
                     }
                 }
-
             }
+
             GUILayout.EndScrollView();
 
             GUILayout.FlexibleSpace();
@@ -225,7 +227,9 @@ namespace MissionPlanner
             {
                 GUILayout.FlexibleSpace();
                 if (GUILayout.Button("Close", ScaledGUILayoutWidth(100)))
+                {
                     showLoadDialog = false;
+                }
                 GUILayout.FlexibleSpace();
             }
 
@@ -338,7 +342,7 @@ namespace MissionPlanner
                     onYes: OnFullMission,
                     onNo: OnSimpleChecklist,
                     vertical: true,
-                    minWidth : 180f
+                    minWidth: 180f
                 );
 
 

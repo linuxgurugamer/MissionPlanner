@@ -199,12 +199,11 @@ namespace MissionPlanner
         private const float DoubleClickSec = 0.30f;
 
         // Save indicator
-        private string lastSaveInfo = "";
-        private float lastSaveShownUntil = 0f;
+        private static string lastSaveInfo = "";
+        private static float lastSaveShownUntil = 0f;
         private const float SaveIndicatorSeconds = 3f;
-        private bool lastSaveWasSuccess = true;
+        private static bool lastSaveWasSuccess = true;
 
-        //static View currentView = View.Full;
         private static bool IsNullOrWhiteSpace(string s)
         {
             return String.IsNullOrEmpty(s) || s.Trim().Length == 0;
@@ -237,7 +236,6 @@ namespace MissionPlanner
             clearConfirmWinId = WindowHelper.NextWindowId("clearConfirmWin");
             summaryWinId = WindowHelper.NextWindowId("summaryWin");
 
-            //LoadIconsOrFallback();
             LoadUISettings();
 
             StartCoroutine(Initialization.BackgroundInitialize());
@@ -246,9 +244,6 @@ namespace MissionPlanner
 
             GameEvents.onHideUI.Add(onHideUI);
             GameEvents.onShowUI.Add(onShowUI);
-            //GameEvents.onGamePause.Add(OnGamePaused);
-            //GameEvents.onGameUnpause.Add(OnGameUnpaused);
-
             GameEvents.onVesselSwitching.Add(onVesselSwitching);
             GameEvents.onVesselChange.Add(onVesselChange);
             GameEvents.onEditorShipModified.Add(onEditorShipModified);
@@ -297,32 +292,22 @@ namespace MissionPlanner
 
             GameEvents.onHideUI.Remove(onHideUI);
             GameEvents.onShowUI.Remove(onShowUI);
-
-            //GameEvents.onGamePause.Remove(OnGamePaused);
-            //GameEvents.onGameUnpause.Remove(OnGameUnpaused);
-
             GameEvents.onVesselSwitching.Remove(onVesselSwitching);
             GameEvents.onVesselChange.Remove(onVesselChange);
             GameEvents.onEditorShipModified.Remove(onEditorShipModified);
-
             GameEvents.onLevelWasLoadedGUIReady.Remove(onLevelWasLoadedGUIReady);
-
             GameEvents.onGameSceneSwitchRequested.Remove(onGameSceneSwitchRequested);
-
         }
 
         void CloseAllDialogs()
         {
-            showMoveDialog = false;
-            showLoadDialog = false; // ???
-            showOverwriteDialog = false; // ???
-            //showDeleteConfirm = false;
-            showPartDialog = false;
-            showNewConfirm = false; // ???
-            //showClearConfirm = false;
-            showTraitDialog =
+            showMoveDialog =
+                showLoadDialog =
+                showOverwriteDialog =
+                showPartDialog =
+                showNewConfirm =
+                showTraitDialog =
                 showModuleDialog =
-                // _showSASDialog =
                 showBodyAsteroidVesselDialog = false;
         }
 
@@ -1793,7 +1778,7 @@ namespace MissionPlanner
         private void OpenSaveAsDialog()
         {
 
-           // if (IsNullOrWhiteSpace(saveAsName) || saveAsName == "Untitled Mission")
+            // if (IsNullOrWhiteSpace(saveAsName) || saveAsName == "Untitled Mission")
             {
                 TextEntryDialogShow(
                             title: "Enter New Mission Name",
@@ -1977,17 +1962,25 @@ namespace MissionPlanner
                 root.AddValue("IndentPerLevel", indentPerLevel);
                 root.AddValue("FoldColWidth", foldColWidth);
 
-                root.AddNode(RectToNode("TreeRect", treeRect));
-                root.AddNode(RectToNode("DetailRect", detailRect));
-                root.AddNode(RectToNode("MoveRect", moveRect));
-                root.AddNode(RectToNode("LoadRect", loadRect));
-                root.AddNode(RectToNode("OverwriteRect", overwriteRect));
-                root.AddNode(RectToNode("DeleteRect", deleteRect));
-                root.AddNode(RectToNode("PartRect", partRect));
-                root.AddNode(RectToNode("SaveAsRect", saveAsRect));
-                root.AddNode(RectToNode("NewConfirmRect", newConfirmRect));
-                root.AddNode(RectToNode("ClearConfirmRect", clearConfirmRect));
-                root.AddNode(RectToNode("SummaryRect", summaryRect));
+                root.AddNode(RectToNode("treeRect", treeRect));
+                root.AddNode(RectToNode("detailRect", detailRect));
+                root.AddNode(RectToNode("moveRect", moveRect));
+                root.AddNode(RectToNode("loadRect", loadRect));
+                root.AddNode(RectToNode("overwriteRect", overwriteRect));
+                root.AddNode(RectToNode("deleteRect", deleteRect));
+                root.AddNode(RectToNode("partRect", partRect));
+
+                root.AddNode(RectToNode("deltaVRect ", deltaVRect));
+                root.AddNode(RectToNode("moduleRect ", moduleRect));
+                root.AddNode(RectToNode("SASRect ", SASRect));
+                root.AddNode(RectToNode("CategoryRect", CategoryRect));
+                root.AddNode(RectToNode("bodyAsteroidVesselRect ", bodyAsteroidVesselRect));
+                root.AddNode(RectToNode("traitRect ", traitRect));
+
+                root.AddNode(RectToNode("saveAsRect", saveAsRect));
+                root.AddNode(RectToNode("newConfirmRect", newConfirmRect));
+                root.AddNode(RectToNode("clearConfirmRect", clearConfirmRect));
+                root.AddNode(RectToNode("summaryRect", summaryRect));
 
                 root.Save(GetUIFileAbsolute());
             }
@@ -2025,17 +2018,25 @@ namespace MissionPlanner
                 indentPerLevel = Mathf.Clamp(indentPerLevel, 10f, 40f);
                 foldColWidth = Mathf.Clamp(foldColWidth, 16f, 48f);
 
-                treeRect = NodeToRect(root.GetNode("TreeRect"), treeRect);
-                detailRect = NodeToRect(root.GetNode("DetailRect"), detailRect);
-                moveRect = NodeToRect(root.GetNode("MoveRect"), moveRect);
-                loadRect = NodeToRect(root.GetNode("LoadRect"), loadRect);
-                overwriteRect = NodeToRect(root.GetNode("OverwriteRect"), overwriteRect);
-                deleteRect = NodeToRect(root.GetNode("DeleteRect"), deleteRect);
-                partRect = NodeToRect(root.GetNode("PartRect"), partRect);
-                saveAsRect = NodeToRect(root.GetNode("SaveAsRect"), saveAsRect);
-                newConfirmRect = NodeToRect(root.GetNode("NewConfirmRect"), newConfirmRect);
-                clearConfirmRect = NodeToRect(root.GetNode("ClearConfirmRect"), clearConfirmRect);
-                summaryRect = NodeToRect(root.GetNode("SummaryRect"), summaryRect);
+                treeRect = NodeToRect(root.GetNode("treeRect"), treeRect);
+                detailRect = NodeToRect(root.GetNode("detailRect"), detailRect);
+                moveRect = NodeToRect(root.GetNode("moveRect"), moveRect);
+                loadRect = NodeToRect(root.GetNode("loadRect"), loadRect);
+                overwriteRect = NodeToRect(root.GetNode("overwriteRect"), overwriteRect);
+                deleteRect = NodeToRect(root.GetNode("deleteRect"), deleteRect);
+                partRect = NodeToRect(root.GetNode("partRect"), partRect);
+
+                deltaVRect = NodeToRect(root.GetNode("deltaVRect "), deltaVRect);
+                moduleRect = NodeToRect(root.GetNode("moduleRect "), moduleRect);
+                SASRect = NodeToRect(root.GetNode("SASRect "), SASRect);
+                CategoryRect = NodeToRect(root.GetNode("CategoryRect"), CategoryRect);
+                bodyAsteroidVesselRect = NodeToRect(root.GetNode("bodyAsteroidVesselRect "), bodyAsteroidVesselRect);
+                traitRect = NodeToRect(root.GetNode("traitRect"), traitRect);
+
+                saveAsRect = NodeToRect(root.GetNode("saveAsRect"), saveAsRect);
+                newConfirmRect = NodeToRect(root.GetNode("newConfirmRect"), newConfirmRect);
+                clearConfirmRect = NodeToRect(root.GetNode("clearConfirmRect"), clearConfirmRect);
+                summaryRect = NodeToRect(root.GetNode("summaryRect"), summaryRect);
             }
             catch (Exception ex)
             {

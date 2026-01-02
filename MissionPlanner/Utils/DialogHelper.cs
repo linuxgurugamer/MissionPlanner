@@ -71,7 +71,6 @@ namespace MissionPlanner
 #if false
         public void Start()
         {
-            Log.Info("YesNoDialog.Start");
         }
 #endif
 
